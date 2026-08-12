@@ -1,0 +1,134 @@
+/* Styles partagés par toutes les feuilles de score */
+:root{
+  --bg:#131E1C;
+  --card:#1D2A27;
+  --card-2:#243330;
+  --line:rgba(233,240,233,.10);
+  --text:#E9F0E9;
+  --muted:#93A79E;
+  --marron:#9A6B45; --vert:#6E9C55; --gris:#93A0A8;
+  --jaune:#DFB149;  --bleu:#4A90C0;  --rouge:#C4604F;
+  --p1:#6E9C55; --p2:#4A90C0; --p3:#DFB149; --p4:#C4604F;
+  --r:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{
+  font-family:"Karla",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto;padding:0 16px}
+
+/* ---------- en-tête ---------- */
+header{padding:22px 0 10px}
+.back{display:inline-block;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:8px}
+.title{
+  font-family:"Fraunces",Georgia,serif;
+  font-variation-settings:"SOFT" 60,"WONK" 1;
+  font-weight:600;font-size:30px;letter-spacing:-.01em;margin:0;line-height:1;
+}
+.subtitle{color:var(--muted);font-size:13px;margin:6px 0 0}
+
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  background:var(--card);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;
+}
+.tab .dot{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.9}
+.tab .pts{font-variant-numeric:tabular-nums;font-weight:700;color:var(--text)}
+.tab[aria-selected="true"]{background:var(--card-2);border-color:rgba(233,240,233,.28);color:var(--text)}
+.tab.add{color:var(--muted);padding:8px 15px;font-size:18px;line-height:1}
+
+/* ---------- nom du joueur ---------- */
+.whois{display:flex;align-items:center;gap:10px;margin:16px 0 4px}
+.whois .swatch{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.whois input{
+  flex:1;background:transparent;border:none;border-bottom:1px dashed var(--line);
+  color:var(--text);font-family:"Fraunces",serif;font-size:22px;font-weight:600;
+  padding:4px 0;min-width:0;
+}
+.whois input:focus{outline:none;border-bottom-color:var(--muted)}
+.kill{background:none;border:none;color:var(--muted);font-size:20px;padding:4px 8px;cursor:pointer}
+
+/* ---------- cartes de catégorie ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 6px;margin:12px 0}
+.card h2{
+  font-family:"Fraunces",serif;font-weight:600;font-size:16px;margin:0 0 2px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+}
+.card h2 .sum{font-family:"Karla";font-size:14px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.hint{color:var(--muted);font-size:12.5px;margin:0 0 8px;line-height:1.45}
+
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:none}
+.row .icon{flex:0 0 34px;height:36px}
+.row .lab{flex:1;min-width:0;font-size:14px}
+.row .lab small{display:block;color:var(--muted);font-size:12px}
+
+.step{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.step button{
+  width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+  background:var(--card-2);color:var(--text);font-size:20px;line-height:1;cursor:pointer;
+  display:grid;place-items:center;-webkit-tap-highlight-color:transparent;
+}
+.step button:active{background:#2E403C}
+.step button:disabled{opacity:.3}
+.step .val{width:34px;text-align:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+
+.seg{display:flex;gap:6px;margin:2px 0 10px}
+.seg button{
+  flex:1;padding:9px;border-radius:11px;border:1px solid var(--line);
+  background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--card-2);color:var(--text);border-color:rgba(233,240,233,.28)}
+
+.num{
+  width:74px;padding:9px;border-radius:11px;border:1px solid var(--line);
+  background:var(--card-2);color:var(--text);font:inherit;font-weight:700;font-size:16px;
+  text-align:center;font-variant-numeric:tabular-nums;
+}
+.num:focus{outline:1px solid var(--muted)}
+.ghost{
+  width:100%;margin:4px 0 10px;padding:11px;border-radius:11px;
+  border:1px dashed var(--line);background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
+}
+
+/* ---------- barre de total ---------- */
+.bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:5;
+  background:rgba(19,30,28,.93);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+.bar .inner{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.bar .tot{flex:1;display:flex;align-items:baseline;gap:9px}
+.bar .tot b{font-family:"Fraunces",serif;font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.bar .tot span{color:var(--muted);font-size:13px}
+.bar .go{
+  background:var(--text);color:#132320;border:none;border-radius:12px;
+  padding:13px 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;
+}
+
+/* ---------- classement ---------- */
+.sheet{position:fixed;inset:0;z-index:10;background:rgba(10,17,16,.72);display:none}
+.sheet.open{display:block}
+.sheet .panel{
+  position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;
+  background:var(--bg);border-top:1px solid var(--line);border-radius:22px 22px 0 0;
+  padding:20px 16px calc(24px + env(safe-area-inset-bottom));
+}
+.sheet .panel .in{max-width:520px;margin:0 auto}
+.rank{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.rank .pos{font-family:"Fraunces",serif;font-size:19px;width:22px;color:var(--muted)}
+.rank .nm{flex:1;font-size:16px;font-weight:500}
+.rank .nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:3px}
+.rank .pt{font-family:"Fraunces",serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.rank.win .pos{color:var(--jaune)}
+.close{width:100%;margin-top:18px;padding:13px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;cursor:pointer}
+.reset{width:100%;margin-top:8px;padding:13px;border-radius:12px;border:none;background:transparent;color:var(--rouge);font:inherit;font-size:13px;cursor:pointer}
+@media (prefers-reduced-motion:no-preference){
+  .card{animation:rise .3s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}

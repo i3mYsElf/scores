@@ -1,7 +1,7 @@
 {
-  "name": "Harmonies — feuille de score",
-  "short_name": "Harmonies",
-  "description": "Feuille de score de fin de partie pour le jeu de société Harmonies",
+  "name": "Scores — feuilles de score",
+  "short_name": "Scores",
+  "description": "Feuilles de score de jeux de société (Harmonies, …)",
   "lang": "fr",
   "start_url": ".",
   "scope": ".",

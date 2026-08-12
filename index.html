@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Harmonies — feuille de score</title>
+<title>Scores — feuilles de score</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#131E1C">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
@@ -12,392 +12,63 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
 <style>
-  :root{
-    --bg:#131E1C;
-    --card:#1D2A27;
-    --card-2:#243330;
-    --line:rgba(233,240,233,.10);
-    --text:#E9F0E9;
-    --muted:#93A79E;
-    --marron:#9A6B45; --vert:#6E9C55; --gris:#93A0A8;
-    --jaune:#DFB149;  --bleu:#4A90C0;  --rouge:#C4604F;
-    --p1:#6E9C55; --p2:#4A90C0; --p3:#DFB149; --p4:#C4604F;
-    --r:16px;
+  /* styles propres à l'accueil */
+  .game{
+    display:flex;align-items:center;gap:14px;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 14px;margin:12px 0;text-decoration:none;color:var(--text);
   }
-  *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text)}
-  body{
-    font-family:"Karla",system-ui,-apple-system,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    padding-bottom:calc(96px + env(safe-area-inset-bottom));
-  }
-  .wrap{max-width:520px;margin:0 auto;padding:0 16px}
-
-  /* ---------- en-tête ---------- */
-  header{padding:22px 0 10px}
-  .title{
-    font-family:"Fraunces",Georgia,serif;
-    font-variation-settings:"SOFT" 60,"WONK" 1;
-    font-weight:600;font-size:30px;letter-spacing:-.01em;margin:0;line-height:1;
-  }
-  .subtitle{color:var(--muted);font-size:13px;margin:6px 0 0}
-
-  .tabs{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none}
-  .tabs::-webkit-scrollbar{display:none}
-  .tab{
-    flex:0 0 auto;display:flex;align-items:center;gap:8px;
-    background:var(--card);border:1px solid var(--line);color:var(--muted);
-    border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;
-  }
-  .tab .dot{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.9}
-  .tab .pts{font-variant-numeric:tabular-nums;font-weight:700;color:var(--text)}
-  .tab[aria-selected="true"]{background:var(--card-2);border-color:rgba(233,240,233,.28);color:var(--text)}
-  .tab.add{color:var(--muted);padding:8px 15px;font-size:18px;line-height:1}
-
-  /* ---------- nom du joueur ---------- */
-  .whois{display:flex;align-items:center;gap:10px;margin:16px 0 4px}
-  .whois .swatch{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
-  .whois input{
-    flex:1;background:transparent;border:none;border-bottom:1px dashed var(--line);
-    color:var(--text);font-family:"Fraunces",serif;font-size:22px;font-weight:600;
-    padding:4px 0;min-width:0;
-  }
-  .whois input:focus{outline:none;border-bottom-color:var(--muted)}
-  .kill{background:none;border:none;color:var(--muted);font-size:20px;padding:4px 8px;cursor:pointer}
-
-  /* ---------- cartes de catégorie ---------- */
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 6px;margin:12px 0}
-  .card h2{
-    font-family:"Fraunces",serif;font-weight:600;font-size:16px;margin:0 0 2px;
-    display:flex;justify-content:space-between;align-items:baseline;gap:10px;
-  }
-  .card h2 .sum{font-family:"Karla";font-size:14px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
-  .hint{color:var(--muted);font-size:12.5px;margin:0 0 8px;line-height:1.45}
-
-  .row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
-  .row:first-of-type{border-top:none}
-  .row .icon{flex:0 0 34px;height:36px}
-  .row .lab{flex:1;min-width:0;font-size:14px}
-  .row .lab small{display:block;color:var(--muted);font-size:12px}
-
-  .step{display:flex;align-items:center;gap:2px;flex:0 0 auto}
-  .step button{
-    width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
-    background:var(--card-2);color:var(--text);font-size:20px;line-height:1;cursor:pointer;
-    display:grid;place-items:center;-webkit-tap-highlight-color:transparent;
-  }
-  .step button:active{background:#2E403C}
-  .step button:disabled{opacity:.3}
-  .step .val{width:34px;text-align:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
-
-  .seg{display:flex;gap:6px;margin:2px 0 10px}
-  .seg button{
-    flex:1;padding:9px;border-radius:11px;border:1px solid var(--line);
-    background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
-  }
-  .seg button[aria-pressed="true"]{background:var(--card-2);color:var(--text);border-color:rgba(233,240,233,.28)}
-
-  .num{
-    width:74px;padding:9px;border-radius:11px;border:1px solid var(--line);
-    background:var(--card-2);color:var(--text);font:inherit;font-weight:700;font-size:16px;
-    text-align:center;font-variant-numeric:tabular-nums;
-  }
-  .num:focus{outline:1px solid var(--muted)}
-  .ghost{
-    width:100%;margin:4px 0 10px;padding:11px;border-radius:11px;
-    border:1px dashed var(--line);background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
-  }
-
-  /* ---------- barre de total ---------- */
-  .bar{
-    position:fixed;left:0;right:0;bottom:0;z-index:5;
-    background:rgba(19,30,28,.93);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-  }
-  .bar .inner{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:14px}
-  .bar .tot{flex:1;display:flex;align-items:baseline;gap:9px}
-  .bar .tot b{font-family:"Fraunces",serif;font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
-  .bar .tot span{color:var(--muted);font-size:13px}
-  .bar .go{
-    background:var(--text);color:#132320;border:none;border-radius:12px;
-    padding:13px 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;
-  }
-
-  /* ---------- classement ---------- */
-  .sheet{position:fixed;inset:0;z-index:10;background:rgba(10,17,16,.72);display:none}
-  .sheet.open{display:block}
-  .sheet .panel{
-    position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;
-    background:var(--bg);border-top:1px solid var(--line);border-radius:22px 22px 0 0;
-    padding:20px 16px calc(24px + env(safe-area-inset-bottom));
-  }
-  .sheet .panel .in{max-width:520px;margin:0 auto}
-  .rank{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
-  .rank .pos{font-family:"Fraunces",serif;font-size:19px;width:22px;color:var(--muted)}
-  .rank .nm{flex:1;font-size:16px;font-weight:500}
-  .rank .nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:3px}
-  .rank .pt{font-family:"Fraunces",serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
-  .rank.win .pos{color:var(--jaune)}
-  .close{width:100%;margin-top:18px;padding:13px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;cursor:pointer}
-  .reset{width:100%;margin-top:8px;padding:13px;border-radius:12px;border:none;background:transparent;color:var(--rouge);font:inherit;font-size:13px;cursor:pointer}
+  .game:active{background:var(--card-2)}
+  .game .thumb{flex:0 0 40px;display:grid;place-items:center}
+  .game .meta{flex:1;min-width:0}
+  .game .meta b{font-family:"Fraunces",serif;font-size:19px;font-weight:600;display:block}
+  .game .meta small{color:var(--muted);font-size:12.5px;display:block;margin-top:3px}
+  .game .chev{color:var(--muted);font-size:20px}
   @media (prefers-reduced-motion:no-preference){
-    .card{animation:rise .3s ease both}
-    @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    .game{animation:rise .3s ease both}
   }
 </style>
 
 <div class="wrap">
   <header>
-    <h1 class="title">Harmonies</h1>
-    <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <h1 class="title">Scores</h1>
+    <p class="subtitle">Feuilles de score de jeux de société</p>
   </header>
 
-  <div class="whois">
-    <span class="swatch" id="swatch"></span>
-    <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false">
-    <button class="kill" id="kill" title="Retirer ce joueur" hidden>×</button>
-  </div>
-
-  <div id="sheetBody"></div>
-</div>
-
-<div class="bar">
-  <div class="inner">
-    <div class="tot"><b id="grand">0</b><span id="whoTot"></span></div>
-    <button class="go" id="openRank">Classement</button>
-  </div>
-</div>
-
-<div class="sheet" id="rankSheet">
-  <div class="panel"><div class="in">
-    <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
-    <div id="rankList"></div>
-    <button class="close" id="closeRank">Retour à la saisie</button>
-    <button class="reset" id="resetAll">Nouvelle partie</button>
-  </div></div>
+  <a class="game" href="harmonies.html">
+    <span class="thumb">
+      <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
+        <path d="M2,32 L2,40 A15,5 0 0 0 32,40 L32,32 Z" fill="#7A5133"/>
+        <ellipse cx="17" cy="32" rx="15" ry="5" fill="#9A6B45"/>
+        <path d="M2,24 L2,32 A15,5 0 0 0 32,32 L32,24 Z" fill="#7A5133"/>
+        <ellipse cx="17" cy="24" rx="15" ry="5" fill="#9A6B45"/>
+        <path d="M2,16 L2,24 A15,5 0 0 0 32,24 L32,16 Z" fill="#4F7439"/>
+        <ellipse cx="17" cy="16" rx="15" ry="5" fill="#6E9C55"/>
+      </svg>
+    </span>
+    <span class="meta">
+      <b>Harmonies</b>
+      <small id="harmoniesSub">Feuille de fin de partie</small>
+    </span>
+    <span class="chev">›</span>
+  </a>
 </div>
 
 <script>
-const TOK = {
-  marron:['#9A6B45','#7A5133'], vert:['#6E9C55','#4F7439'], gris:['#93A0A8','#6E7B83'],
-  jaune:['#DFB149','#B78B2E'], bleu:['#4A90C0','#35709B'], rouge:['#C4604F','#9A4737']
-};
-const RIVER = [0,0,2,5,8,11,15]; // 0,1,2,3,4,5,6 jetons
-const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)'];
-
-/* Pile de jetons vue de côté, comme sur le plateau */
-function stack(colors){
-  const n = colors.length, base = 30, h = 8;
-  let s = `<svg viewBox="0 0 34 36" width="34" height="36" aria-hidden="true">`;
-  for(let i=0;i<n;i++){
-    const [lt,dk] = TOK[colors[i]], y = base - i*h;
-    s += `<path d="M2,${y} L2,${y+h} A15,5 0 0 0 32,${y+h} L32,${y} Z" fill="${dk}"/>`;
-    s += `<ellipse cx="17" cy="${y}" rx="15" ry="5" fill="${lt}"/>`;
-  }
-  return s + `</svg>`;
-}
-
-const blank = () => ({
-  arbre:[0,0,0], mont:[0,0,0], champs:0, batiments:0,
-  face:'A', riviere:0, iles:1, animaux:[0], esprit:0
-});
-let players = [mk('Joueur 1'), mk('Joueur 2')], cur = 0;
-function mk(nom){ return {nom, d:blank()}; }
-
-/* ---------- calcul ---------- */
-function score(d){
-  const arbre = d.arbre[0]*1 + d.arbre[1]*3 + d.arbre[2]*7;
-  const mont  = d.mont[0]*1  + d.mont[1]*3  + d.mont[2]*7;
-  const champs = d.champs*5, batiments = d.batiments*5;
-  const eau = d.face === 'A'
-    ? (d.riviere > 6 ? 15 + (d.riviere-6)*4 : RIVER[d.riviere] || 0)
-    : d.iles*5;
-  const animaux = d.animaux.reduce((a,b)=>a+(+b||0),0);
-  const esprit = +d.esprit || 0;
-  return {arbre, mont, champs, batiments, eau, animaux, esprit,
-          total: arbre+mont+champs+batiments+eau+animaux+esprit};
-}
-
-/* ---------- rendu ---------- */
-function rowStep(path, colors, lab, sub){
-  return `<div class="row">
-    <div class="icon">${stack(colors)}</div>
-    <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
-    <div class="step">
-      <button data-step="${path}" data-by="-1" aria-label="moins">−</button>
-      <span class="val" data-val="${path}">0</span>
-      <button data-step="${path}" data-by="1" aria-label="plus">+</button>
-    </div></div>`;
-}
-
-function drawSheet(){
-  const d = players[cur].d;
-  document.getElementById('sheetBody').innerHTML = `
-  <div class="card">
-    <h2>Arbres <span class="sum" data-sum="arbre">0</span></h2>
-    <p class="hint">1 jeton vert posé sur 0, 1 ou 2 jetons marron.</p>
-    ${rowStep('arbre.0',['vert'],'Arbre de 1 jeton','1 point')}
-    ${rowStep('arbre.1',['marron','vert'],'Arbre de 2 jetons','3 points')}
-    ${rowStep('arbre.2',['marron','marron','vert'],'Arbre de 3 jetons','7 points')}
-  </div>
-
-  <div class="card">
-    <h2>Montagnes <span class="sum" data-sum="mont">0</span></h2>
-    <p class="hint">Ne comptez que les montagnes adjacentes à au moins une autre montagne. Une montagne isolée ne rapporte rien.</p>
-    ${rowStep('mont.0',['gris'],'Pile de 1 jeton','1 point')}
-    ${rowStep('mont.1',['gris','gris'],'Pile de 2 jetons','3 points')}
-    ${rowStep('mont.2',['gris','gris','gris'],'Pile de 3 jetons','7 points')}
-  </div>
-
-  <div class="card">
-    <h2>Champs &amp; bâtiments <span class="sum" data-sum="cb">0</span></h2>
-    <p class="hint">Un champ = au moins 2 jetons jaunes connectés (un groupe de 4 jetons reste un seul champ). Un bâtiment compte s'il est entouré d'au moins 3 couleurs différentes.</p>
-    ${rowStep('champs',['jaune','jaune'].slice(0,1),'Champs','5 points chacun')}
-    ${rowStep('batiments',['gris','rouge'],'Bâtiments validés','5 points chacun')}
-  </div>
-
-  <div class="card">
-    <h2>Eau <span class="sum" data-sum="eau">0</span></h2>
-    <div class="seg">
-      <button data-face="A" aria-pressed="${d.face==='A'}">Face A · Rivière</button>
-      <button data-face="B" aria-pressed="${d.face==='B'}">Face B · Îles</button>
-    </div>
-    <div id="eauBody"></div>
-  </div>
-
-  <div class="card">
-    <h2>Cartes animaux <span class="sum" data-sum="animaux">0</span></h2>
-    <p class="hint">Saisissez les points inscrits sur chaque carte, selon le nombre de cubes que vous avez posés.</p>
-    <div id="animList"></div>
-    <button class="ghost" id="addAnim">+ Ajouter une carte</button>
-    <div class="row">
-      <div class="lab">Esprit de la nature<small>Laissez à 0 si vous n'y jouez pas</small></div>
-      <input class="num" id="esprit" type="number" inputmode="numeric" min="0" value="${d.esprit}">
-    </div>
-  </div>`;
-  drawEau(); drawAnim(); refresh();
-}
-
-function drawEau(){
-  const d = players[cur].d;
-  document.getElementById('eauBody').innerHTML = d.face === 'A'
-    ? `<p class="hint">Seule la plus longue rivière compte : suivez-la d'un bout à l'autre par le chemin le plus court. Barème : 0 · 2 · 5 · 8 · 11 · 15, puis +4 par jeton au-delà de 6.</p>
-       ${rowStep('riviere',['bleu'],'Longueur de la rivière','en jetons bleus')}`
-    : `<p class="hint">Chaque zone isolée par vos jetons bleus est une île, 5 points pièce. Vous avez toujours au moins 1 île.</p>
-       ${rowStep('iles',['bleu','bleu'].slice(0,1),'Nombre d\'îles','5 points chacune')}`;
-}
-
-function drawAnim(){
-  const d = players[cur].d;
-  document.getElementById('animList').innerHTML = d.animaux.map((v,i)=>`
-    <div class="row">
-      <div class="lab">Carte ${i+1}</div>
-      <input class="num" data-anim="${i}" type="number" inputmode="numeric" min="0" value="${v}">
-      <button class="kill" data-delanim="${i}" aria-label="Supprimer la carte ${i+1}">×</button>
-    </div>`).join('');
-}
-
-function refresh(){
-  const d = players[cur].d, s = score(d);
-  document.querySelectorAll('[data-val]').forEach(el=>{
-    el.textContent = get(d, el.dataset.val);
-  });
-  const sums = {arbre:s.arbre, mont:s.mont, cb:s.champs+s.batiments, eau:s.eau, animaux:s.animaux+s.esprit};
-  document.querySelectorAll('[data-sum]').forEach(el=>{
-    el.textContent = sums[el.dataset.sum] + ' pts';
-  });
-  document.getElementById('grand').textContent = s.total;
-  document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
-  drawTabs(); save();
-}
-
-/* ---------- persistance ---------- */
-const KEY = 'harmonies-score-v1';
-function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify({players, cur})); }catch(e){}
-}
-function load(){
-  try{
-    const s = JSON.parse(localStorage.getItem(KEY));
-    if(s && Array.isArray(s.players) && s.players.length){
-      players = s.players.slice(0,4).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...blank(), ...p.d}}));
-      cur = Math.min(+s.cur || 0, players.length-1);
+/* Aperçu de la partie en cours, si des scores ont été saisis */
+try{
+  const s = JSON.parse(localStorage.getItem('harmonies-score-v1'));
+  if(s && Array.isArray(s.players) && s.players.length){
+    const names = s.players.map(p=>p.nom).filter(Boolean);
+    const totals = Array.isArray(s.totals) ? s.totals : [];
+    if(totals.some(t=>t>0)){
+      document.getElementById('harmoniesSub').textContent =
+        'Partie en cours · ' + names.map((n,i)=>n+' '+(totals[i]||0)).join(' · ');
     }
-  }catch(e){}
-}
-
-function drawTabs(){
-  const t = document.getElementById('tabs');
-  t.innerHTML = players.map((p,i)=>`
-    <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--text)':COLORS[i]}">
-      <span class="dot" style="color:${COLORS[i]}"></span>${p.nom}
-      <span class="pts">${score(p.d).total}</span>
-    </button>`).join('')
-    + (players.length < 4 ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
-  document.getElementById('pname').value = players[cur].nom;
-  document.getElementById('swatch').style.background = COLORS[cur];
-  document.getElementById('kill').hidden = players.length < 2;
-}
-
-/* ---------- accès par chemin ---------- */
-function get(o,p){ const [a,b] = p.split('.'); return b===undefined ? o[a] : o[a][+b]; }
-function set(o,p,v){ const [a,b] = p.split('.'); if(b===undefined) o[a]=v; else o[a][+b]=v; }
-
-/* ---------- interactions ---------- */
-document.addEventListener('click', e=>{
-  const d = players[cur].d;
-  const st = e.target.closest('[data-step]');
-  if(st){
-    const p = st.dataset.step, min = (p==='iles') ? 1 : 0;
-    set(d, p, Math.max(min, get(d,p) + (+st.dataset.by)));
-    refresh(); return;
   }
-  const face = e.target.closest('[data-face]');
-  if(face){ d.face = face.dataset.face;
-    document.querySelectorAll('[data-face]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.face===d.face));
-    drawEau(); refresh(); return; }
-  const tab = e.target.closest('[data-tab]');
-  if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
-  if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
-  if(e.target.id === 'kill'){ players.splice(cur,1); cur = 0; drawSheet(); return; }
-  if(e.target.id === 'addAnim'){ d.animaux.push(0); drawAnim(); refresh(); return; }
-  const del = e.target.closest('[data-delanim]');
-  if(del){ d.animaux.splice(+del.dataset.delanim,1); if(!d.animaux.length) d.animaux.push(0); drawAnim(); refresh(); return; }
-  if(e.target.id === 'openRank'){ showRank(); return; }
-  if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
-  if(e.target.id === 'resetAll'){
-    players = players.map(p=>mk(p.nom)); cur = 0;
-    document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
-  }
-});
-
-document.addEventListener('input', e=>{
-  const d = players[cur].d;
-  if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); drawTabs(); refresh(); return; }
-  if(e.target.id === 'esprit'){ d.esprit = Math.max(0, +e.target.value||0); refresh(); return; }
-  if(e.target.dataset.anim !== undefined){ d.animaux[+e.target.dataset.anim] = Math.max(0, +e.target.value||0); refresh(); }
-});
-
-function showRank(){
-  const list = players.map((p,i)=>({...p, s:score(p.d), c:COLORS[i]}))
-                      .sort((a,b)=>b.s.total - a.s.total);
-  document.getElementById('rankList').innerHTML = list.map((p,i)=>{
-    const s = p.s, parts = [
-      ['Arbres',s.arbre],['Montagnes',s.mont],['Champs',s.champs],
-      ['Bâtiments',s.batiments],['Eau',s.eau],['Animaux',s.animaux+s.esprit]
-    ].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ') || 'Aucun point saisi';
-    return `<div class="rank ${i===0?'win':''}">
-      <span class="pos">${i+1}</span>
-      <span class="nm" style="color:${p.c}">${p.nom}<small>${parts}</small></span>
-      <span class="pt">${s.total}</span></div>`;
-  }).join('');
-  document.getElementById('rankSheet').classList.add('open');
-}
-
-load();
-drawSheet();
+}catch(e){}
 
 if ('serviceWorker' in navigator){
   addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
