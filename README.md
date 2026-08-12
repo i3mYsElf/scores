@@ -1,1 +1,1 @@
-# sores
+# scores
