@@ -7,6 +7,7 @@ Feuilles de score de jeux de société. PWA statique : installable, fonctionne h
 ```
 index.html      accueil — menu des jeux
 harmonies.html  feuille de score Harmonies
+7wonders.html   feuille de score 7 Wonders (base + extensions activables)
 common.css      styles partagés (onglets joueurs, cartes, steppers, classement…)
 manifest.json   manifest PWA
 sw.js           service worker (cache offline)

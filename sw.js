@@ -1,7 +1,8 @@
-const CACHE = 'scores-v2';
+const CACHE = 'scores-v3';
 const PRECACHE = [
   '.',
   'harmonies.html',
+  '7wonders.html',
   'common.css',
   'manifest.json',
   'icons/icon-192.png',

@@ -1,0 +1,297 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>7 Wonders — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#131E1C">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">7 Wonders</h1>
+    <p class="subtitle">Feuille de score — fin de partie</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div class="whois">
+    <span class="swatch" id="swatch"></span>
+    <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false">
+    <button class="kill" id="kill" title="Retirer ce joueur" hidden>×</button>
+  </div>
+
+  <div id="sheetBody"></div>
+</div>
+
+<div class="bar">
+  <div class="inner">
+    <div class="tot"><b id="grand">0</b><span id="whoTot"></span></div>
+    <button class="go" id="openRank">Classement</button>
+  </div>
+</div>
+
+<div class="sheet" id="rankSheet">
+  <div class="panel"><div class="in">
+    <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
+    <div id="rankList"></div>
+    <button class="close" id="closeRank">Retour à la saisie</button>
+    <button class="reset" id="resetAll">Nouvelle partie</button>
+  </div></div>
+</div>
+
+<script>
+const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)','var(--p5)','var(--p6)','var(--p7)','var(--p8)'];
+const EXTS = [
+  ['leaders','Leaders'], ['cities','Cities'], ['armada','Armada'], ['edifice','Édifice']
+];
+
+const blank = () => ({
+  def:0, v1:0, v2:0, v3:0,                       // conflits militaires
+  pieces:0,                                       // trésor
+  merveille:0, civils:0, commerce:0, guildes:0,   // points de cartes
+  compas:0, roue:0, tablette:0, jokers:0,         // science
+  leaders:0,                                      // Leaders
+  cities:0, dettes:0,                             // Cities
+  naval:0, iles:0, flotte:0,                      // Armada
+  edifice:0                                       // Édifice
+});
+const SIGNED = new Set(['naval','edifice']);
+let players = [mk('Joueur 1'), mk('Joueur 2'), mk('Joueur 3')], cur = 0;
+let exts = {leaders:false, cities:false, armada:false, edifice:false};
+function mk(nom){ return {nom, d:blank()}; }
+function maxPlayers(){ return exts.cities ? 8 : 7; }
+
+/* ---------- calcul ---------- */
+/* Science : n² par symbole + 7 par set complet, jokers affectés au mieux (force brute) */
+function bestScience(a,b,c,j){
+  let best = 0;
+  for(let i=0;i<=j;i++) for(let k=0;i+k<=j;k++){
+    const x=a+i, y=b+k, z=c+(j-i-k);
+    best = Math.max(best, x*x + y*y + z*z + 7*Math.min(x,y,z));
+  }
+  return best;
+}
+
+function score(d){
+  const militaire = -d.def + d.v1 + 3*d.v2 + 5*d.v3;
+  const tresor = Math.floor(d.pieces/3);
+  const science = bestScience(d.compas, d.roue, d.tablette, d.jokers);
+  const merveille=+d.merveille||0, civils=+d.civils||0, commerce=+d.commerce||0, guildes=+d.guildes||0;
+  const leaders = exts.leaders ? (+d.leaders||0) : 0;
+  const cities  = exts.cities  ? (+d.cities||0) - d.dettes : 0;
+  const armada  = exts.armada  ? (+d.naval||0) + (+d.iles||0) + (+d.flotte||0) : 0;
+  const edifice = exts.edifice ? (+d.edifice||0) : 0;
+  return {militaire, tresor, merveille, civils, commerce, guildes, science,
+          leaders, cities, armada, edifice,
+          total: militaire+tresor+merveille+civils+commerce+guildes+science
+                 +leaders+cities+armada+edifice};
+}
+
+/* ---------- rendu ---------- */
+function sq(color){
+  return `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${color};margin-right:7px"></span>`;
+}
+function rowStep(path, lab, sub){
+  return `<div class="row">
+    <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
+    <div class="step">
+      <button data-step="${path}" data-by="-1" aria-label="moins">−</button>
+      <span class="val" data-val="${path}">0</span>
+      <button data-step="${path}" data-by="1" aria-label="plus">+</button>
+    </div></div>`;
+}
+function rowNum(d, path, lab, sub){
+  const signed = SIGNED.has(path);
+  return `<div class="row">
+    <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
+    <input class="num" data-num="${path}" type="number" ${signed?'':'min="0" inputmode="numeric"'} value="${d[path]}">
+  </div>`;
+}
+
+function drawSheet(){
+  const d = players[cur].d;
+  document.getElementById('sheetBody').innerHTML = `
+  <div class="card">
+    <h2>Extensions</h2>
+    <p class="hint">Activez celles utilisées dans cette partie (commun à tous les joueurs).</p>
+    <div class="seg">
+      ${EXTS.map(([k,lab])=>`<button data-ext="${k}" aria-pressed="${exts[k]}">${lab}</button>`).join('')}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--rouge)')}Conflits militaires <span class="sum" data-sum="militaire">0</span></h2>
+    <p class="hint">Comptez vos jetons de conflit terrestre.</p>
+    ${rowStep('def','Jetons défaite','−1 point chacun')}
+    ${rowStep('v1','Victoires âge I','+1 point chacune')}
+    ${rowStep('v2','Victoires âge II','+3 points chacune')}
+    ${rowStep('v3','Victoires âge III','+5 points chacune')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--jaune)')}Trésor <span class="sum" data-sum="tresor">0</span></h2>
+    <p class="hint">1 point par tranche de 3 pièces.</p>
+    ${rowStep('pieces','Pièces','dans votre réserve')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Merveille &amp; bâtiments <span class="sum" data-sum="cartes">0</span></h2>
+    <p class="hint">Reportez les points inscrits sur vos cartes et étapes de merveille.</p>
+    ${rowNum(d,'merveille','Merveille','étapes construites')}
+    ${rowNum(d,'civils','Bâtiments civils','cartes bleues')}
+    ${rowNum(d,'commerce','Bâtiments commerciaux','cartes jaunes d’âge III')}
+    ${rowNum(d,'guildes','Guildes','cartes violettes'+(exts.armada?' — max 10 pts par guilde avec Armada':''))}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--vert)')}Science <span class="sum" data-sum="science">0</span></h2>
+    <p class="hint">n² points par symbole + 7 points par set des 3 symboles. Les jokers (guilde des scientifiques, leaders…) sont placés automatiquement au mieux.</p>
+    ${rowStep('compas','Compas')}
+    ${rowStep('roue','Roues')}
+    ${rowStep('tablette','Tablettes')}
+    ${rowStep('jokers','Jokers','symbole au choix')}
+  </div>
+
+  ${exts.leaders ? `
+  <div class="card">
+    <h2>${sq('#E9F0E9')}Leaders <span class="sum" data-sum="leaders">0</span></h2>
+    ${rowNum(d,'leaders','Points des leaders','cartes blanches')}
+  </div>` : ''}
+
+  ${exts.cities ? `
+  <div class="card">
+    <h2>${sq('#4A5568')}Cities <span class="sum" data-sum="cities">0</span></h2>
+    ${rowNum(d,'cities','Bâtiments de ville','cartes noires')}
+    ${rowStep('dettes','Jetons dette','−1 point chacun')}
+  </div>` : ''}
+
+  ${exts.armada ? `
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Armada <span class="sum" data-sum="armada">0</span></h2>
+    ${rowNum(d,'naval','Conflits navals','total des jetons, peut être négatif')}
+    ${rowNum(d,'iles','Îles','points des cartes île')}
+    ${rowNum(d,'flotte','Chantier naval','position de la flotte bleue')}
+  </div>` : ''}
+
+  ${exts.edifice ? `
+  <div class="card">
+    <h2>${sq('var(--marron)')}Édifice <span class="sum" data-sum="edifice">0</span></h2>
+    ${rowNum(d,'edifice','Édifices','récompenses, ou pénalités en négatif')}
+  </div>` : ''}`;
+  refresh();
+}
+
+function refresh(){
+  const d = players[cur].d, s = score(d);
+  document.querySelectorAll('[data-val]').forEach(el=>{ el.textContent = d[el.dataset.val]; });
+  const sums = {militaire:s.militaire, tresor:s.tresor,
+    cartes:s.merveille+s.civils+s.commerce+s.guildes, science:s.science,
+    leaders:s.leaders, cities:s.cities, armada:s.armada, edifice:s.edifice};
+  document.querySelectorAll('[data-sum]').forEach(el=>{
+    el.textContent = sums[el.dataset.sum] + ' pts';
+  });
+  document.getElementById('grand').textContent = s.total;
+  document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
+  drawTabs(); save();
+}
+
+function drawTabs(){
+  const t = document.getElementById('tabs');
+  t.innerHTML = players.map((p,i)=>`
+    <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--text)':COLORS[i]}">
+      <span class="dot" style="color:${COLORS[i]}"></span>${p.nom}
+      <span class="pts">${score(p.d).total}</span>
+    </button>`).join('')
+    + (players.length < maxPlayers() ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
+  document.getElementById('pname').value = players[cur].nom;
+  document.getElementById('swatch').style.background = COLORS[cur];
+  document.getElementById('kill').hidden = players.length < 2;
+}
+
+/* ---------- persistance ---------- */
+const KEY = '7wonders-score-v1';
+function save(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify({players, cur, exts, totals: players.map(p=>score(p.d).total)}));
+  }catch(e){}
+}
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if(s && Array.isArray(s.players) && s.players.length){
+      exts = {...exts, ...(s.exts||{})};
+      players = s.players.slice(0,8).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...blank(), ...p.d}}));
+      cur = Math.min(+s.cur || 0, players.length-1);
+    }
+  }catch(e){}
+}
+
+/* ---------- interactions ---------- */
+document.addEventListener('click', e=>{
+  const d = players[cur].d;
+  const st = e.target.closest('[data-step]');
+  if(st){
+    const p = st.dataset.step;
+    d[p] = Math.max(0, d[p] + (+st.dataset.by));
+    refresh(); return;
+  }
+  const ext = e.target.closest('[data-ext]');
+  if(ext){
+    exts[ext.dataset.ext] = !exts[ext.dataset.ext];
+    if(players.length > maxPlayers()){ players = players.slice(0, maxPlayers()); cur = Math.min(cur, players.length-1); }
+    drawSheet(); return;
+  }
+  const tab = e.target.closest('[data-tab]');
+  if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
+  if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
+  if(e.target.id === 'kill'){ players.splice(cur,1); cur = 0; drawSheet(); return; }
+  if(e.target.id === 'openRank'){ showRank(); return; }
+  if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
+  if(e.target.id === 'resetAll'){
+    players = players.map(p=>mk(p.nom)); cur = 0;
+    document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
+  }
+});
+
+document.addEventListener('input', e=>{
+  const d = players[cur].d;
+  if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); refresh(); return; }
+  if(e.target.dataset.num !== undefined){
+    const p = e.target.dataset.num, v = +e.target.value || 0;
+    d[p] = SIGNED.has(p) ? v : Math.max(0, v);
+    refresh();
+  }
+});
+
+function showRank(){
+  const list = players.map((p,i)=>({...p, s:score(p.d), c:COLORS[i]}))
+                      .sort((a,b)=>b.s.total - a.s.total);
+  document.getElementById('rankList').innerHTML = list.map((p,i)=>{
+    const s = p.s, parts = [
+      ['Militaire',s.militaire],['Trésor',s.tresor],['Merveille',s.merveille],
+      ['Civils',s.civils],['Commerce',s.commerce],['Guildes',s.guildes],['Science',s.science],
+      ['Leaders',s.leaders],['Cities',s.cities],['Armada',s.armada],['Édifice',s.edifice]
+    ].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ') || 'Aucun point saisi';
+    return `<div class="rank ${i===0?'win':''}">
+      <span class="pos">${i+1}</span>
+      <span class="nm" style="color:${p.c}">${p.nom}<small>${parts}</small></span>
+      <span class="pt">${s.total}</span></div>`;
+  }).join('');
+  document.getElementById('rankSheet').classList.add('open');
+}
+
+load();
+drawSheet();
+
+if ('serviceWorker' in navigator){
+  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>

@@ -54,21 +54,34 @@
     </span>
     <span class="chev">›</span>
   </a>
+
+  <a class="game" href="7wonders.html">
+    <span class="thumb">
+      <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
+        <path d="M3,42 L31,42 L26,33 L8,33 Z" fill="#DFB149"/>
+        <path d="M9,31 L25,31 L21,23 L13,23 Z" fill="#B78B2E"/>
+        <path d="M13,21 L21,21 L17,12 Z" fill="#EBC66F"/>
+      </svg>
+    </span>
+    <span class="meta">
+      <b>7 Wonders</b>
+      <small id="wondersSub">Base et extensions</small>
+    </span>
+    <span class="chev">›</span>
+  </a>
 </div>
 
 <script>
 /* Aperçu de la partie en cours, si des scores ont été saisis */
-try{
-  const s = JSON.parse(localStorage.getItem('harmonies-score-v1'));
-  if(s && Array.isArray(s.players) && s.players.length){
-    const names = s.players.map(p=>p.nom).filter(Boolean);
-    const totals = Array.isArray(s.totals) ? s.totals : [];
-    if(totals.some(t=>t>0)){
-      document.getElementById('harmoniesSub').textContent =
-        'Partie en cours · ' + names.map((n,i)=>n+' '+(totals[i]||0)).join(' · ');
+for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub']]){
+  try{
+    const s = JSON.parse(localStorage.getItem(key));
+    if(s && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){
+      document.getElementById(id).textContent =
+        'Partie en cours · ' + s.players.map((p,i)=>(p.nom||'?')+' '+(s.totals[i]||0)).join(' · ');
     }
-  }
-}catch(e){}
+  }catch(e){}
+}
 
 if ('serviceWorker' in navigator){
   addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
