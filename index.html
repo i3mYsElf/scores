@@ -1,6 +1,14 @@
+<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Harmonies — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#131E1C">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
@@ -302,7 +310,22 @@ function refresh(){
   });
   document.getElementById('grand').textContent = s.total;
   document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
-  drawTabs();
+  drawTabs(); save();
+}
+
+/* ---------- persistance ---------- */
+const KEY = 'harmonies-score-v1';
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify({players, cur})); }catch(e){}
+}
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if(s && Array.isArray(s.players) && s.players.length){
+      players = s.players.slice(0,4).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...blank(), ...p.d}}));
+      cur = Math.min(+s.cur || 0, players.length-1);
+    }
+  }catch(e){}
 }
 
 function drawTabs(){
@@ -373,5 +396,10 @@ function showRank(){
   document.getElementById('rankSheet').classList.add('open');
 }
 
+load();
 drawSheet();
+
+if ('serviceWorker' in navigator){
+  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
 </script>
