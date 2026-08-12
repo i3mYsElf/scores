@@ -69,11 +69,27 @@
     </span>
     <span class="chev">›</span>
   </a>
+
+  <a class="game" href="wonderfulworld.html">
+    <span class="thumb">
+      <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
+        <circle cx="17" cy="23" r="14" fill="#4A90C0"/>
+        <path d="M8,14 Q14,12 16,17 Q13,22 8,20 Q6,17 8,14 Z" fill="#6E9C55"/>
+        <path d="M20,24 Q27,22 28,28 Q24,34 19,31 Q18,27 20,24 Z" fill="#6E9C55"/>
+        <path d="M14,33 Q18,32 17,36 Q14,37 14,33 Z" fill="#6E9C55"/>
+      </svg>
+    </span>
+    <span class="meta">
+      <b>It's a Wonderful World</b>
+      <small id="wonderfulSub">Cartes et multiplicateurs</small>
+    </span>
+    <span class="chev">›</span>
+  </a>
 </div>
 
 <script>
 /* Aperçu de la partie en cours, si des scores ont été saisis */
-for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub']]){
+for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub']]){
   try{
     const s = JSON.parse(localStorage.getItem(key));
     if(s && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){

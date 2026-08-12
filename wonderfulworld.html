@@ -1,0 +1,231 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>It's a Wonderful World — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#131E1C">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">It's a Wonderful World</h1>
+    <p class="subtitle">Feuille de score — fin de partie</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div class="whois">
+    <span class="swatch" id="swatch"></span>
+    <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false">
+    <button class="kill" id="kill" title="Retirer ce joueur" hidden>×</button>
+  </div>
+
+  <div id="sheetBody"></div>
+</div>
+
+<div class="bar">
+  <div class="inner">
+    <div class="tot"><b id="grand">0</b><span id="whoTot"></span></div>
+    <button class="go" id="openRank">Classement</button>
+  </div>
+</div>
+
+<div class="sheet" id="rankSheet">
+  <div class="panel"><div class="in">
+    <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
+    <div id="rankList"></div>
+    <button class="close" id="closeRank">Retour à la saisie</button>
+    <button class="reset" id="resetAll">Nouvelle partie</button>
+  </div></div>
+</div>
+
+<script>
+const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)','var(--p5)'];
+const MAXP = 5;
+
+const blank = () => ({
+  fixes:0,                 // PV imprimés sur les cartes
+  mults:[{v:0,n:0}],       // cartes multiplicatrices : v PV × n
+  financiers:0, generaux:0,// jetons personnages (1 PV chacun)
+  cartes:0                 // cartes construites — départage uniquement
+});
+let players = [mk('Joueur 1'), mk('Joueur 2')], cur = 0;
+function mk(nom){ return {nom, d:blank()}; }
+
+/* ---------- calcul ---------- */
+function score(d){
+  const fixes = +d.fixes || 0;
+  const mults = d.mults.reduce((a,m)=>a + (+m.v||0)*(+m.n||0), 0);
+  const financiers = d.financiers, generaux = d.generaux;
+  return {fixes, mults, financiers, generaux,
+          total: fixes + mults + financiers + generaux};
+}
+
+/* ---------- rendu ---------- */
+function sq(color){
+  return `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${color};margin-right:7px"></span>`;
+}
+function rowStep(path, lab, sub){
+  return `<div class="row">
+    <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
+    <div class="step">
+      <button data-step="${path}" data-by="-1" aria-label="moins">−</button>
+      <span class="val" data-val="${path}">0</span>
+      <button data-step="${path}" data-by="1" aria-label="plus">+</button>
+    </div></div>`;
+}
+
+function drawSheet(){
+  const d = players[cur].d;
+  document.getElementById('sheetBody').innerHTML = `
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Points des cartes <span class="sum" data-sum="cartes">0</span></h2>
+    <p class="hint">La somme des PV fixes imprimés sur vos cartes construites.</p>
+    <div class="row">
+      <div class="lab">Points fixes</div>
+      <input class="num" data-num="fixes" type="number" min="0" inputmode="numeric" value="${d.fixes}">
+    </div>
+    <p class="hint" style="margin-top:8px">Une ligne par carte multiplicatrice : sa valeur en PV × le nombre d'éléments concernés (cartes d'une catégorie, jetons…). L'app fait la multiplication.</p>
+    <div id="multList"></div>
+    <button class="ghost" id="addMult">+ Ajouter un multiplicateur</button>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--jaune)')}Personnages <span class="sum" data-sum="persos">0</span></h2>
+    <p class="hint">1 point par jeton. Les bonus « X PV par Financier/Général » de certaines cartes se saisissent en multiplicateur ci-dessus.</p>
+    ${rowStep('financiers','Financiers','jetons dorés')}
+    ${rowStep('generaux','Généraux','jetons rouges')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--gris)')}Départage <span class="sum">0 pts</span></h2>
+    <p class="hint">Ne rapporte aucun point : en cas d'égalité, le plus de cartes construites l'emporte, puis le plus de jetons personnages.</p>
+    ${rowStep('cartes','Cartes construites','dans votre empire')}
+  </div>`;
+  drawMults(); refresh();
+}
+
+function drawMults(){
+  const d = players[cur].d;
+  document.getElementById('multList').innerHTML = d.mults.map((m,i)=>`
+    <div class="row">
+      <input class="num" data-mv="${i}" type="number" min="0" inputmode="numeric" value="${m.v}" style="width:58px" aria-label="PV par élément">
+      <span style="color:var(--muted);font-size:13px">PV ×</span>
+      <input class="num" data-mn="${i}" type="number" min="0" inputmode="numeric" value="${m.n}" style="width:58px" aria-label="nombre d'éléments">
+      <span class="val" data-mtot="${i}" style="flex:1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">0</span>
+      <button class="kill" data-delmult="${i}" aria-label="Supprimer ce multiplicateur">×</button>
+    </div>`).join('');
+}
+
+function refresh(){
+  const d = players[cur].d, s = score(d);
+  document.querySelectorAll('[data-val]').forEach(el=>{ el.textContent = d[el.dataset.val]; });
+  document.querySelectorAll('[data-mtot]').forEach(el=>{
+    const m = d.mults[+el.dataset.mtot];
+    el.textContent = m ? (+m.v||0)*(+m.n||0) : 0;
+  });
+  const sums = {cartes:s.fixes+s.mults, persos:s.financiers+s.generaux};
+  document.querySelectorAll('[data-sum]').forEach(el=>{
+    if(sums[el.dataset.sum] !== undefined) el.textContent = sums[el.dataset.sum] + ' pts';
+  });
+  document.getElementById('grand').textContent = s.total;
+  document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
+  drawTabs(); save();
+}
+
+function drawTabs(){
+  const t = document.getElementById('tabs');
+  t.innerHTML = players.map((p,i)=>`
+    <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--text)':COLORS[i]}">
+      <span class="dot" style="color:${COLORS[i]}"></span>${p.nom}
+      <span class="pts">${score(p.d).total}</span>
+    </button>`).join('')
+    + (players.length < MAXP ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
+  document.getElementById('pname').value = players[cur].nom;
+  document.getElementById('swatch').style.background = COLORS[cur];
+  document.getElementById('kill').hidden = players.length < 2;
+}
+
+/* ---------- persistance ---------- */
+const KEY = 'wonderfulworld-score-v1';
+function save(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify({players, cur, totals: players.map(p=>score(p.d).total)}));
+  }catch(e){}
+}
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if(s && Array.isArray(s.players) && s.players.length){
+      players = s.players.slice(0,MAXP).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...blank(), ...p.d}}));
+      players.forEach(p=>{ if(!Array.isArray(p.d.mults) || !p.d.mults.length) p.d.mults = [{v:0,n:0}]; });
+      cur = Math.min(+s.cur || 0, players.length-1);
+    }
+  }catch(e){}
+}
+
+/* ---------- interactions ---------- */
+document.addEventListener('click', e=>{
+  const d = players[cur].d;
+  const st = e.target.closest('[data-step]');
+  if(st){
+    const p = st.dataset.step;
+    d[p] = Math.max(0, d[p] + (+st.dataset.by));
+    refresh(); return;
+  }
+  const tab = e.target.closest('[data-tab]');
+  if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
+  if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
+  if(e.target.id === 'kill'){ players.splice(cur,1); cur = 0; drawSheet(); return; }
+  if(e.target.id === 'addMult'){ d.mults.push({v:0,n:0}); drawMults(); refresh(); return; }
+  const del = e.target.closest('[data-delmult]');
+  if(del){ d.mults.splice(+del.dataset.delmult,1); if(!d.mults.length) d.mults.push({v:0,n:0}); drawMults(); refresh(); return; }
+  if(e.target.id === 'openRank'){ showRank(); return; }
+  if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
+  if(e.target.id === 'resetAll'){
+    players = players.map(p=>mk(p.nom)); cur = 0;
+    document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
+  }
+});
+
+document.addEventListener('input', e=>{
+  const d = players[cur].d;
+  if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); refresh(); return; }
+  if(e.target.dataset.num !== undefined){ d[e.target.dataset.num] = Math.max(0, +e.target.value||0); refresh(); return; }
+  if(e.target.dataset.mv !== undefined){ d.mults[+e.target.dataset.mv].v = Math.max(0, +e.target.value||0); refresh(); return; }
+  if(e.target.dataset.mn !== undefined){ d.mults[+e.target.dataset.mn].n = Math.max(0, +e.target.value||0); refresh(); }
+});
+
+function showRank(){
+  const list = players.map((p,i)=>({...p, s:score(p.d), c:COLORS[i]}))
+    .sort((a,b)=> b.s.total - a.s.total
+               || b.d.cartes - a.d.cartes
+               || (b.d.financiers+b.d.generaux) - (a.d.financiers+a.d.generaux));
+  document.getElementById('rankList').innerHTML = list.map((p,i)=>{
+    const s = p.s, parts = [
+      ['Cartes',s.fixes],['Multiplicateurs',s.mults],
+      ['Financiers',s.financiers],['Généraux',s.generaux]
+    ].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ') || 'Aucun point saisi';
+    return `<div class="rank ${i===0?'win':''}">
+      <span class="pos">${i+1}</span>
+      <span class="nm" style="color:${p.c}">${p.nom}<small>${parts}${p.d.cartes?` · ${p.d.cartes} cartes`:''}</small></span>
+      <span class="pt">${s.total}</span></div>`;
+  }).join('');
+  document.getElementById('rankSheet').classList.add('open');
+}
+
+load();
+drawSheet();
+
+if ('serviceWorker' in navigator){
+  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
