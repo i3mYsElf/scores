@@ -22,7 +22,8 @@ body{
 .wrap{max-width:520px;margin:0 auto;padding:0 16px}
 
 /* ---------- en-tête ---------- */
-header{padding:22px 0 10px}
+/* padding-top : dégage la barre de statut iOS en PWA standalone (black-translucent) */
+header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
 .back{display:inline-block;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:8px}
 .title{
   font-family:"Fraunces",Georgia,serif;
