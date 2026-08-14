@@ -1,0 +1,12 @@
+{
+  "name": "scores",
+  "private": true,
+  "description": "Feuilles de score de jeux de société — PWA statique sans build (jsdom uniquement pour les tests)",
+  "scripts": {
+    "test": "node --test",
+    "serve": "npx serve ."
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

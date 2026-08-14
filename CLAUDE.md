@@ -4,7 +4,7 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 
 ## Contraintes non négociables
 
-- **Vanilla, zéro build, zéro dépendance runtime** : pas de framework, pas de bundler, pas de package.json. C'est un choix délibéré ; une migration Expo (React Native) est envisagée à terme comme projet séparé, préparée par l'isolation de la logique dans `games/`.
+- **Vanilla, zéro build, zéro dépendance runtime** : pas de framework, pas de bundler. Le `package.json` n'existe que pour jsdom (tests). C'est un choix délibéré ; une migration Expo (React Native) est envisagée à terme comme projet séparé, préparée par l'isolation de la logique dans `games/`.
 - **Chemins relatifs partout** (pages, manifest, SW, icônes) : le site est servi sous `/scores/` sur GitHub Pages.
 - **Ne jamais casser les données persistées** : clés localStorage `<jeu>-score-v1`, format `{players:[{nom,d}], cur, totals, exts?}`. Des parties réelles sont en cours sur téléphone. Toute évolution du format doit relire l'ancien (voir `fixup`/`restoreExtra` dans `common.js`).
 - **Incrémenter `scores-vN` dans `sw.js` à chaque modification de fichiers précachés** (les navigations sont en network-first, mais le bump purge les vieux caches et rafraîchit les assets).
@@ -13,7 +13,7 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 
 - `games/<jeu>.js` — logique pure (`blank()`, `score(d)`), sans DOM. Double export : `module.exports` (tests Node) / `globalThis.GameLogic` (navigateur). Toute règle de calcul vit ici, jamais dans la page.
 - `common.js` — moteur partagé : joueurs/onglets, persistance, classement, dispatch click/input, helpers (`rowStep`, `rowNum`, `sq`, `esc`). Les hooks de config sont documentés en tête de `initSheet`.
-- `<jeu>.html` — squelette HTML + `initSheet({...})` avec le rendu spécifique. Aucune logique de score.
+- `<jeu>.html` — head + header + `#sheetBody` + `initSheet({...})` avec le rendu spécifique. Le chrome commun (nom du joueur, barre de total, classement) est injecté par `common.js`. Aucune logique de score dans les pages.
 - `index.html` — accueil/menu ; lit les clés localStorage pour l'aperçu « Partie en cours ».
 - **Échappement** : tout texte saisi par l'utilisateur injecté en `innerHTML` passe par `esc()` (les noms de joueurs, notamment).
 
@@ -23,10 +23,12 @@ Suivre la recette du README (games/*.js → tests → page → carte accueil →
 
 ## Vérification avant push
 
-1. `node --test` (tests des calculs, à compléter pour tout nouveau jeu/barème)
+1. `npm install` (une fois), puis `node --test` — trois familles de tests :
+   - `tests/scores.test.js` : les barèmes (à compléter pour tout nouveau jeu)
+   - `tests/pages.test.js` : les pages réelles dans jsdom (moteur, interactions, échappement, anciens formats de sauvegarde)
+   - `tests/consistency.test.js` : la structure (PRECACHE, menu, clés, shortcuts) — attrape les oublis de la recette
 2. `node --check sw.js common.js games/*.js`
-3. Smoke test navigateur si le moteur ou une page a changé : jsdom en scratchpad (charger la page, cliquer un stepper, vérifier le total et l'échappement des noms)
-4. Servir en local : `npx serve .` (le SW exige localhost ou HTTPS)
+3. Servir en local : `npx serve .` (le SW exige localhost ou HTTPS)
 
 ## Déploiement
 

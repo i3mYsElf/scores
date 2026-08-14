@@ -12,6 +12,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - name: Dépendances de test
+        run: npm ci
       - name: Vérification syntaxe
         run: |
           node --check sw.js

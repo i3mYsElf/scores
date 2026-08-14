@@ -47,7 +47,34 @@ function rowNum(d, path, lab, sub, signed){
      extraState() -> objet fusionné dans la sauvegarde     (optionnel)
      restoreExtra(sauvegarde), fixup(d)                    (optionnels)
    } */
+/* Chrome commun à toutes les feuilles : nom du joueur, barre de total,
+   sheet de classement. Injecté ici pour que les pages n'en portent pas copie. */
+function injectChrome(){
+  document.getElementById('sheetBody').insertAdjacentHTML('beforebegin', `
+  <div class="whois">
+    <span class="swatch" id="swatch"></span>
+    <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false">
+    <button class="kill" id="kill" title="Retirer ce joueur" hidden>×</button>
+  </div>`);
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="bar">
+    <div class="inner">
+      <div class="tot"><b id="grand">0</b><span id="whoTot"></span></div>
+      <button class="go" id="openRank">Classement</button>
+    </div>
+  </div>
+  <div class="sheet" id="rankSheet">
+    <div class="panel"><div class="in">
+      <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
+      <div id="rankList"></div>
+      <button class="close" id="closeRank">Retour à la saisie</button>
+      <button class="reset" id="resetAll">Nouvelle partie</button>
+    </div></div>
+  </div>`);
+}
+
 function initSheet(cfg){
+  injectChrome();
   const maxP = cfg.maxPlayers || (()=>4);
   const mk = nom => ({nom, d: cfg.blank()});
   let players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1)));
