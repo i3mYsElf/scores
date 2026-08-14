@@ -47,78 +47,37 @@
   </div></div>
 </div>
 
+<script src="games/7wonders.js"></script>
+<script src="common.js"></script>
 <script>
-const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)','var(--p5)','var(--p6)','var(--p7)','var(--p8)'];
+const {blank, score: rawScore} = GameLogic;
 const EXTS = [
   ['leaders','Leaders'], ['cities','Cities'], ['armada','Armada'], ['edifice','Édifice']
 ];
-
-const blank = () => ({
-  def:0, v1:0, v2:0, v3:0,                       // conflits militaires
-  pieces:0,                                       // trésor
-  merveille:0, civils:0, commerce:0, guildes:0,   // points de cartes
-  compas:0, roue:0, tablette:0, jokers:0,         // science
-  leaders:0,                                      // Leaders
-  cities:0, dettes:0,                             // Cities
-  naval:0, iles:0, flotte:0,                      // Armada
-  edifice:0                                       // Édifice
-});
-const SIGNED = new Set(['naval','edifice']);
-let players = [mk('Joueur 1'), mk('Joueur 2'), mk('Joueur 3')], cur = 0;
 let exts = {leaders:false, cities:false, armada:false, edifice:false};
-function mk(nom){ return {nom, d:blank()}; }
-function maxPlayers(){ return exts.cities ? 8 : 7; }
+const score = d => rawScore(d, exts);
 
-/* ---------- calcul ---------- */
-/* Science : n² par symbole + 7 par set complet, jokers affectés au mieux (force brute) */
-function bestScience(a,b,c,j){
-  let best = 0;
-  for(let i=0;i<=j;i++) for(let k=0;i+k<=j;k++){
-    const x=a+i, y=b+k, z=c+(j-i-k);
-    best = Math.max(best, x*x + y*y + z*z + 7*Math.min(x,y,z));
-  }
-  return best;
-}
+initSheet({
+  key: '7wonders-score-v1',
+  startPlayers: 3,
+  maxPlayers: () => exts.cities ? 8 : 7,
+  blank, score,
+  signed: new Set(['naval','edifice']),
+  extraState: () => ({exts}),
+  restoreExtra: s => { exts = {...exts, ...(s.exts||{})}; },
+  sums: s => ({
+    militaire:s.militaire, tresor:s.tresor,
+    cartes:s.merveille+s.civils+s.commerce+s.guildes, science:s.science,
+    leaders:s.leaders, cities:s.cities, armada:s.armada, edifice:s.edifice
+  }),
+  rankParts: s => [
+    ['Militaire',s.militaire],['Trésor',s.tresor],['Merveille',s.merveille],
+    ['Civils',s.civils],['Commerce',s.commerce],['Guildes',s.guildes],['Science',s.science],
+    ['Leaders',s.leaders],['Cities',s.cities],['Armada',s.armada],['Édifice',s.edifice]
+  ],
 
-function score(d){
-  const militaire = -d.def + d.v1 + 3*d.v2 + 5*d.v3;
-  const tresor = Math.floor(d.pieces/3);
-  const science = bestScience(d.compas, d.roue, d.tablette, d.jokers);
-  const merveille=+d.merveille||0, civils=+d.civils||0, commerce=+d.commerce||0, guildes=+d.guildes||0;
-  const leaders = exts.leaders ? (+d.leaders||0) : 0;
-  const cities  = exts.cities  ? (+d.cities||0) - d.dettes : 0;
-  const armada  = exts.armada  ? (+d.naval||0) + (+d.iles||0) + (+d.flotte||0) : 0;
-  const edifice = exts.edifice ? (+d.edifice||0) : 0;
-  return {militaire, tresor, merveille, civils, commerce, guildes, science,
-          leaders, cities, armada, edifice,
-          total: militaire+tresor+merveille+civils+commerce+guildes+science
-                 +leaders+cities+armada+edifice};
-}
-
-/* ---------- rendu ---------- */
-function sq(color){
-  return `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${color};margin-right:7px"></span>`;
-}
-function rowStep(path, lab, sub){
-  return `<div class="row">
-    <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
-    <div class="step">
-      <button data-step="${path}" data-by="-1" aria-label="moins">−</button>
-      <span class="val" data-val="${path}">0</span>
-      <button data-step="${path}" data-by="1" aria-label="plus">+</button>
-    </div></div>`;
-}
-function rowNum(d, path, lab, sub){
-  const signed = SIGNED.has(path);
-  return `<div class="row">
-    <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
-    <input class="num" data-num="${path}" type="number" ${signed?'':'min="0" inputmode="numeric"'} value="${d[path]}">
-  </div>`;
-}
-
-function drawSheet(){
-  const d = players[cur].d;
-  document.getElementById('sheetBody').innerHTML = `
+  drawSheet(d){
+    return `
   <div class="card">
     <h2>Extensions</h2>
     <p class="hint">Activez celles utilisées dans cette partie (commun à tous les joueurs).</p>
@@ -176,7 +135,7 @@ function drawSheet(){
   ${exts.armada ? `
   <div class="card">
     <h2>${sq('var(--bleu)')}Armada <span class="sum" data-sum="armada">0</span></h2>
-    ${rowNum(d,'naval','Conflits navals','total des jetons, peut être négatif')}
+    ${rowNum(d,'naval','Conflits navals','total des jetons, peut être négatif',true)}
     ${rowNum(d,'iles','Îles','points des cartes île')}
     ${rowNum(d,'flotte','Chantier naval','position de la flotte bleue')}
   </div>` : ''}
@@ -184,114 +143,18 @@ function drawSheet(){
   ${exts.edifice ? `
   <div class="card">
     <h2>${sq('var(--marron)')}Édifice <span class="sum" data-sum="edifice">0</span></h2>
-    ${rowNum(d,'edifice','Édifices','récompenses, ou pénalités en négatif')}
+    ${rowNum(d,'edifice','Édifices','récompenses, ou pénalités en négatif',true)}
   </div>` : ''}`;
-  refresh();
-}
+  },
 
-function refresh(){
-  const d = players[cur].d, s = score(d);
-  document.querySelectorAll('[data-val]').forEach(el=>{ el.textContent = d[el.dataset.val]; });
-  const sums = {militaire:s.militaire, tresor:s.tresor,
-    cartes:s.merveille+s.civils+s.commerce+s.guildes, science:s.science,
-    leaders:s.leaders, cities:s.cities, armada:s.armada, edifice:s.edifice};
-  document.querySelectorAll('[data-sum]').forEach(el=>{
-    el.textContent = sums[el.dataset.sum] + ' pts';
-  });
-  document.getElementById('grand').textContent = s.total;
-  document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
-  drawTabs(); save();
-}
-
-function drawTabs(){
-  const t = document.getElementById('tabs');
-  t.innerHTML = players.map((p,i)=>`
-    <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--text)':COLORS[i]}">
-      <span class="dot" style="color:${COLORS[i]}"></span>${p.nom}
-      <span class="pts">${score(p.d).total}</span>
-    </button>`).join('')
-    + (players.length < maxPlayers() ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
-  document.getElementById('pname').value = players[cur].nom;
-  document.getElementById('swatch').style.background = COLORS[cur];
-  document.getElementById('kill').hidden = players.length < 2;
-}
-
-/* ---------- persistance ---------- */
-const KEY = '7wonders-score-v1';
-function save(){
-  try{
-    localStorage.setItem(KEY, JSON.stringify({players, cur, exts, totals: players.map(p=>score(p.d).total)}));
-  }catch(e){}
-}
-function load(){
-  try{
-    const s = JSON.parse(localStorage.getItem(KEY));
-    if(s && Array.isArray(s.players) && s.players.length){
-      exts = {...exts, ...(s.exts||{})};
-      players = s.players.slice(0,8).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...blank(), ...p.d}}));
-      cur = Math.min(+s.cur || 0, players.length-1);
+  onClick(e, ctx){
+    const ext = e.target.closest('[data-ext]');
+    if(ext){
+      exts[ext.dataset.ext] = !exts[ext.dataset.ext];
+      ctx.trimToMax();
+      ctx.redraw(); return true;
     }
-  }catch(e){}
-}
-
-/* ---------- interactions ---------- */
-document.addEventListener('click', e=>{
-  const d = players[cur].d;
-  const st = e.target.closest('[data-step]');
-  if(st){
-    const p = st.dataset.step;
-    d[p] = Math.max(0, d[p] + (+st.dataset.by));
-    refresh(); return;
-  }
-  const ext = e.target.closest('[data-ext]');
-  if(ext){
-    exts[ext.dataset.ext] = !exts[ext.dataset.ext];
-    if(players.length > maxPlayers()){ players = players.slice(0, maxPlayers()); cur = Math.min(cur, players.length-1); }
-    drawSheet(); return;
-  }
-  const tab = e.target.closest('[data-tab]');
-  if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
-  if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
-  if(e.target.id === 'kill'){ players.splice(cur,1); cur = 0; drawSheet(); return; }
-  if(e.target.id === 'openRank'){ showRank(); return; }
-  if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
-  if(e.target.id === 'resetAll'){
-    players = players.map(p=>mk(p.nom)); cur = 0;
-    document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
+    return false;
   }
 });
-
-document.addEventListener('input', e=>{
-  const d = players[cur].d;
-  if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); refresh(); return; }
-  if(e.target.dataset.num !== undefined){
-    const p = e.target.dataset.num, v = +e.target.value || 0;
-    d[p] = SIGNED.has(p) ? v : Math.max(0, v);
-    refresh();
-  }
-});
-
-function showRank(){
-  const list = players.map((p,i)=>({...p, s:score(p.d), c:COLORS[i]}))
-                      .sort((a,b)=>b.s.total - a.s.total);
-  document.getElementById('rankList').innerHTML = list.map((p,i)=>{
-    const s = p.s, parts = [
-      ['Militaire',s.militaire],['Trésor',s.tresor],['Merveille',s.merveille],
-      ['Civils',s.civils],['Commerce',s.commerce],['Guildes',s.guildes],['Science',s.science],
-      ['Leaders',s.leaders],['Cities',s.cities],['Armada',s.armada],['Édifice',s.edifice]
-    ].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ') || 'Aucun point saisi';
-    return `<div class="rank ${i===0?'win':''}">
-      <span class="pos">${i+1}</span>
-      <span class="nm" style="color:${p.c}">${p.nom}<small>${parts}</small></span>
-      <span class="pt">${s.total}</span></div>`;
-  }).join('');
-  document.getElementById('rankSheet').classList.add('open');
-}
-
-load();
-drawSheet();
-
-if ('serviceWorker' in navigator){
-  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
 </script>

@@ -47,13 +47,15 @@
   </div></div>
 </div>
 
+<script src="games/harmonies.js"></script>
+<script src="common.js"></script>
 <script>
+const {blank, score} = GameLogic;
+
 const TOK = {
   marron:['#9A6B45','#7A5133'], vert:['#6E9C55','#4F7439'], gris:['#93A0A8','#6E7B83'],
   jaune:['#DFB149','#B78B2E'], bleu:['#4A90C0','#35709B'], rouge:['#C4604F','#9A4737']
 };
-const RIVER = [0,0,2,5,8,11,15]; // 0,1,2,3,4,5,6 jetons
-const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)'];
 
 /* Pile de jetons vue de côté, comme sur le plateau */
 function stack(colors){
@@ -66,64 +68,60 @@ function stack(colors){
   }
   return s + `</svg>`;
 }
+const rowT = (path, colors, lab, sub) => rowStep(path, lab, sub, stack(colors));
 
-const blank = () => ({
-  arbre:[0,0,0], mont:[0,0,0], champs:0, batiments:0,
-  face:'A', riviere:0, iles:1, animaux:[0], esprit:0
-});
-let players = [mk('Joueur 1'), mk('Joueur 2')], cur = 0;
-function mk(nom){ return {nom, d:blank()}; }
-
-/* ---------- calcul ---------- */
-function score(d){
-  const arbre = d.arbre[0]*1 + d.arbre[1]*3 + d.arbre[2]*7;
-  const mont  = d.mont[0]*1  + d.mont[1]*3  + d.mont[2]*7;
-  const champs = d.champs*5, batiments = d.batiments*5;
-  const eau = d.face === 'A'
-    ? (d.riviere > 6 ? 15 + (d.riviere-6)*4 : RIVER[d.riviere] || 0)
-    : d.iles*5;
-  const animaux = d.animaux.reduce((a,b)=>a+(+b||0),0);
-  const esprit = +d.esprit || 0;
-  return {arbre, mont, champs, batiments, eau, animaux, esprit,
-          total: arbre+mont+champs+batiments+eau+animaux+esprit};
+function drawEau(d){
+  document.getElementById('eauBody').innerHTML = d.face === 'A'
+    ? `<p class="hint">Seule la plus longue rivière compte : suivez-la d'un bout à l'autre par le chemin le plus court. Barème : 0 · 2 · 5 · 8 · 11 · 15, puis +4 par jeton au-delà de 6.</p>
+       ${rowT('riviere',['bleu'],'Longueur de la rivière','en jetons bleus')}`
+    : `<p class="hint">Chaque zone isolée par vos jetons bleus est une île, 5 points pièce. Vous avez toujours au moins 1 île.</p>
+       ${rowT('iles',['bleu'],'Nombre d\'îles','5 points chacune')}`;
 }
 
-/* ---------- rendu ---------- */
-function rowStep(path, colors, lab, sub){
-  return `<div class="row">
-    <div class="icon">${stack(colors)}</div>
-    <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
-    <div class="step">
-      <button data-step="${path}" data-by="-1" aria-label="moins">−</button>
-      <span class="val" data-val="${path}">0</span>
-      <button data-step="${path}" data-by="1" aria-label="plus">+</button>
-    </div></div>`;
+function drawAnim(d){
+  document.getElementById('animList').innerHTML = d.animaux.map((v,i)=>`
+    <div class="row">
+      <div class="lab">Carte ${i+1}</div>
+      <input class="num" data-anim="${i}" type="number" inputmode="numeric" min="0" value="${v}">
+      <button class="kill" data-delanim="${i}" aria-label="Supprimer la carte ${i+1}">×</button>
+    </div>`).join('');
 }
 
-function drawSheet(){
-  const d = players[cur].d;
-  document.getElementById('sheetBody').innerHTML = `
+initSheet({
+  key: 'harmonies-score-v1',
+  startPlayers: 2,
+  maxPlayers: () => 4,
+  blank, score,
+  stepMin: p => p === 'iles' ? 1 : 0,
+  sums: s => ({arbre:s.arbre, mont:s.mont, cb:s.champs+s.batiments, eau:s.eau, animaux:s.animaux+s.esprit}),
+  rankParts: s => [
+    ['Arbres',s.arbre],['Montagnes',s.mont],['Champs',s.champs],
+    ['Bâtiments',s.batiments],['Eau',s.eau],['Animaux',s.animaux+s.esprit]
+  ],
+
+  drawSheet(d){
+    return `
   <div class="card">
     <h2>Arbres <span class="sum" data-sum="arbre">0</span></h2>
     <p class="hint">1 jeton vert posé sur 0, 1 ou 2 jetons marron.</p>
-    ${rowStep('arbre.0',['vert'],'Arbre de 1 jeton','1 point')}
-    ${rowStep('arbre.1',['marron','vert'],'Arbre de 2 jetons','3 points')}
-    ${rowStep('arbre.2',['marron','marron','vert'],'Arbre de 3 jetons','7 points')}
+    ${rowT('arbre.0',['vert'],'Arbre de 1 jeton','1 point')}
+    ${rowT('arbre.1',['marron','vert'],'Arbre de 2 jetons','3 points')}
+    ${rowT('arbre.2',['marron','marron','vert'],'Arbre de 3 jetons','7 points')}
   </div>
 
   <div class="card">
     <h2>Montagnes <span class="sum" data-sum="mont">0</span></h2>
     <p class="hint">Ne comptez que les montagnes adjacentes à au moins une autre montagne. Une montagne isolée ne rapporte rien.</p>
-    ${rowStep('mont.0',['gris'],'Pile de 1 jeton','1 point')}
-    ${rowStep('mont.1',['gris','gris'],'Pile de 2 jetons','3 points')}
-    ${rowStep('mont.2',['gris','gris','gris'],'Pile de 3 jetons','7 points')}
+    ${rowT('mont.0',['gris'],'Pile de 1 jeton','1 point')}
+    ${rowT('mont.1',['gris','gris'],'Pile de 2 jetons','3 points')}
+    ${rowT('mont.2',['gris','gris','gris'],'Pile de 3 jetons','7 points')}
   </div>
 
   <div class="card">
     <h2>Champs &amp; bâtiments <span class="sum" data-sum="cb">0</span></h2>
     <p class="hint">Un champ = au moins 2 jetons jaunes connectés (un groupe de 4 jetons reste un seul champ). Un bâtiment compte s'il est entouré d'au moins 3 couleurs différentes.</p>
-    ${rowStep('champs',['jaune','jaune'].slice(0,1),'Champs','5 points chacun')}
-    ${rowStep('batiments',['gris','rouge'],'Bâtiments validés','5 points chacun')}
+    ${rowT('champs',['jaune'],'Champs','5 points chacun')}
+    ${rowT('batiments',['gris','rouge'],'Bâtiments validés','5 points chacun')}
   </div>
 
   <div class="card">
@@ -142,134 +140,35 @@ function drawSheet(){
     <button class="ghost" id="addAnim">+ Ajouter une carte</button>
     <div class="row">
       <div class="lab">Esprit de la nature<small>Laissez à 0 si vous n'y jouez pas</small></div>
-      <input class="num" id="esprit" type="number" inputmode="numeric" min="0" value="${d.esprit}">
+      <input class="num" data-num="esprit" type="number" inputmode="numeric" min="0" value="${d.esprit}">
     </div>
   </div>`;
-  drawEau(); drawAnim(); refresh();
-}
+  },
+  afterDraw(d){ drawEau(d); drawAnim(d); },
 
-function drawEau(){
-  const d = players[cur].d;
-  document.getElementById('eauBody').innerHTML = d.face === 'A'
-    ? `<p class="hint">Seule la plus longue rivière compte : suivez-la d'un bout à l'autre par le chemin le plus court. Barème : 0 · 2 · 5 · 8 · 11 · 15, puis +4 par jeton au-delà de 6.</p>
-       ${rowStep('riviere',['bleu'],'Longueur de la rivière','en jetons bleus')}`
-    : `<p class="hint">Chaque zone isolée par vos jetons bleus est une île, 5 points pièce. Vous avez toujours au moins 1 île.</p>
-       ${rowStep('iles',['bleu','bleu'].slice(0,1),'Nombre d\'îles','5 points chacune')}`;
-}
-
-function drawAnim(){
-  const d = players[cur].d;
-  document.getElementById('animList').innerHTML = d.animaux.map((v,i)=>`
-    <div class="row">
-      <div class="lab">Carte ${i+1}</div>
-      <input class="num" data-anim="${i}" type="number" inputmode="numeric" min="0" value="${v}">
-      <button class="kill" data-delanim="${i}" aria-label="Supprimer la carte ${i+1}">×</button>
-    </div>`).join('');
-}
-
-function refresh(){
-  const d = players[cur].d, s = score(d);
-  document.querySelectorAll('[data-val]').forEach(el=>{
-    el.textContent = get(d, el.dataset.val);
-  });
-  const sums = {arbre:s.arbre, mont:s.mont, cb:s.champs+s.batiments, eau:s.eau, animaux:s.animaux+s.esprit};
-  document.querySelectorAll('[data-sum]').forEach(el=>{
-    el.textContent = sums[el.dataset.sum] + ' pts';
-  });
-  document.getElementById('grand').textContent = s.total;
-  document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
-  drawTabs(); save();
-}
-
-/* ---------- persistance ---------- */
-const KEY = 'harmonies-score-v1';
-function save(){
-  try{
-    localStorage.setItem(KEY, JSON.stringify({players, cur, totals: players.map(p=>score(p.d).total)}));
-  }catch(e){}
-}
-function load(){
-  try{
-    const s = JSON.parse(localStorage.getItem(KEY));
-    if(s && Array.isArray(s.players) && s.players.length){
-      players = s.players.slice(0,4).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...blank(), ...p.d}}));
-      cur = Math.min(+s.cur || 0, players.length-1);
+  onClick(e, ctx){
+    const d = ctx.d;
+    const face = e.target.closest('[data-face]');
+    if(face){
+      d.face = face.dataset.face;
+      document.querySelectorAll('[data-face]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.face===d.face));
+      drawEau(d); ctx.refresh(); return true;
     }
-  }catch(e){}
-}
-
-function drawTabs(){
-  const t = document.getElementById('tabs');
-  t.innerHTML = players.map((p,i)=>`
-    <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--text)':COLORS[i]}">
-      <span class="dot" style="color:${COLORS[i]}"></span>${p.nom}
-      <span class="pts">${score(p.d).total}</span>
-    </button>`).join('')
-    + (players.length < 4 ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
-  document.getElementById('pname').value = players[cur].nom;
-  document.getElementById('swatch').style.background = COLORS[cur];
-  document.getElementById('kill').hidden = players.length < 2;
-}
-
-/* ---------- accès par chemin ---------- */
-function get(o,p){ const [a,b] = p.split('.'); return b===undefined ? o[a] : o[a][+b]; }
-function set(o,p,v){ const [a,b] = p.split('.'); if(b===undefined) o[a]=v; else o[a][+b]=v; }
-
-/* ---------- interactions ---------- */
-document.addEventListener('click', e=>{
-  const d = players[cur].d;
-  const st = e.target.closest('[data-step]');
-  if(st){
-    const p = st.dataset.step, min = (p==='iles') ? 1 : 0;
-    set(d, p, Math.max(min, get(d,p) + (+st.dataset.by)));
-    refresh(); return;
-  }
-  const face = e.target.closest('[data-face]');
-  if(face){ d.face = face.dataset.face;
-    document.querySelectorAll('[data-face]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.face===d.face));
-    drawEau(); refresh(); return; }
-  const tab = e.target.closest('[data-tab]');
-  if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
-  if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
-  if(e.target.id === 'kill'){ players.splice(cur,1); cur = 0; drawSheet(); return; }
-  if(e.target.id === 'addAnim'){ d.animaux.push(0); drawAnim(); refresh(); return; }
-  const del = e.target.closest('[data-delanim]');
-  if(del){ d.animaux.splice(+del.dataset.delanim,1); if(!d.animaux.length) d.animaux.push(0); drawAnim(); refresh(); return; }
-  if(e.target.id === 'openRank'){ showRank(); return; }
-  if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
-  if(e.target.id === 'resetAll'){
-    players = players.map(p=>mk(p.nom)); cur = 0;
-    document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
+    if(e.target.id === 'addAnim'){ d.animaux.push(0); drawAnim(d); ctx.refresh(); return true; }
+    const del = e.target.closest('[data-delanim]');
+    if(del){
+      d.animaux.splice(+del.dataset.delanim,1);
+      if(!d.animaux.length) d.animaux.push(0);
+      drawAnim(d); ctx.refresh(); return true;
+    }
+    return false;
+  },
+  onInput(e, ctx){
+    if(e.target.dataset.anim !== undefined){
+      ctx.d.animaux[+e.target.dataset.anim] = Math.max(0, +e.target.value||0);
+      ctx.refresh(); return true;
+    }
+    return false;
   }
 });
-
-document.addEventListener('input', e=>{
-  const d = players[cur].d;
-  if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); drawTabs(); refresh(); return; }
-  if(e.target.id === 'esprit'){ d.esprit = Math.max(0, +e.target.value||0); refresh(); return; }
-  if(e.target.dataset.anim !== undefined){ d.animaux[+e.target.dataset.anim] = Math.max(0, +e.target.value||0); refresh(); }
-});
-
-function showRank(){
-  const list = players.map((p,i)=>({...p, s:score(p.d), c:COLORS[i]}))
-                      .sort((a,b)=>b.s.total - a.s.total);
-  document.getElementById('rankList').innerHTML = list.map((p,i)=>{
-    const s = p.s, parts = [
-      ['Arbres',s.arbre],['Montagnes',s.mont],['Champs',s.champs],
-      ['Bâtiments',s.batiments],['Eau',s.eau],['Animaux',s.animaux+s.esprit]
-    ].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ') || 'Aucun point saisi';
-    return `<div class="rank ${i===0?'win':''}">
-      <span class="pos">${i+1}</span>
-      <span class="nm" style="color:${p.c}">${p.nom}<small>${parts}</small></span>
-      <span class="pt">${s.total}</span></div>`;
-  }).join('');
-  document.getElementById('rankSheet').classList.add('open');
-}
-
-load();
-drawSheet();
-
-if ('serviceWorker' in navigator){
-  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
 </script>

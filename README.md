@@ -9,19 +9,24 @@ index.html      accueil — menu des jeux
 harmonies.html  feuille de score Harmonies
 7wonders.html   feuille de score 7 Wonders (base + extensions activables)
 wonderfulworld.html  feuille de score It's a Wonderful World
+games/          logique de score pure par jeu (blank/score), sans DOM — testable en Node
+common.js       moteur de feuille partagé : joueurs/onglets, persistance, classement, événements
 common.css      styles partagés (onglets joueurs, cartes, steppers, classement…)
+tests/          tests des calculs de score (node --test, zéro dépendance)
 manifest.json   manifest PWA
-sw.js           service worker (cache offline)
+sw.js           service worker (offline ; navigations en network-first)
 icons/          icônes de l'app (SVG sources + PNG générés)
 ```
 
-Chaque jeu est une page autonome : le HTML/JS spécifique au barème du jeu vit dans sa page, le style vient de `common.css`, et les scores sont persistés en `localStorage` sous une clé propre au jeu (`<jeu>-score-v1`).
+Chaque page de jeu charge `games/<jeu>.js` (la logique), `common.js` (le moteur), puis un script de configuration qui appelle `initSheet({...})` avec le rendu spécifique au jeu. Les scores sont persistés en `localStorage` sous une clé propre au jeu (`<jeu>-score-v1`).
 
 ## Ajouter un jeu
 
-1. Créer `<jeu>.html` en partant de `harmonies.html` comme modèle : garder le head (metas PWA + `common.css`), le lien retour `← Jeux`, la structure onglets/cartes/barre de total, et adapter le calcul du score ; utiliser la clé localStorage `<jeu>-score-v1`.
-2. Ajouter la carte du jeu dans `index.html` (bloc `<a class="game" href="<jeu>.html">`).
-3. Dans `sw.js` : ajouter `<jeu>.html` au `PRECACHE` **et incrémenter le nom de cache** (`scores-vN`) — obligatoire à chaque modification pour que les visiteurs reçoivent la mise à jour.
+1. Créer `games/<jeu>.js` : `blank()` (l'état vierge d'un joueur) et `score(d)` (pur, sans DOM), exportés via le pattern `module.exports` / `globalThis.GameLogic` (copier un jeu existant).
+2. Ajouter ses cas de test dans `tests/scores.test.js` (lancer avec `node --test`).
+3. Créer `<jeu>.html` en partant de `wonderfulworld.html` comme modèle : même squelette HTML, puis `initSheet({key: '<jeu>-score-v1', blank, score, drawSheet, sums, rankParts, ...})` — voir les hooks documentés dans `common.js`.
+4. Ajouter la carte du jeu dans `index.html` (bloc `<a class="game">` + clé dans la boucle d'aperçu).
+5. Dans `sw.js` : ajouter `<jeu>.html` et `games/<jeu>.js` au `PRECACHE`, et incrémenter le nom de cache (`scores-vN`) pour purger l'ancien.
 
 ## Développement local
 

@@ -1,10 +1,14 @@
-const CACHE = 'scores-v5';
+const CACHE = 'scores-v6';
 const PRECACHE = [
   '.',
   'harmonies.html',
   '7wonders.html',
   'wonderfulworld.html',
   'common.css',
+  'common.js',
+  'games/harmonies.js',
+  'games/7wonders.js',
+  'games/wonderfulworld.js',
   'manifest.json',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -46,17 +50,32 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Même origine : cache d'abord, mise à jour en arrière-plan, fallback sur l'index en navigation
-  if (url.origin === location.origin) {
+  if (url.origin !== location.origin) return;
+
+  // Navigations : réseau d'abord (toujours frais en ligne), cache en secours (offline)
+  if (e.request.mode === 'navigate') {
     e.respondWith(
       caches.open(CACHE).then(async c => {
-        const isNav = e.request.mode === 'navigate';
-        const hit = await c.match(e.request, { ignoreSearch: isNav });
-        const net = fetch(e.request)
-          .then(r => { if (r.ok) c.put(e.request, r.clone()); return r; })
-          .catch(() => hit || (isNav ? c.match('.') : undefined));
-        return hit || net;
+        try {
+          const r = await fetch(e.request);
+          if (r.ok) c.put(e.request, r.clone());
+          return r;
+        } catch (err) {
+          return (await c.match(e.request, { ignoreSearch: true })) || c.match('.');
+        }
       })
     );
+    return;
   }
+
+  // Assets même origine : cache d'abord, mise à jour en arrière-plan
+  e.respondWith(
+    caches.open(CACHE).then(async c => {
+      const hit = await c.match(e.request);
+      const net = fetch(e.request)
+        .then(r => { if (r.ok) c.put(e.request, r.clone()); return r; })
+        .catch(() => hit);
+      return hit || net;
+    })
+  );
 });
