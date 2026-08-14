@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const harmonies = require('../games/harmonies.js');
 const wonders = require('../games/7wonders.js');
 const iaww = require('../games/wonderfulworld.js');
+const agricola = require('../games/agricola.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -72,4 +73,36 @@ test('IAWW : fixes + multiplicateurs + personnages', () => {
 
 test('IAWW : feuille vide = 0', () => {
   assert.equal(iaww.score(iaww.blank()).total, 0);
+});
+
+/* ---------- Agricola ---------- */
+test('Agricola : seuils par catégorie (bornes exactes)', () => {
+  const {tier, SEUILS} = agricola;
+  const serie = (cat, ns) => ns.map(n => tier(n, SEUILS[cat]));
+  assert.deepEqual(serie('champs',    [0,1,2,3,4,5,9]), [-1,-1,1,2,3,4,4]);
+  assert.deepEqual(serie('paturages', [0,1,2,3,4,9]),   [-1,1,2,3,4,4]);
+  assert.deepEqual(serie('cereales',  [0,1,3,4,5,6,7,8]), [-1,1,1,2,2,3,3,4]);
+  assert.deepEqual(serie('legumes',   [0,1,2,3,4]),     [-1,1,2,3,4]);
+  assert.deepEqual(serie('moutons',   [0,1,4,6,8]),     [-1,1,2,3,4]);
+  assert.deepEqual(serie('sangliers', [0,1,2,3,5,7]),   [-1,1,1,2,3,4]);
+  assert.deepEqual(serie('boeufs',    [0,1,2,4,6]),     [-1,1,2,3,4]);
+});
+
+test('Agricola : feuille de départ (famille de 2, tout à zéro)', () => {
+  // 7 catégories à −1, cases vides à 0 saisies, 2 personnes = +6
+  assert.equal(agricola.score(agricola.blank()).total, -7 + 6);
+});
+
+test('Agricola : exemple complet', () => {
+  const d = agricola.blank();
+  Object.assign(d, {champs:3, cereales:5, legumes:1, paturages:2, moutons:4,
+    sangliers:0, boeufs:2, etables:1, vides:2, argile:3, pierre:0,
+    personnes:4, cartes:7, bonus:2, mendicite:1});
+  const s = agricola.score(d);
+  assert.equal(s.cultures, 2+2+1);
+  assert.equal(s.elevage, 2+2-1+2+1);
+  assert.equal(s.ferme, -2+3+12);
+  assert.equal(s.cartes, 9);
+  assert.equal(s.mendicite, -3);
+  assert.equal(s.total, 5+6+13+9-3);
 });

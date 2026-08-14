@@ -85,11 +85,31 @@
     </span>
     <span class="chev">›</span>
   </a>
+
+  <a class="game" href="agricola.html">
+    <span class="thumb">
+      <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
+        <path d="M17,44 L17,12" stroke="#B78B2E" stroke-width="2.5" stroke-linecap="round"/>
+        <ellipse cx="12" cy="30" rx="6" ry="3" transform="rotate(-35 12 30)" fill="#DFB149"/>
+        <ellipse cx="22" cy="30" rx="6" ry="3" transform="rotate(35 22 30)" fill="#DFB149"/>
+        <ellipse cx="12" cy="22" rx="6" ry="3" transform="rotate(-35 12 22)" fill="#DFB149"/>
+        <ellipse cx="22" cy="22" rx="6" ry="3" transform="rotate(35 22 22)" fill="#DFB149"/>
+        <ellipse cx="12" cy="14" rx="6" ry="3" transform="rotate(-35 12 14)" fill="#EBC66F"/>
+        <ellipse cx="22" cy="14" rx="6" ry="3" transform="rotate(35 22 14)" fill="#EBC66F"/>
+        <ellipse cx="17" cy="8" rx="3.5" ry="5" fill="#EBC66F"/>
+      </svg>
+    </span>
+    <span class="meta">
+      <b>Agricola</b>
+      <small id="agricolaSub">Barème par seuils calculé</small>
+    </span>
+    <span class="chev">›</span>
+  </a>
 </div>
 
 <script>
 /* Aperçu de la partie en cours, si des scores ont été saisis */
-for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub']]){
+for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub'], ['agricola-score-v1','agricolaSub']]){
   try{
     const s = JSON.parse(localStorage.getItem(key));
     if(s && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){
