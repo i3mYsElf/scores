@@ -5,6 +5,7 @@ const harmonies = require('../games/harmonies.js');
 const wonders = require('../games/7wonders.js');
 const iaww = require('../games/wonderfulworld.js');
 const agricola = require('../games/agricola.js');
+const cascadia = require('../games/cascadia.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -105,4 +106,37 @@ test('Agricola : exemple complet', () => {
   assert.equal(s.cartes, 9);
   assert.equal(s.mendicite, -3);
   assert.equal(s.total, 5+6+13+9-3);
+});
+
+/* ---------- Cascadia ---------- */
+test('Cascadia : bonus de majorité à 2 joueurs', () => {
+  const d = n => ({...cascadia.blank(), montagnes:n});
+  const bonus = (a,b) => cascadia.habitatBonuses([d(a), d(b)]).map(x=>x.montagnes);
+  assert.deepEqual(bonus(5,3), [2,0]);
+  assert.deepEqual(bonus(4,4), [1,1]);   // égalité : +1 chacun
+  assert.deepEqual(bonus(0,0), [0,0]);   // corridor vide : pas de bonus
+});
+
+test('Cascadia : bonus de majorité à 3-4 joueurs et égalités', () => {
+  const ds = ns => ns.map(n=>({...cascadia.blank(), forets:n}));
+  const bonus = ns => cascadia.habitatBonuses(ds(ns)).map(x=>x.forets);
+  assert.deepEqual(bonus([5,3,1]), [3,1,0]);     // +3 / +1
+  assert.deepEqual(bonus([5,5,2]), [2,2,0]);     // égalité à 2 au 1er rang : +2 chacun
+  assert.deepEqual(bonus([4,4,4]), [1,1,1]);     // égalité à 3 : +1 chacun
+  assert.deepEqual(bonus([5,3,3]), [3,0,0]);     // égalité au 2e rang : 0
+  assert.deepEqual(bonus([5,3,1,3]), [3,0,0,0]); // idem à 4 joueurs
+});
+
+test('Cascadia : score total avec bonus', () => {
+  const d = {...cascadia.blank(), ours:11, saumons:7, montagnes:5, rivieres:3, nature:2};
+  const s = cascadia.score(d, {montagnes:2});
+  assert.equal(s.faune, 18);
+  assert.equal(s.habitats, 8);
+  assert.equal(s.bonus, 2);
+  assert.equal(s.total, 18+8+2+2);
+});
+
+test('Cascadia : solo — pas de bonus de majorité', () => {
+  const d = {...cascadia.blank(), montagnes:9};
+  assert.deepEqual(cascadia.habitatBonuses([d])[0].montagnes, 0);
 });

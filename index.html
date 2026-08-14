@@ -105,11 +105,27 @@
     </span>
     <span class="chev">›</span>
   </a>
+
+  <a class="game" href="cascadia.html">
+    <span class="thumb">
+      <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
+        <path d="M17,7 L29.5,15 L29.5,31 L17,39 L4.5,31 L4.5,15 Z" fill="#243330" stroke="#5FAF9E" stroke-width="2"/>
+        <path d="M17,13 L23,25 L11,25 Z" fill="#6E9C55"/>
+        <path d="M17,19 L24.5,32 L9.5,32 Z" fill="#4F7439"/>
+        <rect x="15.5" y="32" width="3" height="4" fill="#9A6B45"/>
+      </svg>
+    </span>
+    <span class="meta">
+      <b>Cascadia</b>
+      <small id="cascadiaSub">Majorités d'habitats automatiques</small>
+    </span>
+    <span class="chev">›</span>
+  </a>
 </div>
 
 <script>
 /* Aperçu de la partie en cours, si des scores ont été saisis */
-for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub'], ['agricola-score-v1','agricolaSub']]){
+for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub'], ['agricola-score-v1','agricolaSub'], ['cascadia-score-v1','cascadiaSub']]){
   try{
     const s = JSON.parse(localStorage.getItem(key));
     if(s && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){

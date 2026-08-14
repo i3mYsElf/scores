@@ -10,6 +10,7 @@ harmonies.html  feuille de score Harmonies
 7wonders.html   feuille de score 7 Wonders (base + extensions activables)
 wonderfulworld.html  feuille de score It's a Wonderful World
 agricola.html   feuille de score Agricola (barème par seuils calculé)
+cascadia.html   feuille de score Cascadia (bonus de majorité inter-joueurs automatiques)
 games/          logique de score pure par jeu (blank/score), sans DOM — testable en Node
 common.js       moteur de feuille partagé : joueurs/onglets, persistance, classement, événements
 common.css      styles partagés (onglets joueurs, cartes, steppers, classement…)

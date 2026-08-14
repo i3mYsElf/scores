@@ -101,6 +101,20 @@ test('iaww : multiplicateurs et personnages', () => {
   assert.equal(grand(w), '32');
 });
 
+/* ---------- Cascadia ---------- */
+test('cascadia : les bonus de majorité se recalculent entre joueurs', () => {
+  const w = loadPage('cascadia.html');
+  for (let i = 0; i < 5; i++) click(w, '[data-step="montagnes"][data-by="1"]');
+  assert.equal(grand(w), '7'); // 5 tuiles + 2 de majorité (2 joueurs)
+  click(w, '[data-tab="1"]');
+  for (let i = 0; i < 6; i++) click(w, '[data-step="montagnes"][data-by="1"]');
+  assert.equal(grand(w), '8'); // 6 + 2 : la majorité a changé de main
+  click(w, '[data-tab="0"]');
+  assert.equal(grand(w), '5'); // le joueur 1 a perdu son bonus
+  click(w, '[data-step="montagnes"][data-by="1"]');
+  assert.equal(grand(w), '7'); // 6 + 1 : égalité au plus grand corridor
+});
+
 test('iaww : départage par cartes construites à égalité de points', () => {
   const w = loadPage('wonderfulworld.html');
   type(w, '[data-num="fixes"]', '32');

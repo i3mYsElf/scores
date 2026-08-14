@@ -1,0 +1,87 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cascadia — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#131E1C">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Cascadia</h1>
+    <p class="subtitle">Feuille de score — fin de partie</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="games/cascadia.js"></script>
+<script src="common.js"></script>
+<script>
+const {blank, score: rawScore, habitatBonuses} = GameLogic;
+
+/* Les bonus dépendent de tous les joueurs : on les recalcule à chaque score. */
+function score(d, players){
+  if(!players) return rawScore(d);
+  const i = players.findIndex(p=>p.d===d);
+  return rawScore(d, habitatBonuses(players.map(p=>p.d))[i]);
+}
+
+initSheet({
+  key: 'cascadia-score-v1',
+  startPlayers: 2,
+  maxPlayers: () => 4,
+  blank, score,
+  sums: s => ({faune:s.faune, habitats:s.habitats+s.bonus, nature:s.nature}),
+  rankParts: s => [
+    ['Faune',s.faune],['Habitats',s.habitats],['Bonus majorités',s.bonus],['Nature',s.nature]
+  ],
+  tiebreak: (a,b) => b.d.nature - a.d.nature,
+
+  drawSheet(d){
+    return `
+  <div class="card">
+    <h2>${sq('var(--rouge)')}Faune <span class="sum" data-sum="faune">0</span></h2>
+    <p class="hint">Reportez les points de chaque espèce selon sa carte de décompte.</p>
+    ${rowNum(d,'ours','Ours')}
+    ${rowNum(d,'wapitis','Wapitis')}
+    ${rowNum(d,'saumons','Saumons')}
+    ${rowNum(d,'buses','Buses')}
+    ${rowNum(d,'renards','Renards')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--vert)')}Habitats <span class="sum" data-sum="habitats">0</span></h2>
+    <p class="hint">Saisissez la taille du plus grand corridor de chaque habitat (1 point par tuile). Les <b>bonus de majorité</b> entre joueurs sont calculés automatiquement.</p>
+    ${rowStep('montagnes','Montagnes')}
+    ${rowStep('forets','Forêts')}
+    ${rowStep('prairies','Prairies')}
+    ${rowStep('marais','Marais')}
+    ${rowStep('rivieres','Rivières')}
+    <p class="hint" id="bonusInfo" style="margin-top:8px"></p>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--jaune)')}Jetons nature <span class="sum" data-sum="nature">0</span></h2>
+    <p class="hint">1 point chacun. Ils servent aussi de départage en cas d'égalité.</p>
+    ${rowStep('nature','Jetons restants')}
+  </div>`;
+  },
+  afterRefresh(d, s){
+    const el = document.getElementById('bonusInfo');
+    if(el) el.textContent = s.bonus
+      ? `Bonus de majorité pour ce joueur : +${s.bonus} pts (déjà comptés).`
+      : 'Aucun bonus de majorité pour ce joueur pour l\'instant.';
+  }
+});
+</script>

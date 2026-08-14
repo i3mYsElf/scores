@@ -35,7 +35,10 @@ function rowNum(d, path, lab, sub, signed){
 }
 
 /* config : {
-     key, startPlayers, maxPlayers: ()=>N, blank, score,
+     key, startPlayers, maxPlayers: ()=>N, blank,
+     score(d, players) -> {..., total} — players permet les calculs
+       inter-joueurs (majorités) ; la plupart des jeux l'ignorent
+     drawSheet(d, ctx) -> html du corps de feuille,
      drawSheet(d, ctx) -> html du corps de feuille
      sums(s) -> {cléDataSum: valeur}                       (optionnel)
      afterDraw(d, ctx), afterRefresh(d, s)                 (optionnels)
@@ -93,7 +96,7 @@ function initSheet(cfg){
   function save(){
     try{
       localStorage.setItem(cfg.key, JSON.stringify({
-        players, cur, totals: players.map(p=>cfg.score(p.d).total),
+        players, cur, totals: players.map(p=>cfg.score(p.d, players).total),
         ...(cfg.extraState ? cfg.extraState() : {})
       }));
     }catch(e){}
@@ -117,7 +120,7 @@ function initSheet(cfg){
   }
 
   function refresh(){
-    const d = players[cur].d, s = cfg.score(d);
+    const d = players[cur].d, s = cfg.score(d, players);
     document.querySelectorAll('[data-val]').forEach(el=>{ el.textContent = get(d, el.dataset.val); });
     const sums = cfg.sums ? cfg.sums(s) : {};
     document.querySelectorAll('[data-sum]').forEach(el=>{
@@ -134,7 +137,7 @@ function initSheet(cfg){
     t.innerHTML = players.map((p,i)=>`
       <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--text)':COLORS[i]}">
         <span class="dot" style="color:${COLORS[i]}"></span>${esc(p.nom)}
-        <span class="pts">${cfg.score(p.d).total}</span>
+        <span class="pts">${cfg.score(p.d, players).total}</span>
       </button>`).join('')
       + (players.length < maxP() ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
     document.getElementById('pname').value = players[cur].nom;
@@ -143,7 +146,7 @@ function initSheet(cfg){
   }
 
   function showRank(){
-    const list = players.map((p,i)=>({...p, s:cfg.score(p.d), c:COLORS[i]}))
+    const list = players.map((p,i)=>({...p, s:cfg.score(p.d, players), c:COLORS[i]}))
       .sort((a,b)=> b.s.total - a.s.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0));
     document.getElementById('rankList').innerHTML = list.map((p,i)=>{
       const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ')
