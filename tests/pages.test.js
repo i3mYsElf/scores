@@ -115,6 +115,19 @@ test('iaww : multiplicateurs et personnages', () => {
   assert.equal(grand(w), '32');
 });
 
+/* ---------- Terraforming Mars ---------- */
+test('terraforming mars : NT de départ et 2e place selon le nombre de joueurs', () => {
+  const w = loadPage('terraformingmars.html');
+  assert.equal(grand(w), '20'); // NT de départ
+  assert.equal(w.document.querySelector('[data-step="sec"]'), null); // 2 joueurs : pas de 2e place
+  click(w, '#addP'); // 3 joueurs → la ligne apparaît
+  assert.ok(w.document.querySelector('[data-step="sec"]'));
+  click(w, '[data-step="sec"][data-by="1"]');
+  assert.equal(grand(w), '22'); // 20 + 2
+  click(w, '#kill'); // retour à 2 joueurs
+  assert.equal(w.document.querySelector('[data-step="sec"]'), null);
+});
+
 /* ---------- Cascadia ---------- */
 test('cascadia : les bonus de majorité se recalculent entre joueurs', () => {
   const w = loadPage('cascadia.html');

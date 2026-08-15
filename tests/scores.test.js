@@ -6,6 +6,7 @@ const wonders = require('../games/7wonders.js');
 const iaww = require('../games/wonderfulworld.js');
 const agricola = require('../games/agricola.js');
 const cascadia = require('../games/cascadia.js');
+const tm = require('../games/terraformingmars.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -148,4 +149,24 @@ test('Cascadia : score total avec bonus', () => {
 test('Cascadia : solo — pas de bonus de majorité', () => {
   const d = {...cascadia.blank(), montagnes:9};
   assert.deepEqual(cascadia.habitatBonuses([d])[0].montagnes, 0);
+});
+
+/* ---------- Terraforming Mars ---------- */
+test('TM : feuille de départ = NT 20', () => {
+  assert.equal(tm.score(tm.blank(), 3).total, 20);
+});
+
+test('TM : exemple complet, cartes négatives possibles', () => {
+  const d = {...tm.blank(), tr:31, objectifs:2, prem:1, sec:1, forets:6, villes:8, cartes:-2, mc:14};
+  const s = tm.score(d, 4);
+  assert.equal(s.objectifs, 10);
+  assert.equal(s.recompenses, 7);   // 5 + 2
+  assert.equal(s.plateau, 14);
+  assert.equal(s.total, 31+10+7+14-2);
+});
+
+test('TM : à 2 joueurs, la 2e place des récompenses ne compte pas', () => {
+  const d = {...tm.blank(), prem:1, sec:2};
+  assert.equal(tm.score(d, 2).recompenses, 5);
+  assert.equal(tm.score(d, 3).recompenses, 9);
 });

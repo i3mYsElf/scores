@@ -122,11 +122,28 @@
     </span>
     <span class="chev">›</span>
   </a>
+
+  <a class="game" href="terraformingmars.html">
+    <span class="thumb">
+      <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
+        <circle cx="17" cy="23" r="14" fill="#C05A3E"/>
+        <path d="M8,15 Q13,13 15,17 Q12,21 8,19 Q6,17 8,15 Z" fill="#94422E"/>
+        <path d="M20,26 Q26,24 27,29 Q23,34 19,31 Q18,28 20,26 Z" fill="#94422E"/>
+        <path d="M13,32 Q17,31 16,35 Q13,36 13,32 Z" fill="#94422E"/>
+        <ellipse cx="17" cy="10.5" rx="5" ry="2" fill="#F2E6DC"/>
+      </svg>
+    </span>
+    <span class="meta">
+      <b>Terraforming Mars</b>
+      <small id="marsSub">NT, objectifs, récompenses, plateau</small>
+    </span>
+    <span class="chev">›</span>
+  </a>
 </div>
 
 <script>
 /* Aperçu de la partie en cours, si des scores ont été saisis */
-for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub'], ['agricola-score-v1','agricolaSub'], ['cascadia-score-v1','cascadiaSub']]){
+for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub'], ['agricola-score-v1','agricolaSub'], ['cascadia-score-v1','cascadiaSub'], ['terraformingmars-score-v1','marsSub']]){
   try{
     const s = JSON.parse(localStorage.getItem(key));
     if(s && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){

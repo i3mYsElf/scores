@@ -1,0 +1,97 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Terraforming Mars — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Terraforming Mars</h1>
+    <p class="subtitle">Feuille de score — fin de partie</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="games/terraformingmars.js"></script>
+<script src="common.js"></script>
+<script>
+const {blank, score: rawScore} = GameLogic;
+
+initSheet({
+  key: 'terraformingmars-score-v1',
+  startPlayers: 2,
+  maxPlayers: () => 5,
+  blank,
+  score: (d, players) => rawScore(d, players ? players.length : 0),
+  signed: new Set(['cartes']),
+  sums: s => ({nt:s.nt, or:s.objectifs+s.recompenses, plateau:s.plateau, cartes:s.cartes}),
+  rankParts: s => [
+    ['NT',s.nt],['Objectifs',s.objectifs],['Récompenses',s.recompenses],
+    ['Plateau',s.plateau],['Cartes',s.cartes]
+  ],
+  rankExtra: d => d.mc ? ` · ${d.mc} M€` : '',
+  tiebreak: (a,b) => b.d.mc - a.d.mc,
+
+  drawSheet(d, ctx){
+    return `
+  <div class="card">
+    <h2>${sq('var(--rouge)')}Niveau de terraformation <span class="sum" data-sum="nt">0</span></h2>
+    <p class="hint">Votre position finale sur la piste NT (départ à 20). C'est la base de votre score.</p>
+    <div class="row">
+      <div class="lab">NT final</div>
+      <input class="num" data-num="tr" type="number" min="0" inputmode="numeric" value="${d.tr}">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--jaune)')}Objectifs &amp; récompenses <span class="sum" data-sum="or">0</span></h2>
+    <p class="hint">Égalités amicales sur les récompenses : les ex æquo marquent tous les points de la place.</p>
+    ${rowStep('objectifs','Objectifs revendiqués','5 points chacun')}
+    ${rowStep('prem','Récompenses · 1res places','5 points chacune')}
+    ${ctx.players.length !== 2 ? rowStep('sec','Récompenses · 2es places','2 points chacune') :
+      `<p class="hint">À 2 joueurs, la 2e place d'une récompense ne rapporte rien.</p>`}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--vert)')}Plateau <span class="sum" data-sum="plateau">0</span></h2>
+    ${rowStep('forets','Forêts','1 point chacune')}
+    <div class="row">
+      <div class="lab">Points de villes<small>1 pt par forêt adjacente à chacune de vos villes, quel qu'en soit le propriétaire</small></div>
+      <input class="num" data-num="villes" type="number" min="0" inputmode="numeric" value="${d.villes}">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Cartes <span class="sum" data-sum="cartes">0</span></h2>
+    <p class="hint">La somme des PV de vos cartes jouées (ressources comprises) ; les malus en négatif.</p>
+    <div class="row">
+      <div class="lab">Points des cartes</div>
+      <input class="num" data-num="cartes" type="number" value="${d.cartes}">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--gris)')}Départage <span class="sum">0 pts</span></h2>
+    <p class="hint">Ne rapporte aucun point : en cas d'égalité, le plus de mégacrédits l'emporte.</p>
+    <div class="row">
+      <div class="lab">Mégacrédits restants</div>
+      <input class="num" data-num="mc" type="number" min="0" inputmode="numeric" value="${d.mc}">
+    </div>
+  </div>`;
+  }
+});
+</script>
