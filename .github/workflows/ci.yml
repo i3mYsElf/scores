@@ -22,3 +22,30 @@ jobs:
           for f in games/*.js; do node --check "$f"; done
       - name: Tests
         run: node --test
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stamper la version du cache avec le SHA du commit
+        run: sed -i "s/const VERSION = 'dev'/const VERSION = '${GITHUB_SHA::7}'/" sw.js && grep "const VERSION" sw.js
+      - name: Assembler le site (fichiers publics uniquement)
+        run: |
+          mkdir _site
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'node_modules' \
+                --exclude 'tests' --exclude 'package.json' --exclude 'package-lock.json' \
+                --exclude '_site' ./ _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

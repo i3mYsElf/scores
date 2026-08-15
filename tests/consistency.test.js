@@ -38,6 +38,11 @@ for (const g of games) {
   });
 }
 
+test('la version du SW committée reste "dev" (stampée au déploiement)', () => {
+  assert.ok(read('sw.js').includes("const VERSION = 'dev'"),
+    "sw.js doit garder VERSION = 'dev' — le SHA est injecté par la CI au déploiement");
+});
+
 test('les fichiers communs sont précachés', () => {
   for (const f of ['.', 'common.css', 'common.js', 'manifest.json']) {
     assert.ok(precache.includes(f), `${f} absent du PRECACHE`);

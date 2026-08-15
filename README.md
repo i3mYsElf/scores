@@ -28,9 +28,13 @@ Chaque page de jeu charge `games/<jeu>.js` (la logique), `common.js` (le moteur)
 2. Ajouter ses cas de test dans `tests/scores.test.js` (lancer avec `node --test`).
 3. Créer `<jeu>.html` en partant de `wonderfulworld.html` comme modèle : head + header + `#sheetBody` seulement (le reste du chrome est injecté par `common.js`), puis `initSheet({key: '<jeu>-score-v1', blank, score, drawSheet, sums, rankParts, ...})` — voir les hooks documentés dans `common.js`.
 4. Ajouter la carte du jeu dans `index.html` (bloc `<a class="game">` + clé dans la boucle d'aperçu), et si désiré un raccourci dans `manifest.json`.
-5. Dans `sw.js` : ajouter `<jeu>.html` et `games/<jeu>.js` au `PRECACHE`, et incrémenter le nom de cache (`scores-vN`) pour purger l'ancien.
+5. Dans `sw.js` : ajouter `<jeu>.html` et `games/<jeu>.js` au `PRECACHE` (la version du cache est stampée automatiquement au déploiement, rien à incrémenter).
 
 `tests/consistency.test.js` vérifie automatiquement les étapes 3 à 5 — un oubli fait échouer la CI.
+
+## Déploiement
+
+Push sur `main` → GitHub Actions lance les tests puis, s'ils passent, déploie sur GitHub Pages en stampant la version du cache avec le SHA du commit (`sw.js` reste en `VERSION = 'dev'` dans le repo). Un push avec des tests rouges ne se déploie pas.
 
 ## Développement local
 

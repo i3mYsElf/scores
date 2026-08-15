@@ -1,4 +1,5 @@
-const CACHE = 'scores-v14';
+const VERSION = 'dev'; // remplacé par le SHA du commit au déploiement (voir ci.yml)
+const CACHE = 'scores-' + VERSION;
 const PRECACHE = [
   '.',
   'harmonies.html',

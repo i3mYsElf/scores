@@ -7,7 +7,7 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 - **Vanilla, zéro build, zéro dépendance runtime** : pas de framework, pas de bundler. Le `package.json` n'existe que pour jsdom (tests). C'est un choix délibéré ; une migration Expo (React Native) est envisagée à terme comme projet séparé, préparée par l'isolation de la logique dans `games/`.
 - **Chemins relatifs partout** (pages, manifest, SW, icônes) : le site est servi sous `/scores/` sur GitHub Pages.
 - **Ne jamais casser les données persistées** : clés localStorage `<jeu>-score-v1`, format `{players:[{nom,d}], cur, totals, exts?}`. Des parties réelles sont en cours sur téléphone. Toute évolution du format doit relire l'ancien (voir `fixup`/`restoreExtra` dans `common.js`).
-- **Incrémenter `scores-vN` dans `sw.js` à chaque modification de fichiers précachés** (les navigations sont en network-first, mais le bump purge les vieux caches et rafraîchit les assets).
+- **Versionning du cache automatique** : `sw.js` garde `const VERSION = 'dev'` (ne jamais committer autre chose — un test l'impose) ; la CI stampe le SHA du commit au déploiement, ce qui purge les vieux caches à chaque mise en production. Le déploiement Pages passe par GitHub Actions et **n'a lieu que si les tests passent**.
 
 ## Architecture
 
@@ -19,7 +19,7 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 
 ## Ajouter un jeu
 
-Suivre la recette du README (games/*.js → tests → page → carte accueil → PRECACHE + bump). Modèle le plus simple : `wonderfulworld.html`. Vérifier le barème officiel du jeu (web) avant d'implémenter, ne pas se fier à la mémoire.
+Suivre la recette du README (games/*.js → tests → page → carte accueil → PRECACHE). Modèle le plus simple : `wonderfulworld.html`. Vérifier le barème officiel du jeu (web) avant d'implémenter, ne pas se fier à la mémoire.
 
 ## Vérification avant push
 
@@ -32,7 +32,7 @@ Suivre la recette du README (games/*.js → tests → page → carte accueil →
 
 ## Déploiement
 
-Push sur `main` = déploiement GitHub Pages automatique (~30-60 s) + CI GitHub Actions (`node --test`). Vérifier ensuite que `https://i3myself.github.io/scores/sw.js` sert bien la nouvelle version de cache.
+Push sur `main` → workflow GitHub Actions : tests, puis (si verts) déploiement Pages avec la version de cache stampée au SHA du commit (~1-2 min). Vérifier ensuite que `https://i3myself.github.io/scores/sw.js` sert `const VERSION = '<sha>'` du commit poussé. Le réglage Pages du repo doit être sur « Source : GitHub Actions ».
 
 ## Design
 
