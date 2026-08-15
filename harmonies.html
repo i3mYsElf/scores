@@ -29,7 +29,7 @@
 <script src="games/harmonies.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score} = GameLogic;
+const {blank, score, fixup} = GameLogic;
 
 const TOK = {
   marron:['#9A6B45','#7A5133'], vert:['#6E9C55','#4F7439'], gris:['#93A0A8','#6E7B83'],
@@ -57,20 +57,11 @@ function drawEau(d){
        ${rowT('iles',['bleu'],'Nombre d\'îles','5 points chacune')}`;
 }
 
-function drawAnim(d){
-  document.getElementById('animList').innerHTML = d.animaux.map((v,i)=>`
-    <div class="row">
-      <div class="lab">Carte ${i+1}</div>
-      <input class="num" data-anim="${i}" type="number" inputmode="numeric" min="0" value="${v}">
-      <button class="kill" data-delanim="${i}" aria-label="Supprimer la carte ${i+1}">×</button>
-    </div>`).join('');
-}
-
 initSheet({
   key: 'harmonies-score-v1',
   startPlayers: 2,
   maxPlayers: () => 4,
-  blank, score,
+  blank, score, fixup,
   stepMin: p => p === 'iles' ? 1 : 0,
   sums: s => ({arbre:s.arbre, mont:s.mont, cb:s.champs+s.batiments, eau:s.eau, animaux:s.animaux+s.esprit}),
   rankParts: s => [
@@ -114,16 +105,15 @@ initSheet({
 
   <div class="card">
     <h2>Cartes animaux <span class="sum" data-sum="animaux">0</span></h2>
-    <p class="hint">Saisissez les points inscrits sur chaque carte, selon le nombre de cubes que vous avez posés.</p>
-    <div id="animList"></div>
-    <button class="ghost" id="addAnim">+ Ajouter une carte</button>
+    <p class="hint">Additionnez les points inscrits sur vos cartes animaux et saisissez le total.</p>
+    ${rowNum(d,'animaux','Points des animaux','total de vos cartes')}
     <div class="row">
       <div class="lab">Esprit de la nature<small>Laissez à 0 si vous n'y jouez pas</small></div>
       <input class="num" data-num="esprit" type="number" inputmode="numeric" min="0" value="${d.esprit}">
     </div>
   </div>`;
   },
-  afterDraw(d){ drawEau(d); drawAnim(d); },
+  afterDraw(d){ drawEau(d); },
 
   onClick(e, ctx){
     const d = ctx.d;
@@ -132,20 +122,6 @@ initSheet({
       d.face = face.dataset.face;
       document.querySelectorAll('[data-face]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.face===d.face));
       drawEau(d); ctx.refresh(); return true;
-    }
-    if(e.target.id === 'addAnim'){ d.animaux.push(0); drawAnim(d); ctx.refresh(); return true; }
-    const del = e.target.closest('[data-delanim]');
-    if(del){
-      d.animaux.splice(+del.dataset.delanim,1);
-      if(!d.animaux.length) d.animaux.push(0);
-      drawAnim(d); ctx.refresh(); return true;
-    }
-    return false;
-  },
-  onInput(e, ctx){
-    if(e.target.dataset.anim !== undefined){
-      ctx.d.animaux[+e.target.dataset.anim] = Math.max(0, +e.target.value||0);
-      ctx.refresh(); return true;
     }
     return false;
   }
