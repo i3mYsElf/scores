@@ -1,4 +1,4 @@
-const CACHE = 'scores-v9';
+const CACHE = 'scores-v10';
 const PRECACHE = [
   '.',
   'harmonies.html',

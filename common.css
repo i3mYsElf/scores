@@ -13,6 +13,8 @@
   --r:16px;
 }
 *{box-sizing:border-box}
+/* pas de zoom double-tap sur les contrôles (steppers cliqués vite), pinch-zoom conservé */
+button,input,a{touch-action:manipulation}
 html,body{margin:0;background:var(--bg);color:var(--text)}
 body{
   font-family:"Karla",system-ui,-apple-system,sans-serif;
