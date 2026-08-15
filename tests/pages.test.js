@@ -115,6 +115,36 @@ test('iaww : multiplicateurs et personnages', () => {
   assert.equal(grand(w), '32');
 });
 
+/* ---------- Accueil : aperçu « Partie en cours » ---------- */
+test('accueil : visiter une feuille ne déclenche pas « Partie en cours »', () => {
+  // sauvegarde TM créée par une simple visite : totaux à 20 (NT), aucune saisie
+  const visite = JSON.stringify({players:[{nom:'Joueur 1',d:{}},{nom:'Joueur 2',d:{}}], cur:0, started:false, totals:[20,20]});
+  const vraie = JSON.stringify({players:[{nom:'Manu',d:{}}], cur:0, started:true, totals:[42]});
+  const w = loadPage('index.html', {'terraformingmars-score-v1': visite, 'harmonies-score-v1': vraie});
+  assert.ok(!w.document.getElementById('marsSub').textContent.includes('Partie en cours'));
+  assert.ok(w.document.getElementById('harmoniesSub').textContent.includes('Partie en cours · Manu 42'));
+});
+
+test('le flag started ne s\'active qu\'à une vraie saisie de score', () => {
+  const w = loadPage('terraformingmars.html');
+  click(w, '#addP'); // provoque une sauvegarde, mais sans saisie de score
+  let saved = JSON.parse(w.localStorage.getItem('terraformingmars-score-v1'));
+  assert.equal(!!saved.started, false);
+  click(w, '[data-step="objectifs"][data-by="1"]');
+  saved = JSON.parse(w.localStorage.getItem('terraformingmars-score-v1'));
+  assert.equal(saved.started, true);
+  click(w, '#openRank'); click(w, '#resetAll'); // nouvelle partie -> flag remis à zéro
+  saved = JSON.parse(w.localStorage.getItem('terraformingmars-score-v1'));
+  assert.equal(saved.started, false);
+});
+
+test('anciennes sauvegardes sans flag : dérivé de l\'écart à la feuille vierge', () => {
+  // harmonies avec des points (ancien format) -> considérée commencée
+  const legacy = JSON.stringify({players:[{nom:'Manu',d:{champs:2}}], cur:0, totals:[10]});
+  const w = loadPage('harmonies.html', {'harmonies-score-v1': legacy});
+  assert.equal(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).started, true);
+});
+
 /* ---------- Terraforming Mars ---------- */
 test('terraforming mars : NT de départ et 2e place selon le nombre de joueurs', () => {
   const w = loadPage('terraformingmars.html');

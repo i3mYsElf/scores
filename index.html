@@ -146,7 +146,7 @@
 for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub'], ['agricola-score-v1','agricolaSub'], ['cascadia-score-v1','cascadiaSub'], ['terraformingmars-score-v1','marsSub']]){
   try{
     const s = JSON.parse(localStorage.getItem(key));
-    if(s && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){
+    if(s && s.started && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){
       document.getElementById(id).textContent =
         'Partie en cours · ' + s.players.map((p,i)=>(p.nom||'?')+' '+(s.totals[i]||0)).join(' · ');
     }

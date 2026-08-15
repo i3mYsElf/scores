@@ -104,10 +104,14 @@ function initSheet(cfg){
   };
 
   /* ---------- persistance ---------- */
+  /* started : vrai dès la première saisie de score — l'accueil s'en sert pour
+     l'aperçu « Partie en cours » (les totaux ne suffisent pas : une feuille
+     vierge de Terraforming Mars vaut déjà 20 points de NT). */
+  let started = false;
   function save(){
     try{
       localStorage.setItem(cfg.key, JSON.stringify({
-        players, cur, totals: players.map(p=>cfg.score(p.d, players).total),
+        players, cur, started, totals: players.map(p=>cfg.score(p.d, players).total),
         ...(cfg.extraState ? cfg.extraState() : {})
       }));
     }catch(e){}
@@ -120,6 +124,12 @@ function initSheet(cfg){
       players = s.players.slice(0, maxP()).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...cfg.blank(), ...p.d}}));
       if(cfg.fixup) players.forEach(p=>cfg.fixup(p.d));
       cur = Math.min(+s.cur || 0, players.length-1);
+      if(s.started !== undefined) started = !!s.started;
+      else{
+        // ancienne sauvegarde sans le flag : partie commencée si un total dévie de la feuille vierge
+        const base = cfg.score(cfg.blank(), players).total;
+        started = Array.isArray(s.totals) ? s.totals.some(t => t !== base) : true;
+      }
     }catch(e){}
   }
 
@@ -173,6 +183,7 @@ function initSheet(cfg){
 
   /* ---------- interactions ---------- */
   document.addEventListener('click', e=>{
+    if(e.target.closest && e.target.closest('#sheetBody button')) started = true;
     if(cfg.onClick && cfg.onClick(e, ctx)) return;
     const d = players[cur].d;
     const st = e.target.closest('[data-step]');
@@ -188,16 +199,17 @@ function initSheet(cfg){
     if(e.target.id === 'openRank'){ showRank(); return; }
     if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
     if(e.target.id === 'resetAll'){
-      players = players.map(p=>mk(p.nom)); cur = 0;
+      players = players.map(p=>mk(p.nom)); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }
     if(e.target.id === 'resetPlayers'){
-      players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0;
+      players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }
   });
 
   document.addEventListener('input', e=>{
+    if(e.target.closest && e.target.closest('#sheetBody input')) started = true;
     if(cfg.onInput && cfg.onInput(e, ctx)) return;
     const d = players[cur].d;
     if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); refresh(); return; }
