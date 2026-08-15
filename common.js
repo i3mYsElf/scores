@@ -50,6 +50,16 @@ function rowNum(d, path, lab, sub, signed){
      extraState() -> objet fusionné dans la sauvegarde     (optionnel)
      restoreExtra(sauvegarde), fixup(d)                    (optionnels)
    } */
+/* Au focus d'un champ, sélectionner la valeur existante : taper remplace
+   (le 0 par défaut, notamment) au lieu d'insérer au point cliqué.
+   Le setTimeout laisse passer le clic qui suit le focus (sinon il
+   replacerait le curseur). */
+document.addEventListener('focusin', e => {
+  if(e.target.tagName === 'INPUT'){
+    setTimeout(() => e.target.select(), 0);
+  }
+});
+
 /* Chrome commun à toutes les feuilles : nom du joueur, barre de total,
    sheet de classement. Injecté ici pour que les pages n'en portent pas copie. */
 function injectChrome(){
@@ -71,7 +81,8 @@ function injectChrome(){
       <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
       <div id="rankList"></div>
       <button class="close" id="closeRank">Retour à la saisie</button>
-      <button class="reset" id="resetAll">Nouvelle partie</button>
+      <button class="reset" id="resetAll">Nouvelle partie (mêmes joueurs)</button>
+      <button class="reset" id="resetPlayers">Réinitialiser joueurs et scores</button>
     </div></div>
   </div>`);
 }
@@ -178,6 +189,10 @@ function initSheet(cfg){
     if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
     if(e.target.id === 'resetAll'){
       players = players.map(p=>mk(p.nom)); cur = 0;
+      document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
+    }
+    if(e.target.id === 'resetPlayers'){
+      players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }
   });

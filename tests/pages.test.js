@@ -62,6 +62,20 @@ test('harmonies : persistance écrite et relecture ancien format (sans totals)',
   assert.equal(w2.document.getElementById('pname').value, 'Manu');
 });
 
+test('harmonies : Nouvelle partie garde les joueurs, Réinitialiser les remet à zéro', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '#addP');
+  type(w, '#pname', 'Manu');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#openRank'); click(w, '#resetAll');
+  assert.equal(grand(w), '0');                                        // scores remis à zéro
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 3); // joueurs conservés
+  assert.ok(w.document.getElementById('tabs').textContent.includes('Manu')); // noms conservés
+  click(w, '#openRank'); click(w, '#resetPlayers');
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 2); // retour à 2 joueurs
+  assert.ok(!w.document.getElementById('tabs').textContent.includes('Manu')); // noms par défaut
+});
+
 /* ---------- 7 Wonders ---------- */
 test('7 wonders : trésor, science avec joker', () => {
   const w = loadPage('7wonders.html');
