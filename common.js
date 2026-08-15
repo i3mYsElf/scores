@@ -146,7 +146,7 @@ function initSheet(cfg){
   function drawTabs(){
     const t = document.getElementById('tabs');
     t.innerHTML = players.map((p,i)=>`
-      <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--text)':COLORS[i]}">
+      <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--bg)':COLORS[i]}">
         <span class="dot" style="color:${COLORS[i]}"></span>${esc(p.nom)}
         <span class="pts">${cfg.score(p.d, players).total}</span>
       </button>`).join('')

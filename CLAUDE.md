@@ -36,4 +36,4 @@ Push sur `main` = déploiement GitHub Pages automatique (~30-60 s) + CI GitHub A
 
 ## Design
 
-Palette et composants dans `common.css` (fond `#131E1C`, or `#DFB149`, couleurs joueurs `--p1`…`--p8`). Fonts : Fraunces (titres) + Karla (texte) via Google Fonts. Icônes : sources SVG dans `icons/`, PNG régénérés via sharp (script `make-icons.js` en scratchpad). Vignettes de jeux : petits SVG inline dans `index.html`, jamais de visuel sous licence.
+Identité « Le Tableau » : noir/blanc + orange (`--accent`), double thème clair/sombre via `prefers-color-scheme` (tokens dans `common.css`, theme-color double dans les pages). Fonts : Anton (titres, uppercase) + Barlow (texte) via Google Fonts. Couleurs joueurs `--p1`…`--p8` lisibles sur les deux fonds ; couleurs « matière » des jeux (`--marron`, `--vert`…) conservées pour les jetons/vignettes. Icônes : sources SVG dans `icons/`, PNG régénérés via sharp (script `make-icons.js` en scratchpad). Vignettes de jeux : petits SVG inline dans `index.html`, jamais de visuel sous licence.

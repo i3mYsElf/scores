@@ -3,7 +3,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Scores — feuilles de score</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#131E1C">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -11,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="common.css">
 <style>
   /* styles propres à l'accueil */
@@ -20,10 +21,10 @@
     background:var(--card);border:1px solid var(--line);border-radius:var(--r);
     padding:16px 14px;margin:12px 0;text-decoration:none;color:var(--text);
   }
-  .game:active{background:var(--card-2)}
+  .game:active{border-color:var(--muted)}
   .game .thumb{flex:0 0 40px;display:grid;place-items:center}
   .game .meta{flex:1;min-width:0}
-  .game .meta b{font-family:"Fraunces",serif;font-size:19px;font-weight:600;display:block}
+  .game .meta b{font-family:"Anton",sans-serif;font-size:17px;font-weight:400;text-transform:uppercase;letter-spacing:.02em;display:block}
   .game .meta small{color:var(--muted);font-size:12.5px;display:block;margin-top:3px}
   .game .chev{color:var(--muted);font-size:20px}
   @media (prefers-reduced-motion:no-preference){
@@ -109,7 +110,7 @@
   <a class="game" href="cascadia.html">
     <span class="thumb">
       <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
-        <path d="M17,7 L29.5,15 L29.5,31 L17,39 L4.5,31 L4.5,15 Z" fill="#243330" stroke="#5FAF9E" stroke-width="2"/>
+        <path d="M17,7 L29.5,15 L29.5,31 L17,39 L4.5,31 L4.5,15 Z" fill="none" stroke="#5FAF9E" stroke-width="2"/>
         <path d="M17,13 L23,25 L11,25 Z" fill="#6E9C55"/>
         <path d="M17,19 L24.5,32 L9.5,32 Z" fill="#4F7439"/>
         <rect x="15.5" y="32" width="3" height="4" fill="#9A6B45"/>

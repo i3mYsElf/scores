@@ -1,23 +1,53 @@
-/* Styles partagés par toutes les feuilles de score */
+/* Styles partagés par toutes les feuilles de score.
+   Identité « Le Tableau » : noir/blanc + orange, Anton (titres) + Barlow (texte).
+   Double thème : clair par défaut, sombre via prefers-color-scheme. */
 :root{
-  --bg:#131E1C;
-  --card:#1D2A27;
-  --card-2:#243330;
-  --line:rgba(233,240,233,.10);
-  --text:#E9F0E9;
-  --muted:#93A79E;
+  --bg:#F4F4F1;
+  --card:#FFFFFF;
+  --card-2:#161616;          /* fond des contrôles (steppers, segments actifs) */
+  --ctl-ink:#F4F4F1;         /* texte des contrôles */
+  --field:#F4F4F1;           /* fond des champs de saisie */
+  --line:rgba(22,22,22,.14);
+  --text:#161616;
+  --muted:#75756E;
+  --accent:#E8480C;          /* orange sur fond clair */
+  --accent-2:#FF6B2B;        /* orange sur fond sombre (barre de total) */
+  --danger:#C43B3B;
+  --bar-bg:rgba(22,22,22,.96); --bar-ink:#F4F4F1; --bar-muted:#9C9C94;
+  --overlay:rgba(20,20,20,.6);
+  --go-ink:#FFFFFF;
+  /* couleurs « matière » des jeux (jetons, pastilles de catégories) */
   --marron:#9A6B45; --vert:#6E9C55; --gris:#93A0A8;
   --jaune:#DFB149;  --bleu:#4A90C0;  --rouge:#C4604F;
-  --p1:#6E9C55; --p2:#4A90C0; --p3:#DFB149; --p4:#C4604F;
-  --p5:#A47FC7; --p6:#C77FA0; --p7:#5FAF9E; --p8:#D9925F;
-  --r:16px;
+  /* couleurs joueurs — lisibles sur fond clair et sombre */
+  --p1:#D64545; --p2:#3E7BC0; --p3:#55A05E; --p4:#D9A62E;
+  --p5:#9A6BD0; --p6:#D065A2; --p7:#45AFA5; --p8:#B07A4A;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141414;
+    --card:#1F1F1D;
+    --card-2:#2C2C29;
+    --ctl-ink:#F2F2EE;
+    --field:#2C2C29;
+    --line:rgba(242,242,238,.13);
+    --text:#F2F2EE;
+    --muted:#8F8F87;
+    --accent:#FF6B2B;
+    --accent-2:#FF6B2B;
+    --danger:#E05A5A;
+    --bar-bg:rgba(0,0,0,.92); --bar-ink:#F2F2EE; --bar-muted:#8F8F87;
+    --overlay:rgba(0,0,0,.65);
+    --go-ink:#141414;
+  }
 }
 *{box-sizing:border-box}
 /* pas de zoom double-tap sur les contrôles (steppers cliqués vite), pinch-zoom conservé */
 button,input,a{touch-action:manipulation}
 html,body{margin:0;background:var(--bg);color:var(--text)}
 body{
-  font-family:"Karla",system-ui,-apple-system,sans-serif;
+  font-family:"Barlow",system-ui,-apple-system,sans-serif;
   -webkit-font-smoothing:antialiased;
   padding-bottom:calc(96px + env(safe-area-inset-bottom));
 }
@@ -26,24 +56,24 @@ body{
 /* ---------- en-tête ---------- */
 /* padding-top : dégage la barre de statut iOS en PWA standalone (black-translucent) */
 header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
-.back{display:inline-block;color:var(--muted);font-size:13px;text-decoration:none;margin-bottom:8px}
+.back{display:inline-block;color:var(--muted);font-size:13px;font-weight:600;text-decoration:none;margin-bottom:8px}
 .title{
-  font-family:"Fraunces",Georgia,serif;
-  font-variation-settings:"SOFT" 60,"WONK" 1;
-  font-weight:600;font-size:30px;letter-spacing:-.01em;margin:0;line-height:1;
+  font-family:"Anton",sans-serif;
+  font-weight:400;font-size:32px;text-transform:uppercase;letter-spacing:.015em;
+  margin:0;line-height:1;
 }
-.subtitle{color:var(--muted);font-size:13px;margin:6px 0 0}
+.subtitle{color:var(--muted);font-size:13px;margin:7px 0 0}
 
 .tabs{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab{
   flex:0 0 auto;display:flex;align-items:center;gap:8px;
-  background:var(--card);border:1px solid var(--line);color:var(--muted);
-  border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;
+  background:transparent;border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;
 }
 .tab .dot{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.9}
-.tab .pts{font-variant-numeric:tabular-nums;font-weight:700;color:var(--text)}
-.tab[aria-selected="true"]{background:var(--card-2);border-color:rgba(233,240,233,.28);color:var(--text)}
+.tab .pts{font-variant-numeric:tabular-nums;font-weight:700;color:inherit}
+.tab[aria-selected="true"]{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:600}
 .tab.add{color:var(--muted);padding:8px 15px;font-size:18px;line-height:1}
 
 /* ---------- nom du joueur ---------- */
@@ -51,19 +81,19 @@ header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
 .whois .swatch{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
 .whois input{
   flex:1;background:transparent;border:none;border-bottom:1px dashed var(--line);
-  color:var(--text);font-family:"Fraunces",serif;font-size:22px;font-weight:600;
+  color:var(--text);font-family:"Barlow",sans-serif;font-size:21px;font-weight:700;
   padding:4px 0;min-width:0;
 }
-.whois input:focus{outline:none;border-bottom-color:var(--muted)}
+.whois input:focus{outline:none;border-bottom-color:var(--accent)}
 .kill{background:none;border:none;color:var(--muted);font-size:20px;padding:4px 8px;cursor:pointer}
 
 /* ---------- cartes de catégorie ---------- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 6px;margin:12px 0}
 .card h2{
-  font-family:"Fraunces",serif;font-weight:600;font-size:16px;margin:0 0 2px;
+  font-weight:700;font-size:15px;margin:0 0 2px;
   display:flex;justify-content:space-between;align-items:baseline;gap:10px;
 }
-.card h2 .sum{font-family:"Karla";font-size:14px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.card h2 .sum{font-size:13.5px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
 .hint{color:var(--muted);font-size:12.5px;margin:0 0 8px;line-height:1.45}
 
 .row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
@@ -74,49 +104,52 @@ header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
 
 .step{display:flex;align-items:center;gap:2px;flex:0 0 auto}
 .step button{
-  width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
-  background:var(--card-2);color:var(--text);font-size:20px;line-height:1;cursor:pointer;
+  width:38px;height:38px;border-radius:9px;border:none;
+  background:var(--card-2);color:var(--ctl-ink);font-size:20px;line-height:1;cursor:pointer;
   display:grid;place-items:center;-webkit-tap-highlight-color:transparent;
 }
-.step button:active{background:#2E403C}
+.step button:active{opacity:.72}
 .step button:disabled{opacity:.3}
 .step .val{width:34px;text-align:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
 
 .seg{display:flex;gap:6px;margin:2px 0 10px}
 .seg button{
-  flex:1;padding:9px;border-radius:11px;border:1px solid var(--line);
-  background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
+  flex:1;padding:9px;border-radius:9px;border:1px solid var(--line);
+  background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:500;cursor:pointer;
 }
-.seg button[aria-pressed="true"]{background:var(--card-2);color:var(--text);border-color:rgba(233,240,233,.28)}
+.seg button[aria-pressed="true"]{background:var(--card-2);color:var(--ctl-ink);border-color:var(--card-2);font-weight:600}
 
 .num{
-  width:74px;padding:9px;border-radius:11px;border:1px solid var(--line);
-  background:var(--card-2);color:var(--text);font:inherit;font-weight:700;font-size:16px;
+  width:74px;padding:9px;border-radius:9px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font:inherit;font-weight:700;font-size:16px;
   text-align:center;font-variant-numeric:tabular-nums;
 }
-.num:focus{outline:1px solid var(--muted)}
+.num:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .ghost{
-  width:100%;margin:4px 0 10px;padding:11px;border-radius:11px;
+  width:100%;margin:4px 0 10px;padding:11px;border-radius:9px;
   border:1px dashed var(--line);background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
 }
 
 /* ---------- barre de total ---------- */
 .bar{
   position:fixed;left:0;right:0;bottom:0;z-index:5;
-  background:rgba(19,30,28,.93);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  background:var(--bar-bg);backdrop-filter:blur(12px);
   padding:12px 16px calc(12px + env(safe-area-inset-bottom));
 }
 .bar .inner{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:14px}
-.bar .tot{flex:1;display:flex;align-items:baseline;gap:9px}
-.bar .tot b{font-family:"Fraunces",serif;font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
-.bar .tot span{color:var(--muted);font-size:13px}
+.bar .tot{flex:1;display:flex;align-items:baseline;gap:10px}
+.bar .tot b{
+  font-family:"Anton",sans-serif;font-weight:400;font-size:36px;
+  color:var(--accent-2);font-variant-numeric:tabular-nums;line-height:1;
+}
+.bar .tot span{color:var(--bar-muted);font-size:13px}
 .bar .go{
-  background:var(--text);color:#132320;border:none;border-radius:12px;
+  background:var(--accent);color:var(--go-ink);border:none;border-radius:9px;
   padding:13px 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;
 }
 
 /* ---------- classement ---------- */
-.sheet{position:fixed;inset:0;z-index:10;background:rgba(10,17,16,.72);display:none}
+.sheet{position:fixed;inset:0;z-index:10;background:var(--overlay);display:none}
 .sheet.open{display:block}
 .sheet .panel{
   position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;
@@ -125,13 +158,13 @@ header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
 }
 .sheet .panel .in{max-width:520px;margin:0 auto}
 .rank{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
-.rank .pos{font-family:"Fraunces",serif;font-size:19px;width:22px;color:var(--muted)}
+.rank .pos{font-family:"Anton",sans-serif;font-size:19px;width:24px;color:var(--muted)}
 .rank .nm{flex:1;font-size:16px;font-weight:500}
 .rank .nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:3px}
-.rank .pt{font-family:"Fraunces",serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
-.rank.win .pos{color:var(--jaune)}
-.close{width:100%;margin-top:18px;padding:13px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;cursor:pointer}
-.reset{width:100%;margin-top:8px;padding:13px;border-radius:12px;border:none;background:transparent;color:var(--rouge);font:inherit;font-size:13px;cursor:pointer}
+.rank .pt{font-family:"Anton",sans-serif;font-weight:400;font-size:25px;font-variant-numeric:tabular-nums}
+.rank.win .pos{color:var(--accent)}
+.close{width:100%;margin-top:18px;padding:13px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.reset{width:100%;margin-top:8px;padding:13px;border-radius:9px;border:none;background:transparent;color:var(--danger);font:inherit;font-size:13px;cursor:pointer}
 @media (prefers-reduced-motion:no-preference){
   .card{animation:rise .3s ease both}
   @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
