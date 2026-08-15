@@ -1,4 +1,4 @@
-const CACHE = 'scores-v13';
+const CACHE = 'scores-v14';
 const PRECACHE = [
   '.',
   'harmonies.html',
@@ -40,17 +40,21 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
 
-  // Polices Google : cache d'abord, mise à jour en arrière-plan (dispo offline après la 1re visite)
+  // Cache d'abord, mise à jour en arrière-plan. Le waitUntil est crucial sur iOS :
+  // WebKit tue le SW dès la réponse rendue, sans lui la mise à jour n'aboutit jamais.
+  const staleWhileRevalidate = () =>
+    caches.open(CACHE).then(async c => {
+      const hit = await c.match(e.request);
+      const net = fetch(e.request)
+        .then(r => { if (r.ok) c.put(e.request, r.clone()); return r; })
+        .catch(() => hit);
+      if (hit) { e.waitUntil(net.then(() => {}, () => {})); return hit; }
+      return net;
+    });
+
+  // Polices Google (dispo offline après la 1re visite)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    e.respondWith(
-      caches.open(CACHE).then(async c => {
-        const hit = await c.match(e.request);
-        const net = fetch(e.request)
-          .then(r => { if (r.ok) c.put(e.request, r.clone()); return r; })
-          .catch(() => hit);
-        return hit || net;
-      })
-    );
+    e.respondWith(staleWhileRevalidate());
     return;
   }
 
@@ -73,13 +77,5 @@ self.addEventListener('fetch', e => {
   }
 
   // Assets même origine : cache d'abord, mise à jour en arrière-plan
-  e.respondWith(
-    caches.open(CACHE).then(async c => {
-      const hit = await c.match(e.request);
-      const net = fetch(e.request)
-        .then(r => { if (r.ok) c.put(e.request, r.clone()); return r; })
-        .catch(() => hit);
-      return hit || net;
-    })
-  );
+  e.respondWith(staleWhileRevalidate());
 });
