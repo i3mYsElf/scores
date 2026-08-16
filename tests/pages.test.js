@@ -173,6 +173,26 @@ test('cascadia : les bonus de majorité se recalculent entre joueurs', () => {
   assert.equal(grand(w), '7'); // 6 + 1 : égalité au plus grand corridor
 });
 
+/* ---------- Steppers : appui long ---------- */
+test('steppers : l\'appui long répète, le clic du relâchement ne compte pas double', async () => {
+  const w = loadPage('harmonies.html');
+  const btn = w.document.querySelector('[data-step="champs"][data-by="1"]');
+  btn.dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 750)); // 400ms d'armement + quelques répétitions
+  w.document.dispatchEvent(new w.Event('pointerup', { bubbles: true }));
+  const held = JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].d.champs;
+  assert.ok(held >= 2, `attendu au moins 2 crans, obtenu ${held}`);
+  btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true })); // le clic natif émis au relâchement
+  let d = JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].d;
+  assert.equal(d.champs, held); // neutralisé : pas de cran en plus
+  // un tap court reste un incrément simple
+  btn.dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
+  w.document.dispatchEvent(new w.Event('pointerup', { bubbles: true }));
+  btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  d = JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].d;
+  assert.equal(d.champs, held + 1);
+});
+
 /* ---------- Historique des parties ---------- */
 test('reset : la partie est archivée dans scores-history-v1, classée', () => {
   const w = loadPage('harmonies.html');

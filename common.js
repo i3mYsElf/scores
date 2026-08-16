@@ -196,15 +196,38 @@ function initSheet(cfg){
   }
 
   /* ---------- interactions ---------- */
+  function doStep(st){
+    const d = players[cur].d;
+    const p = st.dataset.step, min = cfg.stepMin ? cfg.stepMin(p) : 0;
+    set(d, p, Math.max(min, get(d,p) + (+st.dataset.by)));
+    refresh();
+  }
+
+  /* Appui long sur un stepper : répétition automatique après 400ms, puis toutes
+     les 110ms. Le clic émis au relâchement est neutralisé (holdFired) pour ne
+     pas compter un cran de plus. */
+  let holdTimer = null, holdInt = null, holdFired = false;
+  function stopHold(){ clearTimeout(holdTimer); clearInterval(holdInt); holdTimer = holdInt = null; }
+  document.addEventListener('pointerdown', e=>{
+    const st = e.target.closest && e.target.closest('[data-step]');
+    if(!st) return;
+    holdFired = false;
+    holdTimer = setTimeout(()=>{
+      holdFired = true; started = true;
+      doStep(st);
+      holdInt = setInterval(()=>doStep(st), 110);
+    }, 400);
+  });
+  document.addEventListener('pointerup', stopHold);
+  document.addEventListener('pointercancel', stopHold);
+
   document.addEventListener('click', e=>{
     if(e.target.closest && e.target.closest('#sheetBody button')) started = true;
     if(cfg.onClick && cfg.onClick(e, ctx)) return;
-    const d = players[cur].d;
     const st = e.target.closest('[data-step]');
     if(st){
-      const p = st.dataset.step, min = cfg.stepMin ? cfg.stepMin(p) : 0;
-      set(d, p, Math.max(min, get(d,p) + (+st.dataset.by)));
-      refresh(); return;
+      if(holdFired){ holdFired = false; return; }
+      doStep(st); return;
     }
     const tab = e.target.closest('[data-tab]');
     if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
@@ -242,5 +265,7 @@ function initSheet(cfg){
   if ('serviceWorker' in navigator){
     addEventListener('load', ()=>navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}));
   }
+  // demande au navigateur de ne pas évincer le stockage (parties en cours)
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
   return ctx;
 }

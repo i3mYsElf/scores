@@ -170,52 +170,27 @@
 </div>
 
 <script src="games/registry.js"></script>
+<script src="games/backup.js"></script>
 <script>
 const {GAMES, gameKey, HISTORY_KEY} = GameRegistry;
 
 /* Sous-titres des cartes : partie en cours si des scores ont été saisis,
-   sinon le descriptif du jeu (le registre est la source des deux). */
+   sinon le descriptif du jeu (libellés calculés par games/backup.js). */
 function renderPreviews(){
+  const parse = k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } };
   for(const g of GAMES){
     const el = document.querySelector(`[data-sub="${g.slug}"]`);
-    el.textContent = g.subtitle;
-    try{
-      const s = JSON.parse(localStorage.getItem(gameKey(g.slug)));
-      if(s && s.started && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){
-        el.textContent = 'Partie en cours · ' + s.players.map((p,i)=>(p.nom||'?')+' '+(s.totals[i]||0)).join(' · ');
-      }
-    }catch(e){}
+    el.textContent = GameBackup.previewLabel(parse(gameKey(g.slug))) || g.subtitle;
   }
-  try{
-    const h = JSON.parse(localStorage.getItem(HISTORY_KEY));
-    if(Array.isArray(h) && h.length){
-      document.getElementById('historySub').textContent =
-        h.length + (h.length > 1 ? ' parties terminées' : ' partie terminée');
-    }
-  }catch(e){}
+  const hl = GameBackup.historyLabel(parse(HISTORY_KEY));
+  if(hl) document.getElementById('historySub').textContent = hl;
 }
 renderPreviews();
 
-/* ---------- export / import des sauvegardes ---------- */
-const backupKeys = () => [...GAMES.map(g=>gameKey(g.slug)), HISTORY_KEY];
-
-function buildBackup(){
-  const data = {};
-  for(const k of backupKeys()){
-    const v = localStorage.getItem(k);
-    if(v !== null){ try{ data[k] = JSON.parse(v); }catch(e){} }
-  }
-  return {app:'scores', version:1, date:new Date().toISOString(), data};
-}
-
-/* N'écrit que les clés connues (jeux du registre + historique), jamais de clé arbitraire. */
+/* ---------- export / import des sauvegardes (logique dans games/backup.js) ---------- */
+function buildBackup(){ return GameBackup.buildBackup(localStorage); }
 function applyBackup(o){
-  if(!o || o.app !== 'scores' || typeof o.data !== 'object' || !o.data) throw new Error('format inattendu');
-  const allowed = new Set(backupKeys());
-  let n = 0;
-  for(const [k,v] of Object.entries(o.data)){
-    if(allowed.has(k)){ localStorage.setItem(k, JSON.stringify(v)); n++; }
-  }
+  const n = GameBackup.applyBackup(localStorage, o);
   renderPreviews();
   return n;
 }
@@ -252,4 +227,6 @@ document.getElementById('importFile').addEventListener('change', async e=>{
 if ('serviceWorker' in navigator){
   addEventListener('load', ()=>navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}));
 }
+// demande au navigateur de ne pas évincer le stockage (parties en cours, historique)
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 </script>

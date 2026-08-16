@@ -23,8 +23,9 @@ test('au moins un jeu existe', () => {
 });
 
 test('le registre et games/ coïncident exactement', () => {
+  const LIBS = ['registry.js', 'backup.js']; // modules de games/ qui ne sont pas des jeux
   const onDisk = fs.readdirSync(path.join(ROOT, 'games'))
-    .filter(f => f.endsWith('.js') && f !== 'registry.js')
+    .filter(f => f.endsWith('.js') && !LIBS.includes(f))
     .map(f => path.basename(f, '.js'))
     .sort();
   const registered = GAMES.map(g => g.slug).sort();
@@ -53,7 +54,7 @@ test('la version du SW committée reste "dev" (stampée au déploiement)', () =>
 });
 
 test('les fichiers communs sont précachés', () => {
-  for (const f of ['.', 'common.css', 'common.js', 'manifest.json', 'games/registry.js', 'history.html']) {
+  for (const f of ['.', 'common.css', 'common.js', 'manifest.json', 'games/registry.js', 'games/backup.js', 'history.html']) {
     assert.ok(precache.includes(f), `${f} absent du PRECACHE`);
   }
 });

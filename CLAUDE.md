@@ -14,8 +14,9 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 - `games/<jeu>.js` — logique pure (`blank()`, `score(d)`), sans DOM. Double export : `module.exports` (tests Node) / `globalThis.GameLogic` (navigateur). Toute règle de calcul vit ici, jamais dans la page.
 - `common.js` — moteur partagé : joueurs/onglets, persistance, classement, dispatch click/input, helpers (`rowStep`, `rowNum`, `sq`, `esc`). Les hooks de config sont documentés en tête de `initSheet`.
 - `<jeu>.html` — head + header + `#sheetBody` + `initSheet({...})` avec le rendu spécifique. Le chrome commun (nom du joueur, barre de total, classement) est injecté par `common.js`. Aucune logique de score dans les pages.
+- `games/backup.js` — aperçus « Partie en cours » et export/import : logique pure (storage en paramètre), double export, testée en Node (`tests/backup.test.js`).
 - `games/registry.js` — registre central des jeux (`{slug, name, subtitle}` + `gameKey`/`gamePage`/`HISTORY_KEY`), double export comme les jeux. Source de vérité de la liste, consommée par l'accueil (aperçus, export/import), `history.html` et `tests/consistency.test.js`. Tout nouveau jeu doit y être déclaré.
-- `index.html` — accueil/menu ; aperçus « Partie en cours » pilotés par le registre (`renderPreviews`), export/import des sauvegardes (`buildBackup`/`applyBackup`, clés du registre uniquement).
+- `index.html` — accueil/menu ; aperçus « Partie en cours » et export/import branchés sur `games/backup.js` (clés du registre uniquement), le DOM seul reste dans la page.
 - `history.html` — historique des parties terminées, rendu depuis `scores-history-v1` + le registre.
 - **Échappement** : tout texte saisi par l'utilisateur injecté en `innerHTML` passe par `esc()` (les noms de joueurs, notamment).
 
@@ -25,8 +26,9 @@ Suivre la recette du README (games/*.js → tests → registre → page → cart
 
 ## Vérification avant push
 
-1. `npm install` (une fois), puis `node --test` — trois familles de tests :
+1. `npm install` (une fois), puis `node --test` — quatre familles de tests :
    - `tests/scores.test.js` : les barèmes (à compléter pour tout nouveau jeu)
+   - `tests/backup.test.js` : la logique pure aperçus/export/import de `games/backup.js`
    - `tests/pages.test.js` : les pages réelles dans jsdom (moteur, interactions, échappement, anciens formats de sauvegarde)
    - `tests/consistency.test.js` : la structure (PRECACHE, menu, clés, shortcuts) — attrape les oublis de la recette
 2. `node --check sw.js common.js games/*.js`

@@ -63,4 +63,6 @@ document.getElementById('clearHist').addEventListener('click', ()=>{
 if ('serviceWorker' in navigator){
   addEventListener('load', ()=>navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}));
 }
+// demande au navigateur de ne pas évincer le stockage (parties en cours, historique)
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 </script>

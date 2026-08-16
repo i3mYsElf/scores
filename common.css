@@ -107,6 +107,8 @@ header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
   width:38px;height:38px;border-radius:9px;border:none;
   background:var(--card-2);color:var(--ctl-ink);font-size:20px;line-height:1;cursor:pointer;
   display:grid;place-items:center;-webkit-tap-highlight-color:transparent;
+  /* appui long (répétition auto) : pas de sélection, de loupe ni de zoom double-tap */
+  touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
 }
 .step button:active{opacity:.72}
 .step button:disabled{opacity:.3}
