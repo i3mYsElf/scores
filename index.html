@@ -178,12 +178,24 @@ const {GAMES, gameKey, HISTORY_KEY} = GameRegistry;
    sinon le descriptif du jeu (libellés calculés par games/backup.js). */
 function renderPreviews(){
   const parse = k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } };
+  const saves = {};
   for(const g of GAMES){
+    saves[g.slug] = parse(gameKey(g.slug));
     const el = document.querySelector(`[data-sub="${g.slug}"]`);
-    el.textContent = GameBackup.previewLabel(parse(gameKey(g.slug))) || g.subtitle;
+    el.textContent = GameBackup.previewLabel(saves[g.slug]) || g.subtitle;
   }
   const hl = GameBackup.historyLabel(parse(HISTORY_KEY));
   if(hl) document.getElementById('historySub').textContent = hl;
+
+  /* Menu ordonné par usage : dernier jeu utilisé en premier (ts écrit par
+     common.js à chaque sauvegarde), jeux jamais ouverts ensuite dans l'ordre
+     du registre (tri stable). La carte Historique reste en dernier. */
+  const histCard = document.querySelector('a.game[href="history.html"]');
+  GAMES
+    .map(g => ({card: document.querySelector(`[data-sub="${g.slug}"]`).closest('.game'),
+                ts: (saves[g.slug] && +saves[g.slug].ts) || 0}))
+    .sort((a,b) => b.ts - a.ts)
+    .forEach(({card}) => histCard.parentNode.insertBefore(card, histCard));
 }
 renderPreviews();
 

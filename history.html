@@ -22,11 +22,13 @@
     <p class="subtitle">Parties terminées</p>
   </header>
 
+  <div id="statsCard"></div>
   <div id="historyList"></div>
   <button class="reset" id="clearHist" hidden>Effacer l'historique</button>
 </div>
 
 <script src="games/registry.js"></script>
+<script src="games/stats.js"></script>
 <script>
 const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -39,6 +41,20 @@ function render(){
   try{ h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){}
   if(!Array.isArray(h)) h = [];
   document.getElementById('clearHist').hidden = !h.length;
+
+  /* Statistiques par joueur (games/stats.js), au-dessus de la liste des parties */
+  const stats = GameStats.computeStats(h);
+  document.getElementById('statsCard').innerHTML = stats.length ? `
+    <div class="card">
+      <h2>Statistiques</h2>
+      ${stats.map((s,i) => `
+        <div class="rank ${i===0 ? 'win' : ''}">
+          <span class="pos">${i+1}</span>
+          <span class="nm">${esc(s.nom)}<small>${s.parties} partie${s.parties>1?'s':''}${s.best ? ` · record ${s.best.total} (${esc(NAMES[s.best.g] || s.best.g)})` : ''}</small></span>
+          <span class="pt">${s.victoires}<small style="display:block;font-size:10px;color:var(--muted)">victoire${s.victoires>1?'s':''}</small></span>
+        </div>`).join('')}
+    </div>` : '';
+
   document.getElementById('historyList').innerHTML = h.length ? h.map(e => `
     <div class="card">
       <h2>${esc(NAMES[e.g] || e.g)}

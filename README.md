@@ -16,9 +16,10 @@ terraformingmars.html  feuille de score Terraforming Mars
 games/          logique de score pure par jeu (blank/score), sans DOM — testable en Node
 games/registry.js  registre central des jeux (slug, nom, sous-titre) — source de vérité de la liste
 games/backup.js    aperçus « Partie en cours » + export/import — logique pure, storage en paramètre
+games/stats.js     statistiques par joueur depuis l'historique — logique pure
 common.js       moteur de feuille partagé : joueurs/onglets, persistance, classement, événements
 common.css      styles partagés (onglets joueurs, cartes, steppers, classement…)
-tests/          tests : calculs (scores), logique aperçus/backup (backup), pages réelles dans jsdom (pages), cohérence de la structure (consistency)
+tests/          tests : calculs (scores), aperçus/backup (backup), statistiques (stats), pages réelles dans jsdom (pages), cohérence de la structure (consistency)
 manifest.json   manifest PWA
 sw.js           service worker (offline ; navigations en network-first)
 icons/          icônes de l'app (SVG sources + PNG générés)

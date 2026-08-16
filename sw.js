@@ -13,6 +13,7 @@ const PRECACHE = [
   'common.js',
   'games/registry.js',
   'games/backup.js',
+  'games/stats.js',
   'games/harmonies.js',
   'games/7wonders.js',
   'games/wonderfulworld.js',

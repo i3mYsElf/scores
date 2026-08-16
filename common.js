@@ -66,7 +66,8 @@ function injectChrome(){
   document.getElementById('sheetBody').insertAdjacentHTML('beforebegin', `
   <div class="whois">
     <span class="swatch" id="swatch"></span>
-    <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false">
+    <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false" list="pnames">
+    <datalist id="pnames"></datalist>
     <button class="kill" id="kill" title="Retirer ce joueur" hidden>×</button>
   </div>`);
   document.body.insertAdjacentHTML('beforeend', `
@@ -112,6 +113,7 @@ function initSheet(cfg){
     try{
       localStorage.setItem(cfg.key, JSON.stringify({
         players, cur, started, totals: players.map(p=>cfg.score(p.d, players).total),
+        ts: Date.now(), // dernière utilisation — l'accueil ordonne le menu avec
         ...(cfg.extraState ? cfg.extraState() : {})
       }));
     }catch(e){}
@@ -150,7 +152,7 @@ function initSheet(cfg){
     if(cfg.afterRefresh) cfg.afterRefresh(d, s);
     document.getElementById('grand').textContent = s.total;
     document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
-    drawTabs(); save();
+    drawTabs(); save(); syncWakeLock();
   }
 
   function drawTabs(){
@@ -166,6 +168,34 @@ function initSheet(cfg){
     document.getElementById('kill').hidden = players.length < 2;
   }
 
+  /* Suggestions de noms au renommage : derniers joueurs vus dans l'historique,
+     par partie la plus récente, noms par défaut exclus (datalist natif). */
+  function fillNameSuggestions(){
+    try{
+      const h = JSON.parse(localStorage.getItem('scores-history-v1')) || [];
+      const seen = [];
+      for(const e of h) for(const p of (e.players || []))
+        if(p && p.nom && !/^Joueur \d+$/.test(p.nom) && !seen.includes(p.nom)) seen.push(p.nom);
+      document.getElementById('pnames').innerHTML =
+        seen.slice(0, 8).map(n=>`<option value="${esc(n)}">`).join('');
+    }catch(e){}
+  }
+
+  /* Écran maintenu allumé tant qu'une partie est en cours (flag started).
+     L'OS libère le lock quand l'app passe en arrière-plan : on le redemande
+     au retour via visibilitychange. */
+  let wakeLock = null;
+  async function syncWakeLock(){
+    if(!('wakeLock' in navigator)) return;
+    try{
+      if(started && !wakeLock && document.visibilityState === 'visible'){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+      } else if(!started && wakeLock){ wakeLock.release(); wakeLock = null; }
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange', syncWakeLock);
+
   /* Archive la partie dans l'historique global (clé scores-history-v1, lue par
      history.html) : classement figé au moment du reset, si des scores ont été saisis. */
   function archive(){
@@ -177,6 +207,7 @@ function initSheet(cfg){
       const h = JSON.parse(localStorage.getItem('scores-history-v1')) || [];
       h.unshift({g: cfg.key.replace('-score-v1',''), t: Date.now(), players: list});
       localStorage.setItem('scores-history-v1', JSON.stringify(h.slice(0, 200)));
+      fillNameSuggestions();
     }catch(e){}
   }
 
@@ -260,6 +291,7 @@ function initSheet(cfg){
   });
 
   load();
+  fillNameSuggestions();
   drawSheet();
 
   if ('serviceWorker' in navigator){

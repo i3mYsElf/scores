@@ -237,6 +237,48 @@ test('history.html : état vide', () => {
   assert.ok(w.document.getElementById('clearHist').hidden);
 });
 
+/* ---------- Menu par usage, noms mémorisés, statistiques ---------- */
+test('accueil : menu ordonné par dernière utilisation, Historique en dernier', () => {
+  const save = ts => JSON.stringify({players: [{nom: 'Manu', d: {}}], cur: 0, started: false, totals: [0], ts});
+  const w = loadPage('index.html', {'cascadia-score-v1': save(2000), 'agricola-score-v1': save(1000)});
+  const hrefs = [...w.document.querySelectorAll('a.game')].map(a => a.getAttribute('href'));
+  assert.deepEqual(hrefs, ['cascadia.html', 'agricola.html', // par ts décroissant
+    'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html', // jamais ouverts : ordre du registre
+    'history.html']);
+});
+
+test('une interaction écrit ts (dernière utilisation) dans la sauvegarde', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  assert.ok(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).ts > 0);
+});
+
+test('feuilles : suggestions de noms depuis l\'historique (datalist)', () => {
+  const hist = JSON.stringify([
+    {g: 'cascadia',  t: 2, players: [{nom: 'Léa', total: 80}, {nom: 'Joueur 2', total: 60}]},
+    {g: 'harmonies', t: 1, players: [{nom: 'Manu', total: 50}, {nom: 'Léa', total: 40}]}
+  ]);
+  const w = loadPage('harmonies.html', {'scores-history-v1': hist});
+  const opts = [...w.document.querySelectorAll('#pnames option')].map(o => o.value);
+  assert.deepEqual(opts, ['Léa', 'Manu']); // uniques, ordre de récence, « Joueur N » exclus
+});
+
+test('history.html : carte Statistiques (victoires, record), absente si vide', () => {
+  const hist = JSON.stringify([
+    {g: 'cascadia',  t: 2, players: [{nom: 'Manu', total: 84}, {nom: 'Léa', total: 70}]},
+    {g: 'harmonies', t: 1, players: [{nom: 'Léa', total: 112}, {nom: 'Manu', total: 90}]}
+  ]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  const rows = w.document.querySelectorAll('#statsCard .rank');
+  assert.equal(rows.length, 2);
+  // 1 victoire et 2 parties chacune -> égalité, tri alphabétique : Léa d'abord
+  assert.ok(rows[0].querySelector('.nm').textContent.startsWith('Léa'));
+  assert.ok(rows[0].querySelector('.pt').textContent.startsWith('1'));
+  assert.ok(rows[0].textContent.includes('record 112 (Harmonies)'));
+  const w2 = loadPage('history.html');
+  assert.equal(w2.document.getElementById('statsCard').innerHTML, '');
+});
+
 /* ---------- Export / import des sauvegardes ---------- */
 test('accueil : buildBackup n\'embarque que les clés connues et présentes', () => {
   const w = loadPage('index.html', {
