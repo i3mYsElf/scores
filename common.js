@@ -166,6 +166,20 @@ function initSheet(cfg){
     document.getElementById('kill').hidden = players.length < 2;
   }
 
+  /* Archive la partie dans l'historique global (clé scores-history-v1, lue par
+     history.html) : classement figé au moment du reset, si des scores ont été saisis. */
+  function archive(){
+    if(!started) return;
+    try{
+      const list = players.map(p=>({nom:p.nom, total:cfg.score(p.d, players).total, d:p.d}))
+        .sort((a,b)=> b.total - a.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0))
+        .map(p=>({nom:p.nom, total:p.total}));
+      const h = JSON.parse(localStorage.getItem('scores-history-v1')) || [];
+      h.unshift({g: cfg.key.replace('-score-v1',''), t: Date.now(), players: list});
+      localStorage.setItem('scores-history-v1', JSON.stringify(h.slice(0, 200)));
+    }catch(e){}
+  }
+
   function showRank(){
     const list = players.map((p,i)=>({...p, s:cfg.score(p.d, players), c:COLORS[i]}))
       .sort((a,b)=> b.s.total - a.s.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0));
@@ -199,10 +213,12 @@ function initSheet(cfg){
     if(e.target.id === 'openRank'){ showRank(); return; }
     if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
     if(e.target.id === 'resetAll'){
+      archive();
       players = players.map(p=>mk(p.nom)); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }
     if(e.target.id === 'resetPlayers'){
+      archive();
       players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }

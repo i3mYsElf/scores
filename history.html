@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Historique — parties terminées</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Historique</h1>
+    <p class="subtitle">Parties terminées</p>
+  </header>
+
+  <div id="historyList"></div>
+  <button class="reset" id="clearHist" hidden>Effacer l'historique</button>
+</div>
+
+<script src="games/registry.js"></script>
+<script>
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const NAMES = Object.fromEntries(GameRegistry.GAMES.map(g => [g.slug, g.name]));
+const HISTORY_KEY = GameRegistry.HISTORY_KEY;
+
+function render(){
+  let h = [];
+  try{ h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){}
+  if(!Array.isArray(h)) h = [];
+  document.getElementById('clearHist').hidden = !h.length;
+  document.getElementById('historyList').innerHTML = h.length ? h.map(e => `
+    <div class="card">
+      <h2>${esc(NAMES[e.g] || e.g)}
+        <span class="sum">${e.t ? new Date(e.t).toLocaleString('fr-FR', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}</span></h2>
+      ${(e.players || []).map((p,i) => `
+        <div class="rank ${i===0 ? 'win' : ''}">
+          <span class="pos">${i+1}</span>
+          <span class="nm">${esc(p.nom || '?')}</span>
+          <span class="pt">${+p.total || 0}</span>
+        </div>`).join('')}
+    </div>`).join('')
+    : '<p class="hint">Aucune partie terminée pour l\'instant. Les parties s\'archivent ici quand vous lancez « Nouvelle partie » depuis le classement d\'une feuille.</p>';
+}
+render();
+
+document.getElementById('clearHist').addEventListener('click', ()=>{
+  if(!confirm("Effacer tout l'historique des parties ?")) return;
+  localStorage.removeItem(HISTORY_KEY);
+  render();
+});
+
+if ('serviceWorker' in navigator){
+  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}));
+}
+</script>

@@ -1,7 +1,7 @@
-/* Vérifie la cohérence de la structure multi-jeux : chaque jeu de games/
-   doit avoir sa page, être précaché par le SW, listé sur l'accueil, et
-   utiliser la clé localStorage attendue. Attrape les oublis de la recette
-   « ajouter un jeu » du README. */
+/* Vérifie la cohérence de la structure multi-jeux, avec games/registry.js comme
+   source de vérité : chaque jeu du registre doit avoir sa logique dans games/,
+   sa page, être précaché par le SW, listé sur l'accueil, et utiliser la clé
+   localStorage attendue. Attrape les oublis de la recette « ajouter un jeu ». */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -10,9 +10,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-const games = fs.readdirSync(path.join(ROOT, 'games'))
-  .filter(f => f.endsWith('.js'))
-  .map(f => path.basename(f, '.js'));
+const {GAMES, gameKey, gamePage, HISTORY_KEY} = require('../games/registry.js');
 
 const precache = [...read('sw.js')
   .match(/PRECACHE = \[([^\]]*)\]/s)[1]
@@ -21,20 +19,31 @@ const precache = [...read('sw.js')
 const index = read('index.html');
 
 test('au moins un jeu existe', () => {
-  assert.ok(games.length >= 3);
+  assert.ok(GAMES.length >= 3);
 });
 
-for (const g of games) {
-  test(`${g} : page présente et branchée partout`, () => {
-    const page = `${g}.html`;
+test('le registre et games/ coïncident exactement', () => {
+  const onDisk = fs.readdirSync(path.join(ROOT, 'games'))
+    .filter(f => f.endsWith('.js') && f !== 'registry.js')
+    .map(f => path.basename(f, '.js'))
+    .sort();
+  const registered = GAMES.map(g => g.slug).sort();
+  assert.deepEqual(onDisk, registered,
+    'games/*.js et games/registry.js doivent lister les mêmes jeux');
+});
+
+for (const {slug, name, subtitle} of GAMES) {
+  test(`${slug} : page présente et branchée partout`, () => {
+    assert.ok(name && subtitle, `${slug} : name et subtitle requis dans le registre`);
+    const page = gamePage(slug);
     assert.ok(fs.existsSync(path.join(ROOT, page)), `${page} manquant`);
     const html = read(page);
-    assert.ok(html.includes(`games/${g}.js`), `${page} ne charge pas games/${g}.js`);
-    assert.ok(html.includes(`'${g}-score-v1'`), `${page} n'utilise pas la clé ${g}-score-v1`);
+    assert.ok(html.includes(`games/${slug}.js`), `${page} ne charge pas games/${slug}.js`);
+    assert.ok(html.includes(`'${gameKey(slug)}'`), `${page} n'utilise pas la clé ${gameKey(slug)}`);
     assert.ok(precache.includes(page), `${page} absent du PRECACHE de sw.js`);
-    assert.ok(precache.includes(`games/${g}.js`), `games/${g}.js absent du PRECACHE de sw.js`);
+    assert.ok(precache.includes(`games/${slug}.js`), `games/${slug}.js absent du PRECACHE de sw.js`);
     assert.ok(index.includes(`href="${page}"`), `${page} absent du menu index.html`);
-    assert.ok(index.includes(`${g}-score-v1`), `clé ${g}-score-v1 absente de l'aperçu index.html`);
+    assert.ok(index.includes(`data-sub="${slug}"`), `aperçu data-sub="${slug}" absent de index.html`);
   });
 }
 
@@ -44,14 +53,23 @@ test('la version du SW committée reste "dev" (stampée au déploiement)', () =>
 });
 
 test('les fichiers communs sont précachés', () => {
-  for (const f of ['.', 'common.css', 'common.js', 'manifest.json']) {
+  for (const f of ['.', 'common.css', 'common.js', 'manifest.json', 'games/registry.js', 'history.html']) {
     assert.ok(precache.includes(f), `${f} absent du PRECACHE`);
   }
 });
 
-test('les raccourcis du manifest pointent vers des pages existantes', () => {
+test('la clé d\'historique du registre est celle qu\'écrit common.js', () => {
+  assert.ok(read('common.js').includes(`'${HISTORY_KEY}'`),
+    `common.js n'archive pas sous ${HISTORY_KEY}`);
+});
+
+test('les raccourcis du manifest couvrent les jeux et pointent vers des pages existantes', () => {
   const manifest = JSON.parse(read('manifest.json'));
+  const urls = (manifest.shortcuts || []).map(s => s.url);
   for (const s of manifest.shortcuts || []) {
     assert.ok(fs.existsSync(path.join(ROOT, s.url)), `shortcut ${s.url} sans page`);
+  }
+  for (const {slug} of GAMES) {
+    assert.ok(urls.includes(gamePage(slug)), `pas de shortcut manifest pour ${slug}`);
   }
 });

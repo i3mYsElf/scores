@@ -30,6 +30,12 @@
   @media (prefers-reduced-motion:no-preference){
     .game{animation:rise .3s ease both}
   }
+  .backup{display:flex;gap:10px;margin:18px 0 8px}
+  .backup button{
+    flex:1;padding:11px;border-radius:var(--r);border:1px solid var(--line);
+    background:none;color:var(--muted);font:inherit;font-size:13.5px;cursor:pointer;
+  }
+  .backup button:active{border-color:var(--muted)}
 </style>
 
 <div class="wrap">
@@ -51,7 +57,7 @@
     </span>
     <span class="meta">
       <b>Harmonies</b>
-      <small id="harmoniesSub">Feuille de fin de partie</small>
+      <small data-sub="harmonies"></small>
     </span>
     <span class="chev">›</span>
   </a>
@@ -66,7 +72,7 @@
     </span>
     <span class="meta">
       <b>7 Wonders</b>
-      <small id="wondersSub">Base et extensions</small>
+      <small data-sub="7wonders"></small>
     </span>
     <span class="chev">›</span>
   </a>
@@ -82,7 +88,7 @@
     </span>
     <span class="meta">
       <b>It's a Wonderful World</b>
-      <small id="wonderfulSub">Cartes et multiplicateurs</small>
+      <small data-sub="wonderfulworld"></small>
     </span>
     <span class="chev">›</span>
   </a>
@@ -102,7 +108,7 @@
     </span>
     <span class="meta">
       <b>Agricola</b>
-      <small id="agricolaSub">Barème par seuils calculé</small>
+      <small data-sub="agricola"></small>
     </span>
     <span class="chev">›</span>
   </a>
@@ -118,7 +124,7 @@
     </span>
     <span class="meta">
       <b>Cascadia</b>
-      <small id="cascadiaSub">Majorités d'habitats automatiques</small>
+      <small data-sub="cascadia"></small>
     </span>
     <span class="chev">›</span>
   </a>
@@ -135,23 +141,113 @@
     </span>
     <span class="meta">
       <b>Terraforming Mars</b>
-      <small id="marsSub">NT, objectifs, récompenses, plateau</small>
+      <small data-sub="terraformingmars"></small>
     </span>
     <span class="chev">›</span>
   </a>
+
+  <a class="game" href="history.html">
+    <span class="thumb">
+      <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
+        <rect x="3"  y="26" width="8" height="14" rx="1.5" fill="var(--muted)"/>
+        <rect x="13" y="18" width="8" height="22" rx="1.5" fill="var(--accent)"/>
+        <rect x="23" y="30" width="8" height="10" rx="1.5" fill="var(--muted)"/>
+        <circle cx="17" cy="11" r="4" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      </svg>
+    </span>
+    <span class="meta">
+      <b>Historique</b>
+      <small id="historySub">Parties terminées</small>
+    </span>
+    <span class="chev">›</span>
+  </a>
+
+  <div class="backup">
+    <button id="exportBtn" type="button">Exporter les sauvegardes</button>
+    <button id="importBtn" type="button">Importer</button>
+    <input id="importFile" type="file" accept=".json,application/json" hidden>
+  </div>
 </div>
 
+<script src="games/registry.js"></script>
 <script>
-/* Aperçu de la partie en cours, si des scores ont été saisis */
-for(const [key, id] of [['harmonies-score-v1','harmoniesSub'], ['7wonders-score-v1','wondersSub'], ['wonderfulworld-score-v1','wonderfulSub'], ['agricola-score-v1','agricolaSub'], ['cascadia-score-v1','cascadiaSub'], ['terraformingmars-score-v1','marsSub']]){
+const {GAMES, gameKey, HISTORY_KEY} = GameRegistry;
+
+/* Sous-titres des cartes : partie en cours si des scores ont été saisis,
+   sinon le descriptif du jeu (le registre est la source des deux). */
+function renderPreviews(){
+  for(const g of GAMES){
+    const el = document.querySelector(`[data-sub="${g.slug}"]`);
+    el.textContent = g.subtitle;
+    try{
+      const s = JSON.parse(localStorage.getItem(gameKey(g.slug)));
+      if(s && s.started && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){
+        el.textContent = 'Partie en cours · ' + s.players.map((p,i)=>(p.nom||'?')+' '+(s.totals[i]||0)).join(' · ');
+      }
+    }catch(e){}
+  }
   try{
-    const s = JSON.parse(localStorage.getItem(key));
-    if(s && s.started && Array.isArray(s.players) && Array.isArray(s.totals) && s.totals.some(t=>t>0)){
-      document.getElementById(id).textContent =
-        'Partie en cours · ' + s.players.map((p,i)=>(p.nom||'?')+' '+(s.totals[i]||0)).join(' · ');
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY));
+    if(Array.isArray(h) && h.length){
+      document.getElementById('historySub').textContent =
+        h.length + (h.length > 1 ? ' parties terminées' : ' partie terminée');
     }
   }catch(e){}
 }
+renderPreviews();
+
+/* ---------- export / import des sauvegardes ---------- */
+const backupKeys = () => [...GAMES.map(g=>gameKey(g.slug)), HISTORY_KEY];
+
+function buildBackup(){
+  const data = {};
+  for(const k of backupKeys()){
+    const v = localStorage.getItem(k);
+    if(v !== null){ try{ data[k] = JSON.parse(v); }catch(e){} }
+  }
+  return {app:'scores', version:1, date:new Date().toISOString(), data};
+}
+
+/* N'écrit que les clés connues (jeux du registre + historique), jamais de clé arbitraire. */
+function applyBackup(o){
+  if(!o || o.app !== 'scores' || typeof o.data !== 'object' || !o.data) throw new Error('format inattendu');
+  const allowed = new Set(backupKeys());
+  let n = 0;
+  for(const [k,v] of Object.entries(o.data)){
+    if(allowed.has(k)){ localStorage.setItem(k, JSON.stringify(v)); n++; }
+  }
+  renderPreviews();
+  return n;
+}
+
+document.getElementById('exportBtn').addEventListener('click', async ()=>{
+  const json = JSON.stringify(buildBackup(), null, 1);
+  const name = 'scores-sauvegarde-' + new Date().toISOString().slice(0,10) + '.json';
+  const file = new File([json], name, {type:'application/json'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); return; }
+    catch(e){ if(e.name === 'AbortError') return; } // annulé — sinon on retombe sur le téléchargement
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], {type:'application/json'}));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', async e=>{
+  const f = e.target.files[0];
+  e.target.value = '';
+  if(!f) return;
+  try{
+    const o = JSON.parse(await f.text());
+    if(!confirm('Importer cette sauvegarde ? Les parties en cours des jeux concernés seront remplacées.')) return;
+    alert(applyBackup(o) + ' sauvegarde(s) restaurée(s).');
+  }catch(err){
+    alert('Fichier de sauvegarde illisible.');
+  }
+});
 
 if ('serviceWorker' in navigator){
   addEventListener('load', ()=>navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}));

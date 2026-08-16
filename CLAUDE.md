@@ -6,7 +6,7 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 
 - **Vanilla, zéro build, zéro dépendance runtime** : pas de framework, pas de bundler. Le `package.json` n'existe que pour jsdom (tests). C'est un choix délibéré ; une migration Expo (React Native) est envisagée à terme comme projet séparé, préparée par l'isolation de la logique dans `games/`.
 - **Chemins relatifs partout** (pages, manifest, SW, icônes) : le site est servi sous `/scores/` sur GitHub Pages.
-- **Ne jamais casser les données persistées** : clés localStorage `<jeu>-score-v1`, format `{players:[{nom,d}], cur, totals, exts?}`. Des parties réelles sont en cours sur téléphone. Toute évolution du format doit relire l'ancien (voir `fixup`/`restoreExtra` dans `common.js`).
+- **Ne jamais casser les données persistées** : clés localStorage `<jeu>-score-v1`, format `{players:[{nom,d}], cur, totals, exts?}`, et `scores-history-v1`, tableau d'entrées `{g, t, players:[{nom,total}]}` (historique des parties, écrit par `common.js` au reset). Des parties réelles sont en cours sur téléphone. Toute évolution du format doit relire l'ancien (voir `fixup`/`restoreExtra` dans `common.js`).
 - **Versionning du cache automatique** : `sw.js` garde `const VERSION = 'dev'` (ne jamais committer autre chose — un test l'impose) ; la CI stampe le SHA du commit au déploiement, ce qui purge les vieux caches à chaque mise en production. Le déploiement Pages passe par GitHub Actions et **n'a lieu que si les tests passent**.
 
 ## Architecture
@@ -14,12 +14,14 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 - `games/<jeu>.js` — logique pure (`blank()`, `score(d)`), sans DOM. Double export : `module.exports` (tests Node) / `globalThis.GameLogic` (navigateur). Toute règle de calcul vit ici, jamais dans la page.
 - `common.js` — moteur partagé : joueurs/onglets, persistance, classement, dispatch click/input, helpers (`rowStep`, `rowNum`, `sq`, `esc`). Les hooks de config sont documentés en tête de `initSheet`.
 - `<jeu>.html` — head + header + `#sheetBody` + `initSheet({...})` avec le rendu spécifique. Le chrome commun (nom du joueur, barre de total, classement) est injecté par `common.js`. Aucune logique de score dans les pages.
-- `index.html` — accueil/menu ; lit les clés localStorage pour l'aperçu « Partie en cours ».
+- `games/registry.js` — registre central des jeux (`{slug, name, subtitle}` + `gameKey`/`gamePage`/`HISTORY_KEY`), double export comme les jeux. Source de vérité de la liste, consommée par l'accueil (aperçus, export/import), `history.html` et `tests/consistency.test.js`. Tout nouveau jeu doit y être déclaré.
+- `index.html` — accueil/menu ; aperçus « Partie en cours » pilotés par le registre (`renderPreviews`), export/import des sauvegardes (`buildBackup`/`applyBackup`, clés du registre uniquement).
+- `history.html` — historique des parties terminées, rendu depuis `scores-history-v1` + le registre.
 - **Échappement** : tout texte saisi par l'utilisateur injecté en `innerHTML` passe par `esc()` (les noms de joueurs, notamment).
 
 ## Ajouter un jeu
 
-Suivre la recette du README (games/*.js → tests → page → carte accueil → PRECACHE). Modèle le plus simple : `wonderfulworld.html`. Vérifier le barème officiel du jeu (web) avant d'implémenter, ne pas se fier à la mémoire.
+Suivre la recette du README (games/*.js → tests → registre → page → carte accueil + shortcut → PRECACHE). Modèle le plus simple : `wonderfulworld.html`. Vérifier le barème officiel du jeu (web) avant d'implémenter, ne pas se fier à la mémoire.
 
 ## Vérification avant push
 

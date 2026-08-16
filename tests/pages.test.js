@@ -121,8 +121,9 @@ test('accueil : visiter une feuille ne déclenche pas « Partie en cours »', ()
   const visite = JSON.stringify({players:[{nom:'Joueur 1',d:{}},{nom:'Joueur 2',d:{}}], cur:0, started:false, totals:[20,20]});
   const vraie = JSON.stringify({players:[{nom:'Manu',d:{}}], cur:0, started:true, totals:[42]});
   const w = loadPage('index.html', {'terraformingmars-score-v1': visite, 'harmonies-score-v1': vraie});
-  assert.ok(!w.document.getElementById('marsSub').textContent.includes('Partie en cours'));
-  assert.ok(w.document.getElementById('harmoniesSub').textContent.includes('Partie en cours · Manu 42'));
+  assert.ok(!w.document.querySelector('[data-sub="terraformingmars"]').textContent.includes('Partie en cours'));
+  assert.ok(w.document.querySelector('[data-sub="terraformingmars"]').textContent.includes('NT')); // sous-titre du registre
+  assert.ok(w.document.querySelector('[data-sub="harmonies"]').textContent.includes('Partie en cours · Manu 42'));
 });
 
 test('le flag started ne s\'active qu\'à une vraie saisie de score', () => {
@@ -170,6 +171,81 @@ test('cascadia : les bonus de majorité se recalculent entre joueurs', () => {
   assert.equal(grand(w), '5'); // le joueur 1 a perdu son bonus
   click(w, '[data-step="montagnes"][data-by="1"]');
   assert.equal(grand(w), '7'); // 6 + 1 : égalité au plus grand corridor
+});
+
+/* ---------- Historique des parties ---------- */
+test('reset : la partie est archivée dans scores-history-v1, classée', () => {
+  const w = loadPage('harmonies.html');
+  type(w, '#pname', 'Manu');
+  click(w, '[data-step="champs"][data-by="1"]');   // Manu : 5 pts
+  click(w, '[data-tab="1"]');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '[data-step="champs"][data-by="1"]');   // Joueur 2 : 10 pts
+  click(w, '#openRank'); click(w, '#resetAll');
+  const h = JSON.parse(w.localStorage.getItem('scores-history-v1'));
+  assert.equal(h.length, 1);
+  assert.equal(h[0].g, 'harmonies');
+  assert.ok(h[0].t > 0);
+  assert.deepEqual(h[0].players, [{nom: 'Joueur 2', total: 10}, {nom: 'Manu', total: 5}]);
+  assert.equal(grand(w), '0'); // et la feuille repart bien à zéro
+});
+
+test('reset sans aucune saisie : rien n\'est archivé', () => {
+  const w = loadPage('terraformingmars.html');
+  click(w, '#openRank'); click(w, '#resetAll');
+  assert.equal(w.localStorage.getItem('scores-history-v1'), null);
+});
+
+test('history.html : rendu depuis le registre, vainqueur en tête, noms échappés', () => {
+  const hist = JSON.stringify([
+    {g: 'cascadia', t: 1755300000000, players: [{nom: '<img src=x onerror=alert(1)>', total: 80}, {nom: 'Manu', total: 60}]},
+    {g: 'jeuinconnu', t: 0, players: [{nom: 'Solo', total: 12}]}
+  ]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  const cards = w.document.querySelectorAll('#historyList .card');
+  assert.equal(cards.length, 2);
+  assert.ok(cards[0].querySelector('h2').textContent.includes('Cascadia')); // slug -> nom via le registre
+  assert.equal(cards[0].querySelector('.rank.win .pt').textContent, '80');
+  assert.equal(w.document.querySelector('#historyList img'), null); // échappement
+  assert.ok(cards[1].querySelector('h2').textContent.includes('jeuinconnu')); // slug inconnu : affiché tel quel
+  assert.ok(!w.document.getElementById('clearHist').hidden);
+});
+
+test('history.html : état vide', () => {
+  const w = loadPage('history.html');
+  assert.ok(w.document.getElementById('historyList').textContent.includes('Aucune partie'));
+  assert.ok(w.document.getElementById('clearHist').hidden);
+});
+
+/* ---------- Export / import des sauvegardes ---------- */
+test('accueil : buildBackup n\'embarque que les clés connues et présentes', () => {
+  const w = loadPage('index.html', {
+    'harmonies-score-v1': JSON.stringify({players: [{nom: 'Manu', d: {}}], cur: 0, started: true, totals: [42]}),
+    'scores-history-v1': JSON.stringify([{g: 'harmonies', t: 1, players: []}]),
+    'evil-key': '"pwned"'
+  });
+  const b = w.buildBackup();
+  assert.equal(b.app, 'scores');
+  assert.deepEqual(Object.keys(b.data).sort(), ['harmonies-score-v1', 'scores-history-v1']);
+  assert.equal(b.data['harmonies-score-v1'].totals[0], 42);
+});
+
+test('accueil : applyBackup restaure les clés connues, ignore le reste, re-rend les aperçus', () => {
+  const w = loadPage('index.html');
+  const n = w.applyBackup({app: 'scores', version: 1, data: {
+    'cascadia-score-v1': {players: [{nom: 'Manu', d: {}}], cur: 0, started: true, totals: [77]},
+    'evil-key': 'pwned'
+  }});
+  assert.equal(n, 1);
+  assert.equal(w.localStorage.getItem('evil-key'), null);
+  assert.equal(JSON.parse(w.localStorage.getItem('cascadia-score-v1')).totals[0], 77);
+  assert.ok(w.document.querySelector('[data-sub="cascadia"]').textContent.includes('Partie en cours · Manu 77'));
+});
+
+test('accueil : applyBackup rejette un format inattendu sans toucher au storage', () => {
+  const w = loadPage('index.html', {'harmonies-score-v1': '{"players":[{"nom":"Manu","d":{}}],"cur":0}'});
+  assert.throws(() => w.applyBackup({hello: 'world'}));
+  assert.ok(w.localStorage.getItem('harmonies-score-v1').includes('Manu'));
 });
 
 test('iaww : départage par cartes construites à égalité de points', () => {
