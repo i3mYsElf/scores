@@ -1,10 +1,10 @@
-/* Tests unitaires de games/backup.js : logique pure des aperçus et de
+/* Tests unitaires de lib/backup.js : logique pure des aperçus et de
    l'export/import, sans DOM — le storage est un stub en mémoire. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const {backupKeys, previewLabel, historyLabel, buildBackup, applyBackup} = require('../games/backup.js');
-const {GAMES, HISTORY_KEY} = require('../games/registry.js');
+const {backupKeys, previewLabel, historyLabel, buildBackup, applyBackup} = require('../lib/backup.js');
+const {GAMES, HISTORY_KEY} = require('../lib/registry.js');
 
 const mem = init => {
   const m = new Map(Object.entries(init || {}));

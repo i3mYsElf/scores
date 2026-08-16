@@ -14,11 +14,9 @@ PWA statique multi-jeux, hébergée sur GitHub Pages (https://i3myself.github.io
 - `games/<jeu>.js` — logique pure (`blank()`, `score(d)`), sans DOM. Double export : `module.exports` (tests Node) / `globalThis.GameLogic` (navigateur). Toute règle de calcul vit ici, jamais dans la page.
 - `common.js` — moteur partagé : joueurs/onglets, persistance, classement, dispatch click/input, helpers (`rowStep`, `rowNum`, `sq`, `esc`). Les hooks de config sont documentés en tête de `initSheet`.
 - `<jeu>.html` — head + header + `#sheetBody` + `initSheet({...})` avec le rendu spécifique. Le chrome commun (nom du joueur, barre de total, classement) est injecté par `common.js`. Aucune logique de score dans les pages.
-- `games/backup.js` — aperçus « Partie en cours » et export/import : logique pure (storage en paramètre), double export, testée en Node (`tests/backup.test.js`).
-- `games/stats.js` — statistiques par joueur depuis l'historique (`computeStats`), logique pure testée en Node, affichée par `history.html`.
-- `games/registry.js` — registre central des jeux (`{slug, name, subtitle}` + `gameKey`/`gamePage`/`HISTORY_KEY`), double export comme les jeux. Source de vérité de la liste, consommée par l'accueil (aperçus, export/import), `history.html` et `tests/consistency.test.js`. Tout nouveau jeu doit y être déclaré.
-- `index.html` — accueil/menu ; aperçus « Partie en cours » et export/import branchés sur `games/backup.js` (clés du registre uniquement), le DOM seul reste dans la page.
-- `history.html` — historique des parties terminées, rendu depuis `scores-history-v1` + le registre.
+- `lib/` — modules partagés qui ne sont pas des jeux (logique pure, double export comme les jeux) : `registry.js` (registre central `{slug, name, subtitle}` + `gameKey`/`gamePage`/`HISTORY_KEY`, source de vérité de la liste, tout nouveau jeu doit y être déclaré), `backup.js` (aperçus + export/import, storage en paramètre), `stats.js` (statistiques par joueur depuis l'historique). `games/` ne contient que des jeux — les tests de cohérence l'imposent.
+- `index.html` — accueil : uniquement le menu des jeux (trié par dernière utilisation) + bouton Historique en haut à droite du header (`.tool`). Aperçus branchés sur `lib/backup.js`, le DOM seul reste dans la page.
+- `history.html` — historique des parties terminées (`scores-history-v1` + registre), statistiques par joueur (`lib/stats.js`) et export/import des sauvegardes.
 - **Échappement** : tout texte saisi par l'utilisateur injecté en `innerHTML` passe par `esc()` (les noms de joueurs, notamment).
 
 ## Ajouter un jeu
@@ -29,11 +27,11 @@ Suivre la recette du README (games/*.js → tests → registre → page → cart
 
 1. `npm install` (une fois), puis `node --test` — cinq familles de tests :
    - `tests/scores.test.js` : les barèmes (à compléter pour tout nouveau jeu)
-   - `tests/backup.test.js` : la logique pure aperçus/export/import de `games/backup.js`
-   - `tests/stats.test.js` : les statistiques par joueur de `games/stats.js`
+   - `tests/backup.test.js` : la logique pure aperçus/export/import de `lib/backup.js`
+   - `tests/stats.test.js` : les statistiques par joueur de `lib/stats.js`
    - `tests/pages.test.js` : les pages réelles dans jsdom (moteur, interactions, échappement, anciens formats de sauvegarde)
    - `tests/consistency.test.js` : la structure (PRECACHE, menu, clés, shortcuts) — attrape les oublis de la recette
-2. `node --check sw.js common.js games/*.js`
+2. `node --check sw.js common.js games/*.js lib/*.js`
 3. Servir en local : `npx serve .` (le SW exige localhost ou HTTPS)
 
 ## Déploiement

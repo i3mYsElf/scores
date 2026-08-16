@@ -243,8 +243,8 @@ test('accueil : menu ordonné par dernière utilisation, Historique en dernier',
   const w = loadPage('index.html', {'cascadia-score-v1': save(2000), 'agricola-score-v1': save(1000)});
   const hrefs = [...w.document.querySelectorAll('a.game')].map(a => a.getAttribute('href'));
   assert.deepEqual(hrefs, ['cascadia.html', 'agricola.html', // par ts décroissant
-    'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html', // jamais ouverts : ordre du registre
-    'history.html']);
+    'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html']); // jamais ouverts : ordre du registre
+  assert.ok(w.document.querySelector('a.tool[href="history.html"]')); // l'Historique vit dans le header
 });
 
 test('une interaction écrit ts (dernière utilisation) dans la sauvegarde', () => {
@@ -279,9 +279,9 @@ test('history.html : carte Statistiques (victoires, record), absente si vide', (
   assert.equal(w2.document.getElementById('statsCard').innerHTML, '');
 });
 
-/* ---------- Export / import des sauvegardes ---------- */
-test('accueil : buildBackup n\'embarque que les clés connues et présentes', () => {
-  const w = loadPage('index.html', {
+/* ---------- Export / import des sauvegardes (page Historique) ---------- */
+test('historique : buildBackup n\'embarque que les clés connues et présentes', () => {
+  const w = loadPage('history.html', {
     'harmonies-score-v1': JSON.stringify({players: [{nom: 'Manu', d: {}}], cur: 0, started: true, totals: [42]}),
     'scores-history-v1': JSON.stringify([{g: 'harmonies', t: 1, players: []}]),
     'evil-key': '"pwned"'
@@ -292,20 +292,22 @@ test('accueil : buildBackup n\'embarque que les clés connues et présentes', ()
   assert.equal(b.data['harmonies-score-v1'].totals[0], 42);
 });
 
-test('accueil : applyBackup restaure les clés connues, ignore le reste, re-rend les aperçus', () => {
-  const w = loadPage('index.html');
+test('historique : applyBackup restaure les clés connues, ignore le reste, re-rend la page', () => {
+  const w = loadPage('history.html');
   const n = w.applyBackup({app: 'scores', version: 1, data: {
     'cascadia-score-v1': {players: [{nom: 'Manu', d: {}}], cur: 0, started: true, totals: [77]},
+    'scores-history-v1': [{g: 'cascadia', t: 5, players: [{nom: 'Manu', total: 77}, {nom: 'Léa', total: 60}]}],
     'evil-key': 'pwned'
   }});
-  assert.equal(n, 1);
+  assert.equal(n, 2);
   assert.equal(w.localStorage.getItem('evil-key'), null);
   assert.equal(JSON.parse(w.localStorage.getItem('cascadia-score-v1')).totals[0], 77);
-  assert.ok(w.document.querySelector('[data-sub="cascadia"]').textContent.includes('Partie en cours · Manu 77'));
+  assert.ok(w.document.getElementById('histSub').textContent.includes('1 partie terminée')); // compteur re-rendu
+  assert.ok(w.document.getElementById('historyList').textContent.includes('Manu'));          // liste re-rendue
 });
 
-test('accueil : applyBackup rejette un format inattendu sans toucher au storage', () => {
-  const w = loadPage('index.html', {'harmonies-score-v1': '{"players":[{"nom":"Manu","d":{}}],"cur":0}'});
+test('historique : applyBackup rejette un format inattendu sans toucher au storage', () => {
+  const w = loadPage('history.html', {'harmonies-score-v1': '{"players":[{"nom":"Manu","d":{}}],"cur":0}'});
   assert.throws(() => w.applyBackup({hello: 'world'}));
   assert.ok(w.localStorage.getItem('harmonies-score-v1').includes('Manu'));
 });

@@ -14,21 +14,36 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="common.css">
+<style>
+  .backup{display:flex;gap:10px;margin:18px 0 4px}
+  .backup button{
+    flex:1;padding:11px;border-radius:var(--r);border:1px solid var(--line);
+    background:none;color:var(--muted);font:inherit;font-size:13.5px;cursor:pointer;
+  }
+  .backup button:active{border-color:var(--muted)}
+</style>
 
 <div class="wrap">
   <header>
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">Historique</h1>
-    <p class="subtitle">Parties terminées</p>
+    <p class="subtitle" id="histSub">Parties terminées</p>
   </header>
 
   <div id="statsCard"></div>
   <div id="historyList"></div>
+
+  <div class="backup">
+    <button id="exportBtn" type="button">Exporter les sauvegardes</button>
+    <button id="importBtn" type="button">Importer</button>
+    <input id="importFile" type="file" accept=".json,application/json" hidden>
+  </div>
   <button class="reset" id="clearHist" hidden>Effacer l'historique</button>
 </div>
 
-<script src="games/registry.js"></script>
-<script src="games/stats.js"></script>
+<script src="lib/registry.js"></script>
+<script src="lib/backup.js"></script>
+<script src="lib/stats.js"></script>
 <script>
 const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -41,8 +56,9 @@ function render(){
   try{ h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){}
   if(!Array.isArray(h)) h = [];
   document.getElementById('clearHist').hidden = !h.length;
+  document.getElementById('histSub').textContent = GameBackup.historyLabel(h) || 'Parties terminées';
 
-  /* Statistiques par joueur (games/stats.js), au-dessus de la liste des parties */
+  /* Statistiques par joueur (lib/stats.js), au-dessus de la liste des parties */
   const stats = GameStats.computeStats(h);
   document.getElementById('statsCard').innerHTML = stats.length ? `
     <div class="card">
@@ -74,6 +90,43 @@ document.getElementById('clearHist').addEventListener('click', ()=>{
   if(!confirm("Effacer tout l'historique des parties ?")) return;
   localStorage.removeItem(HISTORY_KEY);
   render();
+});
+
+/* ---------- export / import des sauvegardes (logique dans lib/backup.js) ---------- */
+function buildBackup(){ return GameBackup.buildBackup(localStorage); }
+function applyBackup(o){
+  const n = GameBackup.applyBackup(localStorage, o);
+  render();
+  return n;
+}
+
+document.getElementById('exportBtn').addEventListener('click', async ()=>{
+  const json = JSON.stringify(buildBackup(), null, 1);
+  const name = 'scores-sauvegarde-' + new Date().toISOString().slice(0,10) + '.json';
+  const file = new File([json], name, {type:'application/json'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); return; }
+    catch(e){ if(e.name === 'AbortError') return; } // annulé — sinon on retombe sur le téléchargement
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], {type:'application/json'}));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', async e=>{
+  const f = e.target.files[0];
+  e.target.value = '';
+  if(!f) return;
+  try{
+    const o = JSON.parse(await f.text());
+    if(!confirm('Importer cette sauvegarde ? Les parties en cours des jeux concernés seront remplacées.')) return;
+    alert(applyBackup(o) + ' sauvegarde(s) restaurée(s).');
+  }catch(err){
+    alert('Fichier de sauvegarde illisible.');
+  }
 });
 
 if ('serviceWorker' in navigator){

@@ -1,4 +1,4 @@
-/* Vérifie la cohérence de la structure multi-jeux, avec games/registry.js comme
+/* Vérifie la cohérence de la structure multi-jeux, avec lib/registry.js comme
    source de vérité : chaque jeu du registre doit avoir sa logique dans games/,
    sa page, être précaché par le SW, listé sur l'accueil, et utiliser la clé
    localStorage attendue. Attrape les oublis de la recette « ajouter un jeu ». */
@@ -10,7 +10,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-const {GAMES, gameKey, gamePage, HISTORY_KEY} = require('../games/registry.js');
+const {GAMES, gameKey, gamePage, HISTORY_KEY} = require('../lib/registry.js');
 
 const precache = [...read('sw.js')
   .match(/PRECACHE = \[([^\]]*)\]/s)[1]
@@ -23,14 +23,13 @@ test('au moins un jeu existe', () => {
 });
 
 test('le registre et games/ coïncident exactement', () => {
-  const LIBS = ['registry.js', 'backup.js', 'stats.js']; // modules de games/ qui ne sont pas des jeux
   const onDisk = fs.readdirSync(path.join(ROOT, 'games'))
-    .filter(f => f.endsWith('.js') && !LIBS.includes(f))
+    .filter(f => f.endsWith('.js'))
     .map(f => path.basename(f, '.js'))
     .sort();
   const registered = GAMES.map(g => g.slug).sort();
   assert.deepEqual(onDisk, registered,
-    'games/*.js et games/registry.js doivent lister les mêmes jeux');
+    'games/*.js et lib/registry.js doivent lister les mêmes jeux');
 });
 
 for (const {slug, name, subtitle} of GAMES) {
@@ -54,7 +53,7 @@ test('la version du SW committée reste "dev" (stampée au déploiement)', () =>
 });
 
 test('les fichiers communs sont précachés', () => {
-  for (const f of ['.', 'common.css', 'common.js', 'manifest.json', 'games/registry.js', 'games/backup.js', 'games/stats.js', 'history.html']) {
+  for (const f of ['.', 'common.css', 'common.js', 'manifest.json', 'lib/registry.js', 'lib/backup.js', 'lib/stats.js', 'history.html']) {
     assert.ok(precache.includes(f), `${f} absent du PRECACHE`);
   }
 });

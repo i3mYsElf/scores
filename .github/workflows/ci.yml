@@ -19,7 +19,7 @@ jobs:
         run: |
           node --check sw.js
           node --check common.js
-          for f in games/*.js; do node --check "$f"; done
+          for f in games/*.js lib/*.js; do node --check "$f"; done
       - name: Tests
         run: node --test
 

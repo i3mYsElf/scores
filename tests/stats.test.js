@@ -1,9 +1,9 @@
-/* Tests unitaires de games/stats.js : statistiques par joueur depuis
+/* Tests unitaires de lib/stats.js : statistiques par joueur depuis
    l'historique, logique pure sans DOM. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const {computeStats} = require('../games/stats.js');
+const {computeStats} = require('../lib/stats.js');
 
 test('agrégation : parties, victoires (position 0), record avec jeu', () => {
   const s = computeStats([
