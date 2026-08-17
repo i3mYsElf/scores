@@ -357,7 +357,8 @@ test('accueil : menu ordonné par dernière utilisation, Historique en dernier',
   const w = loadPage('index.html', {'cascadia-score-v1': save(2000), 'agricola-score-v1': save(1000)});
   const hrefs = [...w.document.querySelectorAll('a.game')].map(a => a.getAttribute('href'));
   assert.deepEqual(hrefs, ['cascadia.html', 'agricola.html', // par ts décroissant
-    'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html', 'seasaltpaper.html']); // jamais ouverts : ordre du registre
+    'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html', 'seasaltpaper.html',
+    'kingdomino.html', 'queendomino.html', '7wondersduel.html']); // jamais ouverts : ordre du registre
   assert.ok(w.document.querySelector('a.tool[href="history.html"]')); // l'Historique vit dans le header
 });
 
@@ -424,6 +425,94 @@ test('historique : applyBackup rejette un format inattendu sans toucher au stora
   const w = loadPage('history.html', {'harmonies-score-v1': '{"players":[{"nom":"Manu","d":{}}],"cur":0}'});
   assert.throws(() => w.applyBackup({hello: 'world'}));
   assert.ok(w.localStorage.getItem('harmonies-score-v1').includes('Manu'));
+});
+
+/* ---------- Kingdomino ---------- */
+test('kingdomino : domaines dynamiques et bonus de variantes', () => {
+  const w = loadPage('kingdomino.html');
+  type(w, '[data-dc="0"]', '6');
+  type(w, '[data-dk="0"]', '2');
+  assert.equal(grand(w), '12');
+  assert.equal(w.document.querySelector('[data-dtot="0"]').textContent, '12');
+  click(w, '#addDom');
+  assert.equal(w.document.querySelectorAll('[data-dc]').length, 2);
+  type(w, '[data-dc="1"]', '4');
+  type(w, '[data-dk="1"]', '1');
+  assert.equal(grand(w), '16');
+  click(w, '[data-bonus="harmonie"]');
+  assert.equal(grand(w), '21');
+  click(w, '[data-bonus="milieu"]');
+  assert.equal(grand(w), '31');
+  click(w, '[data-bonus="harmonie"]'); // désactivé
+  assert.equal(grand(w), '26');
+  const saved = JSON.parse(w.localStorage.getItem('kingdomino-score-v1'));
+  assert.equal(saved.players[0].d.harmonie, false);
+  assert.equal(saved.players[0].d.milieu, true);
+  click(w, '[data-deldom="0"]');
+  assert.equal(grand(w), '14'); // 4×1 + 10
+});
+
+test('kingdomino : départage au plus grand domaine', () => {
+  const w = loadPage('kingdomino.html');
+  type(w, '[data-dc="0"]', '4'); type(w, '[data-dk="0"]', '3'); // 12 pts, plus grand domaine 4
+  click(w, '[data-tab="1"]');
+  type(w, '[data-dc="0"]', '6'); type(w, '[data-dk="0"]', '2'); // 12 pts, plus grand domaine 6
+  click(w, '#openRank');
+  assert.ok(w.document.querySelector('#rankList .rank.win .nm').textContent.startsWith('Joueur 2'));
+});
+
+/* ---------- Queendomino ---------- */
+test('queendomino : bâtiments, quêtes et pièces par lot de 3', () => {
+  const w = loadPage('queendomino.html');
+  type(w, '[data-dc="0"]', '4'); type(w, '[data-dk="0"]', '2');
+  type(w, '[data-num="batFixes"]', '6');
+  type(w, '[data-num="batTours"]', '3');
+  type(w, '[data-num="batChevaliers"]', '2');
+  type(w, '[data-num="quetes"]', '5');
+  for (let i = 0; i < 8; i++) click(w, '[data-step="pieces"][data-by="1"]');
+  assert.equal(grand(w), String(8 + 11 + 5 + 2));
+});
+
+/* ---------- 7 Wonders Duel ---------- */
+test('7 wonders duel : décompte civil, zone militaire exclusive, 2 joueurs max', () => {
+  const w = loadPage('7wondersduel.html');
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 2);
+  assert.equal(w.document.getElementById('addP'), null); // 2 joueurs max
+  type(w, '[data-num="civils"]', '18');
+  for (let i = 0; i < 7; i++) click(w, '[data-step="pieces"][data-by="1"]');
+  assert.equal(grand(w), '20'); // 18 + 7÷3
+  click(w, '[data-zone="5"]');
+  assert.equal(grand(w), '25');
+  click(w, '[data-zone="2"]'); // les zones s'excluent
+  assert.equal(grand(w), '22');
+});
+
+test('7 wonders duel : toggles Panthéon/Agora, plafond des temples, persistance des exts', () => {
+  const w = loadPage('7wondersduel.html');
+  assert.equal(w.document.querySelector('[data-num="divinites"]'), null);
+  click(w, '[data-ext="pantheon"]');
+  assert.ok(w.document.querySelector('[data-num="divinites"]'));
+  for (let i = 0; i < 5; i++) click(w, '[data-step="temples"][data-by="1"]');
+  assert.equal(grand(w), '21'); // plafonné à 3 temples
+  const saved = JSON.parse(w.localStorage.getItem('7wondersduel-score-v1'));
+  assert.equal(saved.players[0].d.temples, 3);
+  assert.equal(saved.exts.pantheon, true);
+  click(w, '[data-ext="agora"]');
+  type(w, '[data-num="senat"]', '6');
+  assert.equal(grand(w), '27');
+  click(w, '[data-ext="pantheon"]'); // désactivée : ses points ne comptent plus
+  assert.equal(grand(w), '6');
+});
+
+test('7 wonders duel : départage aux points civils (bleus)', () => {
+  const w = loadPage('7wondersduel.html');
+  type(w, '[data-num="civils"]', '10');
+  type(w, '[data-num="science"]', '20');
+  click(w, '[data-tab="1"]');
+  type(w, '[data-num="civils"]', '20');
+  type(w, '[data-num="science"]', '10');
+  click(w, '#openRank');
+  assert.ok(w.document.querySelector('#rankList .rank.win .nm').textContent.startsWith('Joueur 2'));
 });
 
 test('iaww : départage par cartes construites à égalité de points', () => {

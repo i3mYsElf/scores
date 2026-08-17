@@ -1,0 +1,112 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Queendomino — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Queendomino</h1>
+    <p class="subtitle">Feuille de score — fin de partie</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="lib/registry.js"></script>
+<script src="games/queendomino.js"></script>
+<script src="common.js"></script>
+<script>
+const {blank, score, maxDomaine} = GameLogic;
+
+function drawDoms(d){
+  document.getElementById('domList').innerHTML = d.domaines.map((m,i)=>`
+    <div class="row">
+      <input class="num" data-dc="${i}" type="number" min="0" inputmode="numeric" value="${m.c}" style="width:58px" aria-label="cases du domaine">
+      <span style="color:var(--muted);font-size:13px">cases ×</span>
+      <input class="num" data-dk="${i}" type="number" min="0" inputmode="numeric" value="${m.k}" style="width:58px" aria-label="couronnes du domaine">
+      <span class="val" data-dtot="${i}" style="flex:1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">0</span>
+      <button class="kill" data-deldom="${i}" aria-label="Supprimer ce domaine">×</button>
+    </div>`).join('');
+}
+
+initSheet({
+  key: 'queendomino-score-v1',
+  startPlayers: 2,
+  maxPlayers: () => 4,
+  blank, score,
+  fixup: d => { if(!Array.isArray(d.domaines) || !d.domaines.length) d.domaines = [{c:0,k:0}]; },
+  sums: s => ({domaines:s.domaines, batiments:s.batiments, quetes:s.quetes, tresor:s.tresor}),
+  rankParts: s => [['Domaines',s.domaines],['Bâtiments',s.batiments],['Quêtes',s.quetes],['Trésor',s.tresor]],
+  rankExtra: d => { const m = maxDomaine(d); return m ? ` · plus grand domaine ${m} cases` : ''; },
+  tiebreak: (a,b) => maxDomaine(b.d) - maxDomaine(a.d),
+
+  drawSheet(d){
+    return `
+  <div class="card">
+    <h2>${sq('var(--jaune)')}Domaines <span class="sum" data-sum="domaines">0</span></h2>
+    <p class="hint">Un domaine = des cases du même terrain connectées entre elles (les diagonales ne comptent pas). Une ligne par domaine : ses cases × ses couronnes, l'app fait la multiplication. La reine compte comme une couronne en plus dans le domaine où elle se trouve. En cas d'égalité au score, le plus grand domaine l'emporte.</p>
+    <div id="domList"></div>
+    <button class="ghost" id="addDom">+ Ajouter un domaine</button>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--rouge)')}Bâtiments <span class="sum" data-sum="batiments">0</span></h2>
+    <p class="hint">Reportez les points de vos bâtiments construits : les PV fixes imprimés, puis ceux qui dépendent de vos tours ou de vos chevaliers.</p>
+    ${rowNum(d,'batFixes','PV fixes','imprimés sur les bâtiments')}
+    ${rowNum(d,'batTours','PV liés aux tours','bâtiments « par tour »')}
+    ${rowNum(d,'batChevaliers','PV liés aux chevaliers','bâtiments « par chevalier »')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--vert)')}Quêtes <span class="sum" data-sum="quetes">0</span></h2>
+    <p class="hint">Points des tuiles quêtes en jeu cette partie (royaume complet, château au centre…). Laissez à 0 sans quêtes.</p>
+    ${rowNum(d,'quetes','Points des quêtes','tuiles remplies')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Trésor <span class="sum" data-sum="tresor">0</span></h2>
+    <p class="hint">1 point par lot de 3 pièces restantes.</p>
+    ${rowStep('pieces','Pièces','dans votre réserve')}
+  </div>`;
+  },
+  afterDraw(d){ drawDoms(d); },
+  afterRefresh(d){
+    document.querySelectorAll('[data-dtot]').forEach(el=>{
+      const m = d.domaines[+el.dataset.dtot];
+      el.textContent = m ? (+m.c||0)*(+m.k||0) : 0;
+    });
+  },
+
+  onClick(e, ctx){
+    const d = ctx.d;
+    if(e.target.id === 'addDom'){ d.domaines.push({c:0,k:0}); drawDoms(d); ctx.refresh(); return true; }
+    const del = e.target.closest('[data-deldom]');
+    if(del){
+      d.domaines.splice(+del.dataset.deldom,1);
+      if(!d.domaines.length) d.domaines.push({c:0,k:0});
+      drawDoms(d); ctx.refresh(); return true;
+    }
+    return false;
+  },
+  onInput(e, ctx){
+    const d = ctx.d;
+    if(e.target.dataset.dc !== undefined){ d.domaines[+e.target.dataset.dc].c = Math.max(0, +e.target.value||0); ctx.refresh(); return true; }
+    if(e.target.dataset.dk !== undefined){ d.domaines[+e.target.dataset.dk].k = Math.max(0, +e.target.value||0); ctx.refresh(); return true; }
+    return false;
+  }
+});
+</script>

@@ -8,6 +8,9 @@ const agricola = require('../games/agricola.js');
 const cascadia = require('../games/cascadia.js');
 const tm = require('../games/terraformingmars.js');
 const ssp = require('../games/seasaltpaper.js');
+const kingdomino = require('../games/kingdomino.js');
+const queendomino = require('../games/queendomino.js');
+const swd = require('../games/7wondersduel.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -230,4 +233,77 @@ test('SSP : objectif de fin de partie selon le nombre de joueurs', () => {
   assert.equal(ssp.objectif(3), 35);
   assert.equal(ssp.objectif(4), 30);
   assert.equal(ssp.objectif(5), 30); // repli hors bornes
+});
+
+/* ---------- Kingdomino ---------- */
+test('Kingdomino : domaines cases × couronnes, sans couronne = 0', () => {
+  const d = kingdomino.blank();
+  d.domaines = [{c:6,k:2},{c:4,k:0},{c:1,k:1}];
+  assert.equal(kingdomino.score(d).domaines, 13);
+  assert.equal(kingdomino.score(d).total, 13);
+});
+
+test('Kingdomino : bonus Harmonie +5 et Empire du Milieu +10', () => {
+  const d = kingdomino.blank();
+  d.domaines = [{c:5,k:1}];
+  d.harmonie = true;
+  assert.equal(kingdomino.score(d).total, 10);
+  d.milieu = true;
+  assert.equal(kingdomino.score(d).total, 20);
+});
+
+test('Kingdomino : plus grand domaine (départage)', () => {
+  const d = kingdomino.blank();
+  d.domaines = [{c:3,k:2},{c:7,k:0},{c:5,k:1}];
+  assert.equal(kingdomino.maxDomaine(d), 7);
+});
+
+test('Kingdomino : feuille vide = 0', () => {
+  assert.equal(kingdomino.score(kingdomino.blank()).total, 0);
+});
+
+/* ---------- Queendomino ---------- */
+test('Queendomino : domaines + bâtiments + quêtes + trésor', () => {
+  const d = queendomino.blank();
+  d.domaines = [{c:4,k:2}];
+  d.batFixes = 6; d.batTours = 3; d.batChevaliers = 2;
+  d.quetes = 10; d.pieces = 8;
+  const s = queendomino.score(d);
+  assert.equal(s.domaines, 8);
+  assert.equal(s.batiments, 11);
+  assert.equal(s.tresor, 2);
+  assert.equal(s.total, 8 + 11 + 10 + 2);
+});
+
+test('Queendomino : 1 point par lot de 3 pièces, arrondi bas', () => {
+  const t = n => { const d = queendomino.blank(); d.pieces = n; return queendomino.score(d).tresor; };
+  assert.deepEqual([0,1,2,3,5,6,7].map(t), [0,0,0,1,1,2,2]);
+});
+
+test('Queendomino : feuille vide = 0', () => {
+  assert.equal(queendomino.score(queendomino.blank()).total, 0);
+});
+
+/* ---------- 7 Wonders Duel ---------- */
+test('7WD : décompte civil de base, pièces ÷3, zone militaire', () => {
+  const d = swd.blank();
+  Object.assign(d, {civils:18, science:6, commerce:7, guildes:8,
+    merveilles:10, progres:4, pieces:11, milZone:5});
+  const s = swd.score(d);
+  assert.equal(s.tresor, 3);
+  assert.equal(s.militaire, 5);
+  assert.equal(s.total, 18+6+7+8+10+4+3+5);
+});
+
+test('7WD : paliers des Grands Temples (5/12/21), clampés à 3', () => {
+  const pts = n => { const d = swd.blank(); d.temples = n; return swd.score(d, {pantheon:true}).pantheon; };
+  assert.deepEqual([0,1,2,3,4].map(pts), [0,5,12,21,21]);
+});
+
+test('7WD : extensions inactives = 0, actives comptées', () => {
+  const d = swd.blank();
+  d.divinites = 7; d.temples = 2; d.senat = 6;
+  assert.equal(swd.score(d, {}).total, 0);
+  assert.equal(swd.score(d, {pantheon:true}).pantheon, 7 + 12);
+  assert.equal(swd.score(d, {agora:true}).agora, 6);
 });

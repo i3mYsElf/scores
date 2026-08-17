@@ -1,0 +1,131 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>7 Wonders Duel — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">7 Wonders Duel</h1>
+    <p class="subtitle">Feuille de score — victoire civile</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="lib/registry.js"></script>
+<script src="games/7wondersduel.js"></script>
+<script src="common.js"></script>
+<script>
+const {blank, score: rawScore} = GameLogic;
+const EXTS = [['pantheon','Panthéon'], ['agora','Agora']];
+let exts = {pantheon:false, agora:false};
+const score = d => rawScore(d, exts);
+const ZONES = [0, 2, 5, 10];
+
+initSheet({
+  key: '7wondersduel-score-v1',
+  startPlayers: 2,
+  maxPlayers: () => 2,
+  blank, score,
+  extraState: () => ({exts}),
+  restoreExtra: s => { exts = {...exts, ...(s.exts||{})}; },
+  sums: s => ({
+    batiments: s.civils+s.science+s.commerce+s.guildes,
+    ville: s.merveilles+s.progres, tresor: s.tresor, militaire: s.militaire,
+    pantheon: s.pantheon, agora: s.agora
+  }),
+  rankParts: s => [
+    ['Civils',s.civils],['Science',s.science],['Commerce',s.commerce],['Guildes',s.guildes],
+    ['Merveilles',s.merveilles],['Progrès',s.progres],['Trésor',s.tresor],['Militaire',s.militaire],
+    ['Panthéon',s.pantheon],['Agora',s.agora]
+  ],
+  rankExtra: d => d.civils ? ` · ${d.civils} pts civils` : '',
+  tiebreak: (a,b) => (+b.d.civils||0) - (+a.d.civils||0),
+
+  drawSheet(d){
+    return `
+  <div class="card">
+    <h2>Extensions</h2>
+    <p class="hint">Activez celles utilisées dans cette partie (commun aux deux joueurs). En cas de suprématie militaire, scientifique ou politique, la partie s'arrête sans décompte.</p>
+    <div class="seg">
+      ${EXTS.map(([k,lab])=>`<button data-ext="${k}" aria-pressed="${exts[k]}">${lab}</button>`).join('')}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Bâtiments <span class="sum" data-sum="batiments">0</span></h2>
+    <p class="hint">Reportez les points inscrits sur vos cartes construites. En cas d'égalité au score, le plus de points civils (bleus) l'emporte.</p>
+    ${rowNum(d,'civils','Bâtiments civils','cartes bleues — départage')}
+    ${rowNum(d,'science','Bâtiments scientifiques','cartes vertes')}
+    ${rowNum(d,'commerce','Bâtiments commerciaux','cartes jaunes')}
+    ${rowNum(d,'guildes','Guildes','cartes violettes')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--marron)')}Cité <span class="sum" data-sum="ville">0</span></h2>
+    ${rowNum(d,'merveilles','Merveilles','étapes construites')}
+    ${rowNum(d,'progres','Jetons Progrès','agriculture, mathématiques, philosophie…')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--jaune)')}Trésor <span class="sum" data-sum="tresor">0</span></h2>
+    <p class="hint">1 point par lot de 3 pièces.</p>
+    ${rowStep('pieces','Pièces','dans votre réserve')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--rouge)')}Militaire <span class="sum" data-sum="militaire">0</span></h2>
+    <p class="hint">Zone où se trouve le pion Conflit : dans votre camp, marquez les points de la zone ; sinon 0.</p>
+    <div class="seg">
+      ${ZONES.map(z=>`<button data-zone="${z}" aria-pressed="${(+d.milZone||0)===z}">${z}</button>`).join('')}
+    </div>
+  </div>
+
+  ${exts.pantheon ? `
+  <div class="card">
+    <h2>${sq('var(--gris)')}Panthéon <span class="sum" data-sum="pantheon">0</span></h2>
+    ${rowNum(d,'divinites','Divinités','points de vos cartes divinité')}
+    ${rowStep('temples','Grands Temples','1 : 5 pts · 2 : 12 pts · 3 : 21 pts')}
+  </div>` : ''}
+
+  ${exts.agora ? `
+  <div class="card">
+    <h2>${sq('var(--vert)')}Agora <span class="sum" data-sum="agora">0</span></h2>
+    ${rowNum(d,'senat','Chambres du Sénat','1 à 3 points selon la chambre contrôlée')}
+  </div>` : ''}`;
+  },
+
+  onClick(e, ctx){
+    const d = ctx.d;
+    const ext = e.target.closest('[data-ext]');
+    if(ext){
+      exts[ext.dataset.ext] = !exts[ext.dataset.ext];
+      ctx.redraw(); return true;
+    }
+    const zone = e.target.closest('[data-zone]');
+    if(zone){
+      d.milZone = +zone.dataset.zone;
+      document.querySelectorAll('[data-zone]').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.zone===d.milZone));
+      ctx.refresh(); return true;
+    }
+    /* plafonne les Grands Temples à 3 */
+    const st = e.target.closest('[data-step="temples"]');
+    if(st && +st.dataset.by > 0 && d.temples >= 3) return true;
+    return false;
+  }
+});
+</script>

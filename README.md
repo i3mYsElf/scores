@@ -13,6 +13,10 @@ wonderfulworld.html  feuille de score It's a Wonderful World
 agricola.html   feuille de score Agricola (barème par seuils calculé)
 cascadia.html   feuille de score Cascadia (bonus de majorité inter-joueurs automatiques)
 terraformingmars.html  feuille de score Terraforming Mars
+seasaltpaper.html  feuille de score Sea Salt & Paper (manches cumulées, paliers calculés)
+kingdomino.html    feuille de score Kingdomino (domaines cases × couronnes)
+queendomino.html   feuille de score Queendomino (domaines + bâtiments + pièces)
+7wondersduel.html  feuille de score 7 Wonders Duel (base + Panthéon + Agora activables)
 games/          logique de score pure par jeu (blank/score), sans DOM — testable en Node (rien d'autre que des jeux)
 lib/registry.js registre central des jeux (slug, nom, sous-titre) — source de vérité de la liste
 lib/backup.js   aperçus « Partie en cours » + export/import — logique pure, storage en paramètre
