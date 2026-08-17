@@ -57,6 +57,8 @@ body{
 /* padding-top : dégage la barre de statut iOS en PWA standalone (black-translucent) */
 header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
 .back{display:inline-block;color:var(--muted);font-size:13px;font-weight:600;text-decoration:none;margin-bottom:8px}
+/* lien règles officielles, en face du « ← Jeux » (injecté par common.js) */
+header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text-decoration:none}
 .title{
   font-family:"Anton",sans-serif;
   font-weight:400;font-size:32px;text-transform:uppercase;letter-spacing:.015em;

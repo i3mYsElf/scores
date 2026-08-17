@@ -32,13 +32,17 @@ test('le registre et games/ coïncident exactement', () => {
     'games/*.js et lib/registry.js doivent lister les mêmes jeux');
 });
 
-for (const {slug, name, subtitle} of GAMES) {
+for (const {slug, name, subtitle, rules} of GAMES) {
   test(`${slug} : page présente et branchée partout`, () => {
     assert.ok(name && subtitle, `${slug} : name et subtitle requis dans le registre`);
+    assert.match(rules || '', /^https:\/\//, `${slug} : URL de règles (https) requise dans le registre`);
     const page = gamePage(slug);
     assert.ok(fs.existsSync(path.join(ROOT, page)), `${page} manquant`);
     const html = read(page);
     assert.ok(html.includes(`games/${slug}.js`), `${page} ne charge pas games/${slug}.js`);
+    assert.ok(html.includes('src="lib/registry.js"'), `${page} ne charge pas lib/registry.js`);
+    assert.ok(html.indexOf('lib/registry.js') < html.indexOf('src="common.js"'),
+      `${page} : lib/registry.js doit être chargé avant common.js`);
     assert.ok(html.includes(`'${gameKey(slug)}'`), `${page} n'utilise pas la clé ${gameKey(slug)}`);
     assert.ok(precache.includes(page), `${page} absent du PRECACHE de sw.js`);
     assert.ok(precache.includes(`games/${slug}.js`), `games/${slug}.js absent du PRECACHE de sw.js`);

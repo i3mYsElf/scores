@@ -23,10 +23,16 @@ test('previewLabel : partie commencée, joueurs et totaux affichés', () => {
     'Partie en cours · Manu 42 · ? 7');
 });
 
+test('previewLabel : les totaux nuls ou négatifs comptent (Agricola démarre à -1)', () => {
+  assert.equal(previewLabel({started: true, players: [{nom: 'Manu'}], totals: [0]}),
+    'Partie en cours · Manu 0');
+  assert.equal(previewLabel({started: true, players: [{nom: 'Manu'}], totals: [-3]}),
+    'Partie en cours · Manu -3');
+});
+
 test('previewLabel : null si non commencée, vide ou malformée', () => {
   assert.equal(previewLabel(null), null);
   assert.equal(previewLabel({started: false, players: [{nom: 'Manu'}], totals: [42]}), null); // simple visite
-  assert.equal(previewLabel({started: true, players: [{nom: 'Manu'}], totals: [0]}), null);   // aucun point
   assert.equal(previewLabel({started: true, players: [{nom: 'Manu'}]}), null);                // sans totals
 });
 

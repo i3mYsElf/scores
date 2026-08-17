@@ -5,6 +5,10 @@
 const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)',
                 'var(--p5)','var(--p6)','var(--p7)','var(--p8)'];
 
+/* Clé de l'historique : celle du registre si lib/registry.js est chargé,
+   littéral sinon — le même littéral que vérifie tests/consistency.test.js. */
+const HISTORY_KEY = (typeof GameRegistry !== 'undefined' && GameRegistry.HISTORY_KEY) || 'scores-history-v1';
+
 const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -61,8 +65,17 @@ document.addEventListener('focusin', e => {
 });
 
 /* Chrome commun à toutes les feuilles : nom du joueur, barre de total,
-   sheet de classement. Injecté ici pour que les pages n'en portent pas copie. */
-function injectChrome(){
+   sheet de classement. Le lien vers les règles officielles (registre chargé
+   par la page) va en haut à droite du header, en face du « ← Jeux » — c'est
+   pendant la saisie qu'on consulte les règles, pas au classement. */
+function injectChrome(slug){
+  const reg = (typeof GameRegistry !== 'undefined')
+    && GameRegistry.GAMES.find(g => g.slug === slug);
+  const back = document.querySelector('header .back');
+  if(reg && reg.rules && back){
+    back.insertAdjacentHTML('afterend',
+      `<a class="rules" href="${esc(reg.rules)}" target="_blank" rel="noopener">Règles ↗</a>`);
+  }
   document.getElementById('sheetBody').insertAdjacentHTML('beforebegin', `
   <div class="whois">
     <span class="swatch" id="swatch"></span>
@@ -82,14 +95,16 @@ function injectChrome(){
       <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
       <div id="rankList"></div>
       <button class="close" id="closeRank">Retour à la saisie</button>
-      <button class="reset" id="resetAll">Nouvelle partie (mêmes joueurs)</button>
+      <button class="reset" id="resetAll">Terminer la partie (mêmes joueurs)</button>
       <button class="reset" id="resetPlayers">Réinitialiser joueurs et scores</button>
+      <p class="hint" style="text-align:center;margin-top:6px">La partie en cours est archivée dans l'historique.</p>
     </div></div>
   </div>`);
 }
 
 function initSheet(cfg){
-  injectChrome();
+  const slug = cfg.key.replace('-score-v1','');
+  injectChrome(slug);
   const maxP = cfg.maxPlayers || (()=>4);
   const mk = nom => ({nom, d: cfg.blank()});
   let players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1)));
@@ -109,6 +124,10 @@ function initSheet(cfg){
      l'aperçu « Partie en cours » (les totaux ne suffisent pas : une feuille
      vierge de Terraforming Mars vaut déjà 20 points de NT). */
   let started = false;
+  /* Date de la partie « oubliée » : si la feuille est rouverte plus tard juste
+     pour être terminée, l'archive est datée de la dernière vraie utilisation
+     (le ts de la sauvegarde chargée), pas du jour du reset. */
+  let touched = false, loadedTs = 0;
   function save(){
     try{
       localStorage.setItem(cfg.key, JSON.stringify({
@@ -122,6 +141,7 @@ function initSheet(cfg){
     try{
       const s = JSON.parse(localStorage.getItem(cfg.key));
       if(!s || !Array.isArray(s.players) || !s.players.length) return;
+      loadedTs = +s.ts || 0; // avant le premier save(), qui écrase ts
       if(cfg.restoreExtra) cfg.restoreExtra(s);
       players = s.players.slice(0, maxP()).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...cfg.blank(), ...p.d}}));
       if(cfg.fixup) players.forEach(p=>cfg.fixup(p.d));
@@ -172,7 +192,7 @@ function initSheet(cfg){
      par partie la plus récente, noms par défaut exclus (datalist natif). */
   function fillNameSuggestions(){
     try{
-      const h = JSON.parse(localStorage.getItem('scores-history-v1')) || [];
+      const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
       const seen = [];
       for(const e of h) for(const p of (e.players || []))
         if(p && p.nom && !/^Joueur \d+$/.test(p.nom) && !seen.includes(p.nom)) seen.push(p.nom);
@@ -197,16 +217,18 @@ function initSheet(cfg){
   document.addEventListener('visibilitychange', syncWakeLock);
 
   /* Archive la partie dans l'historique global (clé scores-history-v1, lue par
-     history.html) : classement figé au moment du reset, si des scores ont été saisis. */
+     history.html) : classement figé au moment du reset, si des scores ont été saisis.
+     Datée de la dernière vraie interaction : Date.now() si on vient de jouer,
+     le ts de la sauvegarde chargée si on rouvre juste pour terminer. */
   function archive(){
     if(!started) return;
     try{
       const list = players.map(p=>({nom:p.nom, total:cfg.score(p.d, players).total, d:p.d}))
         .sort((a,b)=> b.total - a.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0))
         .map(p=>({nom:p.nom, total:p.total}));
-      const h = JSON.parse(localStorage.getItem('scores-history-v1')) || [];
-      h.unshift({g: cfg.key.replace('-score-v1',''), t: Date.now(), players: list});
-      localStorage.setItem('scores-history-v1', JSON.stringify(h.slice(0, 200)));
+      const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+      h.unshift({g: slug, t: touched ? Date.now() : (loadedTs || Date.now()), players: list});
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 200)));
       fillNameSuggestions();
     }catch(e){}
   }
@@ -244,7 +266,7 @@ function initSheet(cfg){
     if(!st) return;
     holdFired = false;
     holdTimer = setTimeout(()=>{
-      holdFired = true; started = true;
+      holdFired = true; started = true; touched = true;
       doStep(st);
       holdInt = setInterval(()=>doStep(st), 110);
     }, 400);
@@ -253,7 +275,7 @@ function initSheet(cfg){
   document.addEventListener('pointercancel', stopHold);
 
   document.addEventListener('click', e=>{
-    if(e.target.closest && e.target.closest('#sheetBody button')) started = true;
+    if(e.target.closest && e.target.closest('#sheetBody button')) started = touched = true;
     if(cfg.onClick && cfg.onClick(e, ctx)) return;
     const st = e.target.closest('[data-step]');
     if(st){
@@ -263,7 +285,14 @@ function initSheet(cfg){
     const tab = e.target.closest('[data-tab]');
     if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
     if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
-    if(e.target.id === 'kill'){ players.splice(cur,1); cur = 0; drawSheet(); return; }
+    if(e.target.id === 'kill'){
+      const p = players[cur];
+      // même heuristique que le legacy started : la feuille dévie-t-elle de la vierge ?
+      // (limite assumée : un joueur revenu exactement au total vierge n'est pas détecté)
+      const dirty = cfg.score(p.d, players).total !== cfg.score(cfg.blank(), players).total;
+      if(dirty && !confirm(`Retirer ${p.nom} ? Ses scores seront perdus.`)) return;
+      players.splice(cur,1); cur = 0; drawSheet(); return;
+    }
     if(e.target.id === 'openRank'){ showRank(); return; }
     if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
     if(e.target.id === 'resetAll'){
@@ -272,6 +301,7 @@ function initSheet(cfg){
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }
     if(e.target.id === 'resetPlayers'){
+      if(started && !confirm('Réinitialiser les joueurs et les scores ? La partie en cours sera archivée dans l\'historique.')) return;
       archive();
       players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
@@ -279,7 +309,7 @@ function initSheet(cfg){
   });
 
   document.addEventListener('input', e=>{
-    if(e.target.closest && e.target.closest('#sheetBody input')) started = true;
+    if(e.target.closest && e.target.closest('#sheetBody input')) started = touched = true;
     if(cfg.onInput && cfg.onInput(e, ctx)) return;
     const d = players[cur].d;
     if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); refresh(); return; }

@@ -26,13 +26,15 @@
   <div id="sheetBody"></div>
 </div>
 
+<script src="lib/registry.js"></script>
 <script src="games/seasaltpaper.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score} = GameLogic;
+const {blank, score, objectif} = GameLogic;
 
-/* Objectif de victoire selon le nombre de joueurs (règle officielle) */
-const OBJECTIF = {2: 40, 3: 35, 4: 30};
+/* Contexte de la feuille (joueurs), posé par drawSheet — la fin de partie est
+   globale : le bandeau et le classement regardent tous les joueurs. */
+let pageCtx = null;
 
 /* Nombre de cartes de chaque collection dans le paquet (plafond des steppers) */
 const MAX_CARTES = {coquillages: 6, poulpes: 5, pingouins: 3, marins: 2,
@@ -80,16 +82,20 @@ initSheet({
   rankParts: s => [
     ['Manches précédentes', s.precedentes], ['Manche en cours', s.manche]
   ],
-  rankExtra: d => d.manches.length
-    ? ` · ${d.manches.length} manche${d.manches.length > 1 ? 's' : ''}` : '',
+  rankExtra: d => (d.manches.length
+    ? ` · ${d.manches.length} manche${d.manches.length > 1 ? 's' : ''}` : '')
+    + (pageCtx && score(d).precedentes >= objectif(pageCtx.players.length)
+    ? ' · objectif atteint' : ''),
 
   drawSheet(d, ctx){
-    const nb = ctx.players.length, obj = OBJECTIF[nb] || 30;
+    pageCtx = ctx;
+    const nb = ctx.players.length, obj = objectif(nb);
     return `
   <div class="card">
     <h2>${sq('var(--gris)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
     <p class="hint">Objectif à ${nb} joueurs : <b>${obj} points</b> (2 j : 40 · 3 j : 35 · 4 j : 30). Comptez la manche en cours ci-dessous, puis « Valider la manche » pour l'ajouter au cumul.</p>
     <div id="mancheList"></div>
+    <p class="hint" id="objAtteint" hidden style="color:var(--accent);font-weight:600"></p>
   </div>
 
   <div class="card">
@@ -138,6 +144,18 @@ initSheet({
   </div>`;
   },
   afterDraw(d){ drawManches(d); drawSirenes(d); },
+
+  /* Bandeau de fin de partie : seul le cumul des manches validées compte,
+     la manche en cours ne déclenche rien tant qu'elle n'est pas validée. */
+  afterRefresh(){
+    const el = document.getElementById('objAtteint');
+    if(!el || !pageCtx) return;
+    const obj = objectif(pageCtx.players.length);
+    const noms = pageCtx.players.filter(p => score(p.d).precedentes >= obj).map(p => p.nom);
+    el.hidden = !noms.length;
+    el.textContent = noms.length
+      ? `Objectif de ${obj} points atteint par ${noms.join(', ')} — la partie se termine !` : '';
+  },
 
   onClick(e, ctx){
     const d = ctx.d;

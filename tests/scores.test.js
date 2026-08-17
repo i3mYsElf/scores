@@ -224,3 +224,10 @@ test('SSP : cumul des manches précédentes', () => {
 test('SSP : feuille vide = 0', () => {
   assert.equal(ssp.score(ssp.blank()).total, 0);
 });
+
+test('SSP : objectif de fin de partie selon le nombre de joueurs', () => {
+  assert.equal(ssp.objectif(2), 40);
+  assert.equal(ssp.objectif(3), 35);
+  assert.equal(ssp.objectif(4), 30);
+  assert.equal(ssp.objectif(5), 30); // repli hors bornes
+});

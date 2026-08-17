@@ -12,6 +12,7 @@ function loadPage(file, storage) {
   const html = fs.readFileSync(path.join(ROOT, file), 'utf8');
   const dom = new JSDOM(html, { url: 'http://localhost/' + file, runScripts: 'outside-only', pretendToBeVisual: true });
   const { window } = dom;
+  window.confirm = () => true; // jsdom ne l'implémente pas (falsy) — accepter par défaut
   for (const [k, v] of Object.entries(storage || {})) window.localStorage.setItem(k, v);
   // exécute les scripts dans l'ordre du document (src résolus sur le disque)
   for (const s of window.document.querySelectorAll('script')) {
@@ -141,6 +142,29 @@ test('sea salt & paper : manche calculée, validée, puis dernière chance', () 
   assert.equal(grand(w), '10'); // 9 + bonus couleur
 });
 
+test('sea salt & paper : bandeau de fin de partie sur les manches validées seulement', () => {
+  const save = m => JSON.stringify({players: [{nom: 'Manu', d: {manches: m}}, {nom: 'Léa', d: {}}], cur: 0, started: true, totals: [0, 0]});
+  // 40 points validés à 2 joueurs : bandeau visible, nom et objectif affichés
+  let w = loadPage('seasaltpaper.html', {'seasaltpaper-score-v1': save([25, 15])});
+  let el = w.document.getElementById('objAtteint');
+  assert.ok(!el.hidden);
+  assert.ok(el.textContent.includes('Manu'));
+  assert.ok(el.textContent.includes('40'));
+  // 39 points : rien
+  w = loadPage('seasaltpaper.html', {'seasaltpaper-score-v1': save([25, 14])});
+  assert.ok(w.document.getElementById('objAtteint').hidden);
+  // la manche en cours ne compte pas : 36 validés + 5 en cours -> toujours rien
+  w = loadPage('seasaltpaper.html', {'seasaltpaper-score-v1': save([36])});
+  for (let i = 0; i < 10; i++) click(w, '[data-step="crabes"][data-by="1"]'); // 5 paires
+  assert.equal(grand(w), '41');
+  assert.ok(w.document.getElementById('objAtteint').hidden);
+  // à 3 joueurs l'objectif descend à 35 : le bandeau bascule après l'ajout
+  click(w, '#addP');
+  assert.ok(!w.document.getElementById('objAtteint').hidden);
+  click(w, '#openRank');
+  assert.ok(w.document.getElementById('rankList').textContent.includes('objectif atteint'));
+});
+
 test('sea salt & paper : steppers de collections plafonnés au paquet', () => {
   const w = loadPage('seasaltpaper.html');
   for (let i = 0; i < 5; i++) click(w, '[data-step="marins"][data-by="1"]');
@@ -248,6 +272,62 @@ test('reset sans aucune saisie : rien n\'est archivé', () => {
   const w = loadPage('terraformingmars.html');
   click(w, '#openRank'); click(w, '#resetAll');
   assert.equal(w.localStorage.getItem('scores-history-v1'), null);
+});
+
+test('partie « oubliée » terminée plus tard : archivée à la date de la sauvegarde', () => {
+  const save = JSON.stringify({players: [{nom: 'Manu', d: {champs: 2}}], cur: 0, started: true, totals: [10], ts: 12345});
+  // rouverte juste pour terminer : aucune saisie -> datée du ts sauvegardé
+  const w = loadPage('harmonies.html', {'harmonies-score-v1': save});
+  click(w, '#openRank'); click(w, '#resetAll');
+  assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].t, 12345);
+  // même sauvegarde mais une saisie avant le reset -> datée de maintenant
+  const w2 = loadPage('harmonies.html', {'harmonies-score-v1': save});
+  click(w2, '[data-step="champs"][data-by="1"]');
+  click(w2, '#openRank'); click(w2, '#resetAll');
+  assert.ok(JSON.parse(w2.localStorage.getItem('scores-history-v1'))[0].t > 12345);
+});
+
+/* ---------- Confirmations destructrices ---------- */
+test('réinitialiser les joueurs : confirmation requise si la partie est commencée', () => {
+  const w = loadPage('harmonies.html');
+  type(w, '#pname', 'Manu');
+  click(w, '[data-step="champs"][data-by="1"]');
+  w.confirm = () => false; // refus
+  click(w, '#openRank'); click(w, '#resetPlayers');
+  assert.equal(grand(w), '5'); // rien n'a bougé
+  assert.ok(w.document.getElementById('tabs').textContent.includes('Manu'));
+  assert.equal(w.localStorage.getItem('scores-history-v1'), null); // rien archivé
+  w.confirm = () => true; // accepté
+  click(w, '#resetPlayers');
+  assert.equal(grand(w), '0');
+  assert.ok(!w.document.getElementById('tabs').textContent.includes('Manu'));
+  assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1')).length, 1);
+});
+
+test('retirer un joueur : confirmation seulement si sa feuille n\'est pas vierge', () => {
+  const w = loadPage('harmonies.html');
+  let asked = 0;
+  w.confirm = () => { asked++; return true; };
+  click(w, '#kill'); // joueur vierge : retiré sans question
+  assert.equal(asked, 0);
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 1);
+  click(w, '#addP');
+  click(w, '[data-step="champs"][data-by="1"]');
+  w.confirm = () => { asked++; return false; };
+  click(w, '#kill'); // joueur avec des scores, refus : toujours là
+  assert.equal(asked, 1);
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 2);
+  assert.equal(grand(w), '5');
+});
+
+/* ---------- Lien vers les règles officielles ---------- */
+test('feuilles : lien règles du registre dans le header', () => {
+  const {GAMES} = require('../lib/registry.js');
+  const w = loadPage('harmonies.html');
+  const a = w.document.querySelector('header a.rules');
+  assert.ok(a, 'lien .rules absent du header');
+  assert.equal(a.getAttribute('href'), GAMES.find(g => g.slug === 'harmonies').rules);
+  assert.equal(a.getAttribute('target'), '_blank');
 });
 
 test('history.html : rendu depuis le registre, vainqueur en tête, noms échappés', () => {
