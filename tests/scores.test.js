@@ -7,6 +7,7 @@ const iaww = require('../games/wonderfulworld.js');
 const agricola = require('../games/agricola.js');
 const cascadia = require('../games/cascadia.js');
 const tm = require('../games/terraformingmars.js');
+const ssp = require('../games/seasaltpaper.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -169,4 +170,57 @@ test('TM : à 2 joueurs, la 2e place des récompenses ne compte pas', () => {
   const d = {...tm.blank(), prem:1, sec:2};
   assert.equal(tm.score(d, 2).recompenses, 5);
   assert.equal(tm.score(d, 3).recompenses, 9);
+});
+
+/* ---------- Sea Salt & Paper ---------- */
+test('SSP : duos — 1 pt la paire, combinaison nageur/requin', () => {
+  const d = ssp.blank();
+  d.crabes = 3; d.bateaux = 2; d.poissons = 5; d.nageurs = 2; d.requins = 1;
+  assert.equal(ssp.score(d).duos, 1 + 1 + 2 + 1); // les cartes seules ne comptent pas
+});
+
+test('SSP : paliers des collections, clampés au-delà du paquet', () => {
+  const serie = (champ, max) => Array.from({length: max + 2}, (_, n) => {
+    const d = ssp.blank(); d[champ] = n; return ssp.score(d).collections;
+  });
+  assert.deepEqual(serie('coquillages', 6), [0,0,2,4,6,8,10,10]);
+  assert.deepEqual(serie('poulpes', 5),     [0,0,3,6,9,12,12]);
+  assert.deepEqual(serie('pingouins', 3),   [0,1,3,5,5]);
+  assert.deepEqual(serie('marins', 2),      [0,0,5,5]);
+});
+
+test('SSP : multiplicateurs — ne comptent que leurs cartes cibles', () => {
+  const d = ssp.blank();
+  d.phare = 1; // phare sans bateau
+  assert.equal(ssp.score(d).mult, 0);
+  d.bateaux = 3; d.capitaine = 1; d.marins = 2; d.colonie = 1; d.pingouins = 2;
+  assert.equal(ssp.score(d).mult, 3 + 6 + 4);
+});
+
+test('SSP : sirènes — somme des couleurs, 4 sirènes max', () => {
+  const d = ssp.blank();
+  d.sirenes = [5, 3];
+  assert.equal(ssp.score(d).sirenes, 8);
+  d.sirenes = [5, 3, 2, 2, 9]; // une 5e sirène est impossible : ignorée
+  assert.equal(ssp.score(d).sirenes, 12);
+});
+
+test('SSP : fin de manche — stop / dernière chance gagnée / perdue', () => {
+  const d = ssp.blank();
+  d.crabes = 4; d.pingouins = 2; d.bonus = 4; // pts = 2 paires + palier 3 = 5
+  d.fin = 'stop';  assert.equal(ssp.score(d).manche, 5);
+  d.fin = 'gagne'; assert.equal(ssp.score(d).manche, 9);
+  d.fin = 'perdu'; assert.equal(ssp.score(d).manche, 4);
+});
+
+test('SSP : cumul des manches précédentes', () => {
+  const d = ssp.blank();
+  d.manches = [12, 9]; d.poissons = 4; d.banc = 1; // manche en cours : 2 + 4
+  const s = ssp.score(d);
+  assert.equal(s.precedentes, 21);
+  assert.equal(s.total, 27);
+});
+
+test('SSP : feuille vide = 0', () => {
+  assert.equal(ssp.score(ssp.blank()).total, 0);
 });

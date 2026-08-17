@@ -115,6 +115,40 @@ test('iaww : multiplicateurs et personnages', () => {
   assert.equal(grand(w), '32');
 });
 
+/* ---------- Sea Salt & Paper ---------- */
+test('sea salt & paper : manche calculée, validée, puis dernière chance', () => {
+  const w = loadPage('seasaltpaper.html');
+  for (let i = 0; i < 4; i++) click(w, '[data-step="poissons"][data-by="1"]');
+  assert.equal(grand(w), '2'); // 2 paires
+  click(w, '[data-multi="banc"]');
+  assert.equal(grand(w), '6'); // + 1 pt par poisson
+  click(w, '#addSir');
+  type(w, '[data-sir="0"]', '3');
+  assert.equal(grand(w), '9');
+  click(w, '#valManche'); // la manche passe au cumul, les compteurs repartent à zéro
+  assert.equal(grand(w), '9');
+  const saved = JSON.parse(w.localStorage.getItem('seasaltpaper-score-v1'));
+  assert.deepEqual(saved.players[0].d.manches, [9]);
+  assert.equal(saved.players[0].d.poissons, 0);
+  assert.deepEqual(saved.players[0].d.sirenes, []);
+  // manche suivante : dernière chance perdue -> seul le bonus couleur compte
+  click(w, '[data-step="crabes"][data-by="1"]');
+  click(w, '[data-step="crabes"][data-by="1"]');
+  assert.equal(grand(w), '10'); // 9 + 1 paire
+  click(w, '[data-fin="perdu"]');
+  assert.equal(grand(w), '9'); // les points de cartes ne comptent plus
+  click(w, '[data-step="bonus"][data-by="1"]');
+  assert.equal(grand(w), '10'); // 9 + bonus couleur
+});
+
+test('sea salt & paper : steppers de collections plafonnés au paquet', () => {
+  const w = loadPage('seasaltpaper.html');
+  for (let i = 0; i < 5; i++) click(w, '[data-step="marins"][data-by="1"]');
+  const d = JSON.parse(w.localStorage.getItem('seasaltpaper-score-v1')).players[0].d;
+  assert.equal(d.marins, 2); // 2 marins dans le paquet
+  assert.equal(grand(w), '5');
+});
+
 /* ---------- Accueil : aperçu « Partie en cours » ---------- */
 test('accueil : visiter une feuille ne déclenche pas « Partie en cours »', () => {
   // sauvegarde TM créée par une simple visite : totaux à 20 (NT), aucune saisie
@@ -243,7 +277,7 @@ test('accueil : menu ordonné par dernière utilisation, Historique en dernier',
   const w = loadPage('index.html', {'cascadia-score-v1': save(2000), 'agricola-score-v1': save(1000)});
   const hrefs = [...w.document.querySelectorAll('a.game')].map(a => a.getAttribute('href'));
   assert.deepEqual(hrefs, ['cascadia.html', 'agricola.html', // par ts décroissant
-    'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html']); // jamais ouverts : ordre du registre
+    'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html', 'seasaltpaper.html']); // jamais ouverts : ordre du registre
   assert.ok(w.document.querySelector('a.tool[href="history.html"]')); // l'Historique vit dans le header
 });
 

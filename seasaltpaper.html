@@ -1,0 +1,182 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sea Salt & Paper — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Sea Salt &amp; Paper</h1>
+    <p class="subtitle">Feuille de score — manches cumulées</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="games/seasaltpaper.js"></script>
+<script src="common.js"></script>
+<script>
+const {blank, score} = GameLogic;
+
+/* Objectif de victoire selon le nombre de joueurs (règle officielle) */
+const OBJECTIF = {2: 40, 3: 35, 4: 30};
+
+/* Nombre de cartes de chaque collection dans le paquet (plafond des steppers) */
+const MAX_CARTES = {coquillages: 6, poulpes: 5, pingouins: 3, marins: 2,
+                    phare: 1, banc: 1, colonie: 1, capitaine: 1};
+
+const MULTIS = [
+  ['phare', 'Phare'], ['banc', 'Banc de poissons'],
+  ['colonie', 'Colonie'], ['capitaine', 'Capitaine']
+];
+
+function drawManches(d){
+  document.getElementById('mancheList').innerHTML = d.manches.map((m,i)=>`
+    <div class="row">
+      <div class="lab">Manche ${i+1}</div>
+      <input class="num" data-manche="${i}" type="number" min="0" inputmode="numeric" value="${m}" style="width:64px" aria-label="score de la manche ${i+1}">
+      <button class="kill" data-delmanche="${i}" aria-label="Supprimer la manche ${i+1}">×</button>
+    </div>`).join('')
+    || '<p class="hint">Aucune manche validée pour l\'instant.</p>';
+}
+
+function drawSirenes(d){
+  document.getElementById('sireneList').innerHTML = d.sirenes.map((s,i)=>`
+    <div class="row">
+      <div class="lab">Sirène ${i+1}<small>cartes de sa couleur majoritaire</small></div>
+      <input class="num" data-sir="${i}" type="number" min="0" inputmode="numeric" value="${s}" style="width:64px" aria-label="cartes de la couleur de la sirène ${i+1}">
+      <button class="kill" data-delsir="${i}" aria-label="Retirer la sirène ${i+1}">×</button>
+    </div>`).join('')
+    + (d.sirenes.length >= 4
+      ? '<p class="hint" style="color:var(--accent);font-weight:600">4 sirènes : victoire immédiate !</p>'
+      : '<button class="ghost" id="addSir">+ Ajouter une sirène</button>');
+}
+
+initSheet({
+  key: 'seasaltpaper-score-v1',
+  startPlayers: 2,
+  maxPlayers: () => 4,
+  blank, score,
+  fixup: d => {
+    if(!Array.isArray(d.manches)) d.manches = [];
+    if(!Array.isArray(d.sirenes)) d.sirenes = [];
+    if(!['stop','gagne','perdu'].includes(d.fin)) d.fin = 'stop';
+  },
+  sums: s => ({prec: s.precedentes, duos: s.duos, collections: s.collections,
+               mult: s.mult, sirenes: s.sirenes, manche: s.manche}),
+  rankParts: s => [
+    ['Manches précédentes', s.precedentes], ['Manche en cours', s.manche]
+  ],
+  rankExtra: d => d.manches.length
+    ? ` · ${d.manches.length} manche${d.manches.length > 1 ? 's' : ''}` : '',
+
+  drawSheet(d, ctx){
+    const nb = ctx.players.length, obj = OBJECTIF[nb] || 30;
+    return `
+  <div class="card">
+    <h2>${sq('var(--gris)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
+    <p class="hint">Objectif à ${nb} joueurs : <b>${obj} points</b> (2 j : 40 · 3 j : 35 · 4 j : 30). Comptez la manche en cours ci-dessous, puis « Valider la manche » pour l'ajouter au cumul.</p>
+    <div id="mancheList"></div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Duos <span class="sum" data-sum="duos">0</span></h2>
+    <p class="hint">Comptez vos cartes (en main et posées) : 1 point par paire, l'app fait les paires. Nageur + requin : 1 point la combinaison.</p>
+    ${rowStep('crabes','Crabes')}
+    ${rowStep('bateaux','Bateaux')}
+    ${rowStep('poissons','Poissons')}
+    ${rowStep('nageurs','Nageurs')}
+    ${rowStep('requins','Requins')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--jaune)')}Collections <span class="sum" data-sum="collections">0</span></h2>
+    <p class="hint">Les paliers sont calculés d'après le nombre de cartes.</p>
+    ${rowStep('coquillages','Coquillages','0, 2, 4, 6, 8, 10 pts')}
+    ${rowStep('poulpes','Poulpes','0, 3, 6, 9, 12 pts')}
+    ${rowStep('pingouins','Pingouins','1, 3, 5 pts')}
+    ${rowStep('marins','Marins','0 puis 5 pts')}
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--rouge)')}Multiplicateurs <span class="sum" data-sum="mult">0</span></h2>
+    <p class="hint">Phare : 1 pt par bateau · Banc : 1 pt par poisson · Colonie : 2 pts par pingouin · Capitaine : 3 pts par marin. La carte ne compte pas comme carte du type multiplié.</p>
+    <div class="seg">
+      ${MULTIS.map(([k,lab])=>`<button data-multi="${k}" aria-pressed="${!!d[k]}">${lab}</button>`).join('')}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--vert)')}Sirènes <span class="sum" data-sum="sirenes">0</span></h2>
+    <p class="hint">Chaque sirène rapporte 1 point par carte de votre couleur la plus représentée — une couleur différente par sirène.</p>
+    <div id="sireneList"></div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--marron)')}Fin de manche <span class="sum" data-sum="manche">0</span></h2>
+    <p class="hint">Stop : chacun marque ses points. Dernière chance gagnée : vos points + le bonus couleur (les autres marquent leur seul bonus). Perdue : votre seul bonus couleur.</p>
+    <div class="seg">
+      <button data-fin="stop" aria-pressed="${d.fin==='stop'}">Stop</button>
+      <button data-fin="gagne" aria-pressed="${d.fin==='gagne'}">Dern. chance ✓</button>
+      <button data-fin="perdu" aria-pressed="${d.fin==='perdu'}">Dern. chance ✗</button>
+    </div>
+    ${d.fin==='stop' ? '' : rowStep('bonus','Bonus couleur','cartes de votre couleur majoritaire')}
+    <button class="ghost" id="valManche">Valider la manche</button>
+  </div>`;
+  },
+  afterDraw(d){ drawManches(d); drawSirenes(d); },
+
+  onClick(e, ctx){
+    const d = ctx.d;
+    /* plafonne les steppers au nombre de cartes du paquet */
+    const st = e.target.closest('[data-step]');
+    if(st && +st.dataset.by > 0){
+      const cap = MAX_CARTES[st.dataset.step];
+      if(cap !== undefined && d[st.dataset.step] >= cap) return true;
+    }
+    const multi = e.target.closest('[data-multi]');
+    if(multi){ const k = multi.dataset.multi; d[k] = d[k] ? 0 : 1; ctx.redraw(); return true; }
+    const fin = e.target.closest('[data-fin]');
+    if(fin){ d.fin = fin.dataset.fin; ctx.redraw(); return true; }
+    if(e.target.id === 'addSir'){
+      if(d.sirenes.length < 4){ d.sirenes.push(0); drawSirenes(d); ctx.refresh(); }
+      return true;
+    }
+    const delSir = e.target.closest('[data-delsir]');
+    if(delSir){ d.sirenes.splice(+delSir.dataset.delsir, 1); drawSirenes(d); ctx.refresh(); return true; }
+    const delManche = e.target.closest('[data-delmanche]');
+    if(delManche){ d.manches.splice(+delManche.dataset.delmanche, 1); drawManches(d); ctx.refresh(); return true; }
+    if(e.target.id === 'valManche'){
+      const manches = d.manches.concat(score(d).manche);
+      Object.assign(d, blank(), {manches});
+      ctx.redraw(); return true;
+    }
+    return false;
+  },
+  onInput(e, ctx){
+    const d = ctx.d;
+    if(e.target.dataset.manche !== undefined){
+      d.manches[+e.target.dataset.manche] = Math.max(0, +e.target.value || 0);
+      ctx.refresh(); return true;
+    }
+    if(e.target.dataset.sir !== undefined){
+      d.sirenes[+e.target.dataset.sir] = Math.max(0, +e.target.value || 0);
+      ctx.refresh(); return true;
+    }
+    return false;
+  }
+});
+</script>
