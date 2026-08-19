@@ -109,7 +109,7 @@ const editCard = (e, i) => `
       <h2>${esc(NAMES[e.g] || e.g)} <span class="sum">édition</span></h2>
       ${(e.players || []).map((p, j) => `
         <div class="rank">
-          <input class="ename" data-enom="${j}" type="text" value="${esc((p && p.nom) || '')}" aria-label="Nom du joueur">
+          <input class="ename" data-enom="${j}" type="text" value="${esc((p && p.nom) || '')}" autocapitalize="words" aria-label="Nom du joueur">
           <input class="num" data-etot="${j}" type="number" value="${+((p && p.total)) || 0}" aria-label="Total">
         </div>`).join('')}
       <div class="backup" style="margin:10px 0 4px">

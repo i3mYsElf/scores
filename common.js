@@ -95,7 +95,7 @@ function injectChrome(slug){
   document.getElementById('sheetBody').insertAdjacentHTML('beforebegin', `
   <div class="whois">
     <button class="swatch" id="swatch" type="button" aria-label="Changer la couleur de ce joueur" title="Changer la couleur"></button>
-    <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false" list="pnames">
+    <input id="pname" aria-label="Nom du joueur" autocomplete="off" autocapitalize="words" spellcheck="false" list="pnames">
     <datalist id="pnames"></datalist>
     <button class="mv" id="mvL" type="button" aria-label="Avancer ce joueur dans l'ordre du tour" title="Avancer dans l'ordre" hidden>◂</button>
     <button class="mv" id="mvR" type="button" aria-label="Reculer ce joueur dans l'ordre du tour" title="Reculer dans l'ordre" hidden>▸</button>
