@@ -90,3 +90,12 @@ test('entrées malformées ignorées, historique vide ou invalide toléré', () 
     {nom: 'Léa',  parties: 1, victoires: 0, taux: 0,   bests: [{g: 'cascadia', total: 0, parties: 1}]},
   ]);
 });
+
+test('lowWins : le record d\'un jeu au plus petit total est le minimum', () => {
+  const h = [
+    {g: 'skyjo', t: 2, players: [{nom: 'Manu', total: 54}]},
+    {g: 'skyjo', t: 1, players: [{nom: 'Manu', total: 78}]}
+  ];
+  assert.equal(computeStats(h, ['skyjo'])[0].bests[0].total, 54);
+  assert.equal(computeStats(h)[0].bests[0].total, 78); // sans le drapeau : maximum
+});

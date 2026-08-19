@@ -610,7 +610,7 @@ test('accueil : menu ordonné par dernière utilisation, Historique en dernier',
   const hrefs = [...w.document.querySelectorAll('a.game')].map(a => a.getAttribute('href'));
   assert.deepEqual(hrefs, ['cascadia.html', 'agricola.html', // par ts décroissant
     'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html', 'seasaltpaper.html',
-    'kingdomino.html', 'queendomino.html', '7wondersduel.html']); // jamais ouverts : ordre du registre
+    'kingdomino.html', 'queendomino.html', '7wondersduel.html', 'skyjo.html']); // jamais ouverts : ordre du registre
   assert.ok(w.document.querySelector('a.tool[href="history.html"]')); // l'Historique vit dans le header
 });
 
@@ -873,6 +873,75 @@ test('iaww : départage par cartes construites à égalité de points', () => {
   click(w, '#openRank');
   const first = w.document.querySelector('#rankList .rank.win .nm').textContent;
   assert.ok(first.startsWith('Joueur 2'));
+});
+
+/* ---------- Skyjo ---------- */
+test('skyjo : doublement automatique du fermeur, classement au plus petit total', () => {
+  const w = loadPage('skyjo.html');
+  type(w, '[data-num="manche"]', '8');
+  assert.equal(grand(w), '8');
+  click(w, '[data-fini]');
+  assert.equal(grand(w), '16'); // l'autre joueur est à 0 ≤ 8 : manche doublée
+  assert.ok(!w.document.getElementById('doubleInfo').hidden);
+  click(w, '#openRank');
+  const win = w.document.querySelector('#rankList .rank.win .nm');
+  assert.ok(win.textContent.startsWith('Joueur 2')); // 0 pt : le plus petit total gagne
+});
+
+test('skyjo : un seul fermeur par manche, valider fige le doublement pour tous', () => {
+  const w = loadPage('skyjo.html');
+  type(w, '[data-num="manche"]', '8');
+  click(w, '[data-fini]');
+  click(w, '[data-tab="1"]');
+  type(w, '[data-num="manche"]', '3');
+  click(w, '[data-fini]'); // le Joueur 2 devient fermeur : le Joueur 1 ne l'est plus
+  click(w, '[data-tab="0"]');
+  assert.equal(w.document.querySelector('[data-fini]').getAttribute('aria-pressed'), 'false');
+  assert.equal(grand(w), '8'); // plus fermeur : plus de doublement
+  click(w, '[data-tab="1"]');
+  click(w, '#valManche'); // Joueur 2 fermeur avec 3 < 8 : pas doublé
+  const saved = JSON.parse(w.localStorage.getItem('skyjo-score-v1'));
+  assert.deepEqual(saved.players.map(p => p.d.manches), [[8], [3]]);
+  assert.deepEqual(saved.players.map(p => p.d.fini), [0, 0]);
+  // manche validée éditable, négatifs permis (cartes de −2 à 12)
+  type(w, '[data-manche="0"]', '-4');
+  assert.equal(grand(w), '-4');
+});
+
+test('skyjo : bandeau de fin de partie quand un cumul atteint 100', () => {
+  const save = JSON.stringify({players: [
+    {nom: 'Manu', d: {manches: [60, 41], manche: 0, fini: 0}},
+    {nom: 'Léa',  d: {manches: [20, 30], manche: 0, fini: 0}}], cur: 0, started: true, totals: [101, 50]});
+  const w = loadPage('skyjo.html', {'skyjo-score-v1': save});
+  const el = w.document.getElementById('finPartie');
+  assert.ok(!el.hidden);
+  assert.match(el.textContent, /Manu.*100/);
+});
+
+test('skyjo : archive et partage classent au plus petit total', () => {
+  const w = loadPage('skyjo.html');
+  type(w, '[data-num="manche"]', '12');
+  click(w, '[data-tab="1"]');
+  type(w, '[data-num="manche"]', '5');
+  let shared = null;
+  w.navigator.share = data => { shared = data; return Promise.resolve(); };
+  click(w, '#openRank'); click(w, '#shareRank');
+  assert.deepEqual(shared.text.split('\n').slice(1),
+    ['🏆 Joueur 2 — 5 pts', '2. Joueur 1 — 12 pts']);
+  click(w, '#resetAll'); // confirm stubbé à true
+  const h = JSON.parse(w.localStorage.getItem('scores-history-v1'));
+  assert.deepEqual(h[0].players.map(p => [p.nom, p.total]), [['Joueur 2', 5], ['Joueur 1', 12]]);
+});
+
+test('history.html : rééditer une partie Skyjo re-trie au plus petit total', () => {
+  const hist = JSON.stringify([{g: 'skyjo', t: 1,
+    players: [{nom: 'Léa', total: 40}, {nom: 'Manu', total: 60}]}]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  click(w, '[data-edit="0"]');
+  type(w, '[data-etot="0"]', '70'); // Léa passe à 70 : Manu (60) repasse devant
+  click(w, '[data-esave="0"]');
+  const h = JSON.parse(w.localStorage.getItem('scores-history-v1'));
+  assert.deepEqual(h[0].players.map(p => [p.nom, p.total]), [['Manu', 60], ['Léa', 70]]);
 });
 
 /* ---------- Ex æquo : positions partagées (1, 1, 3) ---------- */

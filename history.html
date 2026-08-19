@@ -77,6 +77,8 @@ const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const NAMES = Object.fromEntries(GameRegistry.GAMES.map(g => [g.slug, g.name]));
+// jeux où le plus petit total gagne (Skyjo) : re-tri d'édition et record inversés
+const LOW_WINS = GameRegistry.GAMES.filter(g => g.lowWins).map(g => g.slug);
 const HISTORY_KEY = GameRegistry.HISTORY_KEY;
 
 let editIdx = null; // index de l'entrée en cours d'édition, null sinon
@@ -175,7 +177,7 @@ function render(){
 
   /* Statistiques par joueur (lib/stats.js), sur la même vue filtrée que la
      liste : filtrer par jeu donne son palmarès, par joueur ses stats. */
-  const stats = GameStats.computeStats(view);
+  const stats = GameStats.computeStats(view, LOW_WINS);
   document.getElementById('statsCard').innerHTML = stats.length ? `
     <div class="card">
       <h2>Statistiques</h2>
@@ -230,7 +232,8 @@ document.getElementById('historyList').addEventListener('click', e=>{
       const tots = [...card.querySelectorAll('[data-etot]')].map(el => +el.value || 0);
       entry.players = (entry.players || [])
         .map((p, j) => ({...p, nom: noms[j] || (p && p.nom) || '?', total: tots[j]}))
-        .sort((a, b) => b.total - a.total); // tri stable : l'ordre existant départage les égalités
+        // tri stable : l'ordre existant départage les égalités
+        .sort((a, b) => LOW_WINS.includes(entry.g) ? a.total - b.total : b.total - a.total);
       /* pos figé par archive() obsolète après édition manuelle : le recalculer
          par égalité de total seul (le départage du jeu n'est pas recalculable) */
       entry.players.forEach((p, j) => {

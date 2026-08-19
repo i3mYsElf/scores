@@ -62,6 +62,8 @@ function rowNum(d, path, lab, sub, signed){
      rankExtra(d) -> string, tiebreak(a, b) -> number      (optionnels ;
        tiebreak ne doit lire que a.d/a.s et b.d/b.s — jamais a.total,
        absent des objets du classement ; 0 = ex æquo, affiché comme tel)
+     lowWins: true — le plus petit total gagne (Skyjo) ;   (optionnel)
+       poser aussi le drapeau sur l'entrée du registre (historique, stats)
      onClick(e, ctx) / onInput(e, ctx) -> bool « géré »    (optionnels)
      signed: Set de chemins autorisés en négatif           (optionnel)
      stepMin(path) -> minimum du stepper                   (optionnel)
@@ -287,8 +289,10 @@ function initSheet(cfg){
 
   /* Classement « competition ranking » (1,1,3) : total puis départage du jeu ;
      deux voisins que le comparateur ne sépare pas partagent la même position —
-     l'ordre des onglets ne fabrique jamais un vainqueur. */
-  const rankCmp = (a,b)=> b.s.total - a.s.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0);
+     l'ordre des onglets ne fabrique jamais un vainqueur. lowWins inverse le
+     sens (le plus petit total gagne). */
+  const rankCmp = (a,b)=> (cfg.lowWins ? a.s.total - b.s.total : b.s.total - a.s.total)
+    || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0);
   function positions(list){
     const pos = [];
     for(let i = 0; i < list.length; i++)

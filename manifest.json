@@ -26,6 +26,7 @@
     { "name": "Kingdomino", "url": "kingdomino.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Queendomino", "url": "queendomino.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "7 Wonders Duel", "url": "7wondersduel.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Skyjo", "url": "skyjo.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Historique", "url": "history.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

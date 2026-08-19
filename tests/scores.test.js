@@ -11,6 +11,7 @@ const ssp = require('../games/seasaltpaper.js');
 const kingdomino = require('../games/kingdomino.js');
 const queendomino = require('../games/queendomino.js');
 const swd = require('../games/7wondersduel.js');
+const skyjo = require('../games/skyjo.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -333,4 +334,47 @@ test('7WD : extensions inactives = 0, actives comptées', () => {
   assert.equal(swd.score(d, {}).total, 0);
   assert.equal(swd.score(d, {pantheon:true}).pantheon, 7 + 12);
   assert.equal(swd.score(d, {agora:true}).agora, 6);
+});
+
+/* ---------- Skyjo ---------- */
+test('Skyjo : cumul des manches validées, manche courante signée', () => {
+  const d = skyjo.blank();
+  d.manches = [12, -3, 20]; d.manche = -2;
+  const s = skyjo.score(d);
+  assert.equal(s.precedentes, 29);
+  assert.equal(s.manche, -2);
+  assert.equal(s.total, 27);
+});
+
+test('Skyjo : le fermeur sans le plus petit score strict est doublé', () => {
+  const moi = skyjo.blank(), lui = skyjo.blank();
+  moi.manche = 8; moi.fini = 1; lui.manche = 5;
+  const players = [{d: moi}, {d: lui}];
+  assert.equal(skyjo.score(moi, players).manche, 16); // 8 > 5 : doublé
+  assert.ok(skyjo.score(moi, players).doublee);
+  assert.equal(skyjo.score(lui, players).manche, 5);  // pas fermeur : jamais doublé
+  lui.manche = 8;
+  assert.equal(skyjo.score(moi, players).manche, 16); // égalité : pas strictement le plus petit
+  lui.manche = 10;
+  assert.equal(skyjo.score(moi, players).manche, 8);  // strictement le plus petit : intact
+});
+
+test('Skyjo : pas de doublement sur une manche nulle ou négative', () => {
+  const moi = skyjo.blank(), lui = skyjo.blank();
+  moi.fini = 1; lui.manche = -5;
+  const players = [{d: moi}, {d: lui}];
+  moi.manche = 0;
+  assert.equal(skyjo.score(moi, players).manche, 0);
+  moi.manche = -2;
+  assert.equal(skyjo.score(moi, players).manche, -2); // −5 ≤ −2 mais points non positifs
+});
+
+test('Skyjo : fixup répare une sauvegarde abîmée, idempotent', () => {
+  const d = {manches: null, manche: '7', fini: true};
+  skyjo.fixup(d);
+  assert.deepEqual(d.manches, []);
+  assert.equal(d.manche, 7);
+  assert.equal(d.fini, 1);
+  skyjo.fixup(d);
+  assert.equal(d.fini, 1);
 });

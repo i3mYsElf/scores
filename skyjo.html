@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skyjo — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin>
+<link rel="stylesheet" href="common.css">
+<script src="theme.js"></script>
+<script src="sw-client.js" defer></script>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Skyjo</h1>
+    <p class="subtitle">Feuille de score — le plus petit total gagne</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="lib/registry.js"></script>
+<script src="games/skyjo.js"></script>
+<script src="common.js"></script>
+<script>
+const {blank, score, fixup, FIN_PARTIE} = GameLogic;
+
+/* Contexte de la feuille (joueurs), posé par drawSheet — le doublement et la
+   fin de partie regardent tous les joueurs, pas seulement l'onglet courant. */
+let pageCtx = null;
+
+function drawManches(d){
+  document.getElementById('mancheList').innerHTML = d.manches.map((m,i)=>`
+    <div class="row">
+      <div class="lab">Manche ${i+1}</div>
+      <input class="num" data-manche="${i}" type="number" value="${m}" style="width:64px" aria-label="score de la manche ${i+1}">
+      <button class="kill" data-delmanche="${i}" aria-label="Supprimer la manche ${i+1}">×</button>
+    </div>`).join('')
+    || '<p class="hint">Aucune manche validée pour l\'instant.</p>';
+}
+
+initSheet({
+  key: 'skyjo-score-v1',
+  startPlayers: 2,
+  maxPlayers: () => 8,
+  blank, score, fixup,
+  lowWins: true, // le plus petit total gagne — pas de départage officiel (ex æquo)
+  signed: new Set(['manche']), // les cartes vont de −2 à 12 : une manche peut être négative
+  sums: s => ({prec: s.precedentes, manche: s.manche}),
+  rankParts: s => [
+    ['Manches précédentes', s.precedentes], ['Manche en cours', s.manche]
+  ],
+  rankExtra: d => (d.manches.length
+    ? ` · ${d.manches.length} manche${d.manches.length > 1 ? 's' : ''}` : '')
+    + (pageCtx && score(d, pageCtx.players).doublee ? ' · manche doublée' : ''),
+
+  drawSheet(d, ctx){
+    pageCtx = ctx;
+    return `
+  <div class="card">
+    <h2>${sq('var(--gris)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
+    <p class="hint">La partie s'achève à la fin de la manche où un joueur atteint <b>${FIN_PARTIE} points</b> — le plus petit total gagne.</p>
+    <div id="mancheList"></div>
+    <p class="hint" id="finPartie" hidden style="color:var(--accent);font-weight:600"></p>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Manche en cours <span class="sum" data-sum="manche">0</span></h2>
+    ${rowNum(d, 'manche', 'Somme de vos cartes', 'de −2 à 12 chacune', true)}
+    <p class="hint">Marquez qui a retourné toutes ses cartes en premier : s'il n'a pas strictement le plus petit score de la manche, ses points (positifs) sont doublés — calculé automatiquement.</p>
+    <div class="seg">
+      <button data-fini aria-pressed="${!!d.fini}">A terminé la manche en premier</button>
+    </div>
+    <p class="hint" id="doubleInfo" hidden style="color:var(--accent);font-weight:600"></p>
+    <button class="ghost" id="valManche">Valider la manche (tous les joueurs)</button>
+  </div>`;
+  },
+  afterDraw(d){ drawManches(d); },
+
+  /* Doublement du joueur courant et bandeau de fin de partie : seul le cumul
+     des manches validées déclenche la fin, la manche en cours n'y compte pas. */
+  afterRefresh(d, s){
+    const dbl = document.getElementById('doubleInfo');
+    if(dbl){
+      dbl.hidden = !s.doublee;
+      dbl.textContent = s.doublee
+        ? `Pas strictement le plus petit score : manche doublée (${s.brute} → ${s.manche} points).` : '';
+    }
+    const el = document.getElementById('finPartie');
+    if(!el || !pageCtx) return;
+    const noms = pageCtx.players.filter(p => score(p.d).precedentes >= FIN_PARTIE).map(p => p.nom);
+    el.hidden = !noms.length;
+    el.textContent = noms.length
+      ? `${noms.join(', ')} a atteint ${FIN_PARTIE} points — la partie se termine, le plus petit total gagne !` : '';
+  },
+
+  onClick(e, ctx){
+    const d = ctx.d;
+    const fin = e.target.closest('[data-fini]');
+    if(fin){
+      // un seul « fermeur » par manche : activer ici désactive les autres onglets
+      const on = !d.fini;
+      ctx.players.forEach(p => { p.d.fini = 0; });
+      d.fini = on ? 1 : 0;
+      ctx.redraw(); return true;
+    }
+    const delManche = e.target.closest('[data-delmanche]');
+    if(delManche){ d.manches.splice(+delManche.dataset.delmanche, 1); drawManches(d); ctx.refresh(); return true; }
+    if(e.target.id === 'valManche'){
+      /* valide la manche de TOUS les joueurs d'un coup (le doublement compare
+         les manches en cours : figer l'un avant l'autre fausserait le calcul) */
+      const vals = ctx.players.map(p => score(p.d, ctx.players).manche);
+      ctx.players.forEach((p, i) => { p.d.manches.push(vals[i]); p.d.manche = 0; p.d.fini = 0; });
+      ctx.redraw(); return true;
+    }
+    return false;
+  },
+  onInput(e, ctx){
+    const d = ctx.d;
+    if(e.target.dataset.manche !== undefined){
+      d.manches[+e.target.dataset.manche] = +e.target.value || 0; // négatifs permis
+      ctx.refresh(); return true;
+    }
+    return false;
+  }
+});
+</script>
