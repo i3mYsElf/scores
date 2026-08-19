@@ -259,9 +259,23 @@ function initSheet(cfg){
   function archive(){
     if(!started) return;
     try{
-      const list = players.map(p=>({nom:p.nom, total:cfg.score(p.d, players).total, d:p.d}))
+      /* Chaque joueur archive aussi sa ventilation, figée en paires
+         [libellé, valeur] prêtes à afficher (mêmes libellés que le classement) :
+         l'historique ne sait pas re-calculer un barème. Champs additifs —
+         les anciennes entrées sans parts/extra restent valides. */
+      const list = players.map(p=>{
+        const s = cfg.score(p.d, players);
+        return {nom:p.nom, total:s.total, d:p.d, s};
+      })
         .sort((a,b)=> b.total - a.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0))
-        .map(p=>({nom:p.nom, total:p.total}));
+        .map(p=>{
+          const entry = {nom:p.nom, total:p.total};
+          const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]);
+          if(parts.length) entry.parts = parts;
+          const extra = cfg.rankExtra ? cfg.rankExtra(p.d) : '';
+          if(extra) entry.extra = extra;
+          return entry;
+        });
       const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
       h.unshift({g: slug, t: touched ? Date.now() : (loadedTs || Date.now()), players: list});
       localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 200)));

@@ -327,7 +327,8 @@ test('reset : la partie est archivée dans scores-history-v1, classée', () => {
   assert.equal(h.length, 1);
   assert.equal(h[0].g, 'harmonies');
   assert.ok(h[0].t > 0);
-  assert.deepEqual(h[0].players, [{nom: 'Joueur 2', total: 10}, {nom: 'Manu', total: 5}]);
+  assert.deepEqual(h[0].players.map(p => ({nom: p.nom, total: p.total})),
+    [{nom: 'Joueur 2', total: 10}, {nom: 'Manu', total: 5}]); // la ventilation (parts) est testée à part
   assert.equal(grand(w), '0'); // et la feuille repart bien à zéro
 });
 
@@ -457,6 +458,50 @@ test('history.html : carte Statistiques (victoires, taux, record du jeu le plus 
   assert.ok(rows[0].textContent.includes('record 70 (Cascadia)'));
   const w2 = loadPage('history.html');
   assert.equal(w2.document.getElementById('statsCard').innerHTML, '');
+});
+
+test('archive : la ventilation [libellé, valeur] de chaque joueur est conservée', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#openRank'); click(w, '#resetAll'); // confirm stubbé à true
+  const e = JSON.parse(w.localStorage.getItem('scores-history-v1'))[0];
+  assert.ok(Array.isArray(e.players[0].parts), 'parts manquant sur le vainqueur');
+  assert.ok(e.players[0].parts.some(x => x[1] === 5)); // le champ saisi vaut 5 pts
+  assert.equal(e.players[1].parts, undefined); // joueur sans point : pas de ventilation
+});
+
+test('history.html : détail archivé replié par défaut, déplié au toucher, échappé', () => {
+  const hist = JSON.stringify([{g: 'harmonies', t: 1, players: [
+    {nom: 'Manu', total: 12, parts: [['Arbres', 7], ['<img src=x onerror=alert(1)>', 5]], extra: ' · 3 jetons'},
+    {nom: 'Léa', total: 8} // ancienne entrée sans parts : tolérée
+  ]}]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  const card = w.document.querySelector('#historyList .card');
+  assert.ok(card.classList.contains('hasDetail'));
+  assert.ok(!card.classList.contains('open')); // replié par défaut (CSS)
+  assert.ok(card.querySelector('.nm small').textContent.includes('Arbres 7'));
+  assert.ok(card.querySelector('.nm small').textContent.includes('3 jetons'));
+  assert.equal(card.querySelector('.nm small img'), null); // parts importées échappées
+  click(w, '#historyList .card h2');
+  assert.ok(card.classList.contains('open'));
+  click(w, '#historyList .card h2');
+  assert.ok(!card.classList.contains('open'));
+});
+
+test('history.html : édition d\'une entrée (nom, total), re-triée au total', () => {
+  const hist = JSON.stringify([{g: 'cascadia', t: 1, players: [
+    {nom: 'Manu', total: 50}, {nom: 'Lae', total: 40}
+  ]}]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  click(w, '[data-edit="0"]');
+  assert.ok(w.document.querySelector('[data-enom="0"]')); // mode édition
+  w.document.querySelector('[data-enom="1"]').value = 'Léa';
+  w.document.querySelector('[data-etot="1"]').value = '60';
+  click(w, '[data-esave="0"]');
+  const e = JSON.parse(w.localStorage.getItem('scores-history-v1'))[0];
+  assert.deepEqual(e.players.map(p => [p.nom, p.total]), [['Léa', 60], ['Manu', 50]]);
+  const rows = w.document.querySelectorAll('#historyList .rank');
+  assert.ok(rows[0].textContent.includes('Léa')); // re-rendu, nouveau vainqueur en tête
 });
 
 test('history.html : suppression d\'une seule entrée, avec confirmation', () => {

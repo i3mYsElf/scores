@@ -8,7 +8,12 @@ const {GAMES, HISTORY_KEY} = require('../lib/registry.js');
 
 const mem = init => {
   const m = new Map(Object.entries(init || {}));
-  return {getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), m};
+  return {
+    getItem: k => m.has(k) ? m.get(k) : null,
+    setItem: (k, v) => m.set(k, String(v)),
+    removeItem: k => m.delete(k),
+    m
+  };
 };
 
 test('backupKeys : une clé par jeu du registre + l\'historique', () => {
@@ -68,10 +73,26 @@ test('applyBackup : n\'écrit que les clés autorisées, compte les restauration
   assert.equal(JSON.parse(s.getItem('cascadia-score-v1')).totals[0], 77);
 });
 
-test('applyBackup : rejette un format inattendu sans rien écrire', () => {
+test('applyBackup : rejette un format inattendu sans rien écrire (code format)', () => {
   const s = mem();
-  assert.throws(() => applyBackup(s, {hello: 'world'}));
-  assert.throws(() => applyBackup(s, null));
-  assert.throws(() => applyBackup(s, {app: 'scores', data: null}));
+  assert.throws(() => applyBackup(s, {hello: 'world'}), err => err.code === 'format');
+  assert.throws(() => applyBackup(s, null), err => err.code === 'format');
+  assert.throws(() => applyBackup(s, {app: 'scores', data: null}), err => err.code === 'format');
   assert.equal(s.m.size, 0);
+});
+
+test('applyBackup : atomique — un échec d\'écriture restaure l\'état d\'avant (code storage)', () => {
+  const s = mem({'harmonies-score-v1': '"ancienne"'});
+  let calls = 0;
+  const flaky = {
+    getItem: s.getItem,
+    removeItem: s.removeItem,
+    setItem: (k, v) => { if(++calls === 2) throw new Error('QuotaExceededError'); s.setItem(k, v); }
+  };
+  assert.throws(() => applyBackup(flaky, {app: 'scores', version: 1, data: {
+    'harmonies-score-v1': {players: [], cur: 0},
+    'cascadia-score-v1':  {players: [], cur: 0},
+  }}), err => err.code === 'storage');
+  assert.equal(s.getItem('harmonies-score-v1'), '"ancienne"'); // clé écrite puis restaurée
+  assert.equal(s.getItem('cascadia-score-v1'), null);          // clé absente restée absente
 });

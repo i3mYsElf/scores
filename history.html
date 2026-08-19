@@ -23,6 +23,14 @@
     background:none;color:var(--muted);font:inherit;font-size:13.5px;cursor:pointer;
   }
   .backup button:active{border-color:var(--muted)}
+  /* ventilation archivée : repliée par défaut, dépliée au toucher de la carte */
+  #historyList .card.hasDetail{cursor:pointer}
+  #historyList .card:not(.open) .rank .nm small{display:none}
+  /* champs du mode édition d'une partie */
+  .ename{
+    flex:1;min-width:0;padding:9px;border-radius:9px;border:1px solid var(--line);
+    background:var(--field);color:var(--text);font:inherit;font-size:15px;
+  }
 </style>
 
 <div class="wrap">
@@ -53,10 +61,60 @@ const esc = s => String(s).replace(/[&<>"']/g, c =>
 const NAMES = Object.fromEntries(GameRegistry.GAMES.map(g => [g.slug, g.name]));
 const HISTORY_KEY = GameRegistry.HISTORY_KEY;
 
+let editIdx = null; // index de l'entrée en cours d'édition, null sinon
+
+function readHist(){
+  try{
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    return Array.isArray(h) ? h : [];
+  }catch(e){ return []; }
+}
+function writeHist(h){
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); return true; }
+  catch(e){ alert('Enregistrement impossible : stockage indisponible.'); return false; }
+}
+
+/* Ventilation d'un joueur archivé : paires [libellé, valeur] figées par
+   archive() de common.js (absentes des anciennes entrées). Tout est échappé :
+   un import peut mettre n'importe quoi dans l'historique. */
+const detail = p => Array.isArray(p.parts) && p.parts.length
+  ? `<small>${p.parts.map(x => `${esc(x[0])} ${esc(x[1])}`).join(' · ')}${p.extra ? esc(p.extra) : ''}</small>`
+  : '';
+
+const gameCard = (e, i) => {
+  const hasDetail = (e.players || []).some(p => p && Array.isArray(p.parts) && p.parts.length);
+  return `
+    <div class="card${hasDetail ? ' hasDetail' : ''}">
+      <h2>${esc(NAMES[e.g] || e.g)}
+        <span class="sum">${e.t ? new Date(e.t).toLocaleString('fr-FR', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}</span>
+        <button class="kill" data-edit="${i}" aria-label="Modifier cette partie" title="Modifier cette partie">✎</button>
+        <button class="kill" data-del="${i}" aria-label="Supprimer cette partie" title="Supprimer cette partie">×</button></h2>
+      ${(e.players || []).map((p, j) => `
+        <div class="rank ${j===0 ? 'win' : ''}">
+          <span class="pos">${j+1}</span>
+          <span class="nm">${esc((p && p.nom) || '?')}${detail(p || {})}</span>
+          <span class="pt">${+((p && p.total)) || 0}</span>
+        </div>`).join('')}
+    </div>`;
+};
+
+/* Mode édition : corriger un nom mal saisi ou un total erroné. */
+const editCard = (e, i) => `
+    <div class="card">
+      <h2>${esc(NAMES[e.g] || e.g)} <span class="sum">édition</span></h2>
+      ${(e.players || []).map((p, j) => `
+        <div class="rank">
+          <input class="ename" data-enom="${j}" type="text" value="${esc((p && p.nom) || '')}" aria-label="Nom du joueur">
+          <input class="num" data-etot="${j}" type="number" value="${+((p && p.total)) || 0}" aria-label="Total">
+        </div>`).join('')}
+      <div class="backup" style="margin:10px 0 4px">
+        <button type="button" data-esave="${i}">Enregistrer</button>
+        <button type="button" data-ecancel>Annuler</button>
+      </div>
+    </div>`;
+
 function render(){
-  let h = [];
-  try{ h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){}
-  if(!Array.isArray(h)) h = [];
+  const h = readHist();
   document.getElementById('clearHist').hidden = !h.length;
   document.getElementById('histSub').textContent = GameBackup.historyLabel(h) || 'Parties terminées';
 
@@ -78,38 +136,49 @@ function render(){
         </div>`).join('')}
     </div>` : '';
 
-  document.getElementById('historyList').innerHTML = h.length ? h.map((e, i) => `
-    <div class="card">
-      <h2>${esc(NAMES[e.g] || e.g)}
-        <span class="sum">${e.t ? new Date(e.t).toLocaleString('fr-FR', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}</span>
-        <button class="kill" data-del="${i}" aria-label="Supprimer cette partie" title="Supprimer cette partie">×</button></h2>
-      ${(e.players || []).map((p,i) => `
-        <div class="rank ${i===0 ? 'win' : ''}">
-          <span class="pos">${i+1}</span>
-          <span class="nm">${esc(p.nom || '?')}</span>
-          <span class="pt">${+p.total || 0}</span>
-        </div>`).join('')}
-    </div>`).join('')
+  document.getElementById('historyList').innerHTML = h.length
+    ? h.map((e, i) => i === editIdx ? editCard(e, i) : gameCard(e, i)).join('')
     : '<p class="hint">Aucune partie terminée pour l\'instant. Les parties s\'archivent ici quand vous terminez une partie depuis le classement d\'une feuille.</p>';
 }
 render();
 
-/* suppression d'une seule partie (l'index suit l'ordre de rendu, re-rendu après) */
+/* clics dans la liste : suppression, édition, repli/dépli du détail
+   (les index suivent l'ordre de rendu, la liste est re-rendue après chaque action) */
 document.getElementById('historyList').addEventListener('click', e=>{
-  const b = e.target.closest('[data-del]');
-  if(!b) return;
-  if(!confirm('Supprimer cette partie de l\'historique ?')) return;
-  let h = [];
-  try{ h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(err){}
-  h.splice(+b.dataset.del, 1);
-  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); }
-  catch(err){ alert('Suppression impossible : stockage indisponible.'); return; }
-  render();
+  const del = e.target.closest('[data-del]');
+  if(del){
+    if(!confirm('Supprimer cette partie de l\'historique ?')) return;
+    const h = readHist();
+    h.splice(+del.dataset.del, 1);
+    if(!writeHist(h)) return;
+    editIdx = null; render(); return;
+  }
+  const ed = e.target.closest('[data-edit]');
+  if(ed){ editIdx = +ed.dataset.edit; render(); return; }
+  if(e.target.closest('[data-ecancel]')){ editIdx = null; render(); return; }
+  const save = e.target.closest('[data-esave]');
+  if(save){
+    const h = readHist(), entry = h[+save.dataset.esave];
+    if(entry){
+      const card = save.closest('.card');
+      const noms = [...card.querySelectorAll('[data-enom]')].map(el => el.value.trim());
+      const tots = [...card.querySelectorAll('[data-etot]')].map(el => +el.value || 0);
+      entry.players = (entry.players || [])
+        .map((p, j) => ({...p, nom: noms[j] || (p && p.nom) || '?', total: tots[j]}))
+        .sort((a, b) => b.total - a.total); // tri stable : l'ordre existant départage les égalités
+      if(!writeHist(h)) return;
+    }
+    editIdx = null; render(); return;
+  }
+  // toucher une carte replie/déplie la ventilation archivée
+  const card = e.target.closest('.card.hasDetail');
+  if(card) card.classList.toggle('open');
 });
 
 document.getElementById('clearHist').addEventListener('click', ()=>{
   if(!confirm("Effacer tout l'historique des parties ?")) return;
   localStorage.removeItem(HISTORY_KEY);
+  editIdx = null;
   render();
 });
 
@@ -141,12 +210,18 @@ document.getElementById('importFile').addEventListener('change', async e=>{
   const f = e.target.files[0];
   e.target.value = '';
   if(!f) return;
+  let o;
+  try{ o = JSON.parse(await f.text()); }
+  catch(err){ alert('Fichier de sauvegarde illisible.'); return; }
+  if(!confirm('Importer cette sauvegarde ? Les parties en cours des jeux concernés seront remplacées.')) return;
   try{
-    const o = JSON.parse(await f.text());
-    if(!confirm('Importer cette sauvegarde ? Les parties en cours des jeux concernés seront remplacées.')) return;
+    editIdx = null;
     alert(applyBackup(o) + ' sauvegarde(s) restaurée(s).');
   }catch(err){
-    alert('Fichier de sauvegarde illisible.');
+    // l'import est atomique (lib/backup.js) : en cas d'échec, rien n'a changé
+    alert(err && err.code === 'storage'
+      ? 'Écriture impossible (stockage plein ou indisponible) — rien n\'a été modifié.'
+      : 'Fichier de sauvegarde illisible.');
   }
 });
 
