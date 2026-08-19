@@ -35,15 +35,18 @@
 <script>
 const {blank, score: rawScore, habitatBonuses} = GameLogic;
 
-/* Les bonus dépendent de tous les joueurs : on les recalcule à chaque score. */
+/* Les bonus dépendent de tous les joueurs : on les recalcule à chaque score.
+   d comparé par identité — le moteur score aussi des feuilles hors joueurs
+   (blank(), pour détecter une feuille vierge) : sans joueur correspondant,
+   pas de bonus de majorité. */
 function score(d, players){
-  if(!players) return rawScore(d);
-  const i = players.findIndex(p=>p.d===d);
+  const i = players ? players.findIndex(p=>p.d===d) : -1;
+  if(i < 0) return rawScore(d);
   return rawScore(d, habitatBonuses(players.map(p=>p.d))[i]);
 }
 
 initSheet({
-  key: 'cascadia-score-v1',
+  slug: 'cascadia',
   startPlayers: 2,
   maxPlayers: () => 4,
   blank, score,

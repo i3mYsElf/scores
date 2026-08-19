@@ -30,14 +30,14 @@
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/manches.js"></script>
 <script src="games/seasaltpaper.js"></script>
 <script src="common.js"></script>
 <script>
 const {blank, score, objectif, fixup} = GameLogic;
-
-/* Contexte de la feuille (joueurs), posé par drawSheet — la fin de partie est
-   globale : le bandeau et le classement regardent tous les joueurs. */
-let pageCtx = null;
+// la liste des manches validées et le bandeau de fin de partie sont partagés
+// avec Skyjo dans lib/manches.js
+const {manchesRankExtra, manchesDraw, manchesClick, manchesInput, manchesFin} = GameManches;
 
 /* Nombre de cartes de chaque collection dans le paquet (plafond des steppers) */
 const MAX_CARTES = {coquillages: 6, poulpes: 5, pingouins: 3, marins: 2,
@@ -47,16 +47,6 @@ const MULTIS = [
   ['phare', 'Phare'], ['banc', 'Banc de poissons'],
   ['colonie', 'Colonie'], ['capitaine', 'Capitaine']
 ];
-
-function drawManches(d){
-  document.getElementById('mancheList').innerHTML = d.manches.map((m,i)=>`
-    <div class="row">
-      <div class="lab">Manche ${i+1}</div>
-      <input class="num" data-manche="${i}" type="number" min="0" inputmode="numeric" value="${m}" style="width:64px" aria-label="score de la manche ${i+1}">
-      <button class="kill" data-delmanche="${i}" aria-label="Supprimer la manche ${i+1}">×</button>
-    </div>`).join('')
-    || '<p class="hint">Aucune manche validée pour l\'instant.</p>';
-}
 
 function drawSirenes(d){
   document.getElementById('sireneList').innerHTML = d.sirenes.map((s,i)=>`
@@ -71,7 +61,7 @@ function drawSirenes(d){
 }
 
 initSheet({
-  key: 'seasaltpaper-score-v1',
+  slug: 'seasaltpaper',
   startPlayers: 2,
   maxPlayers: () => 4,
   blank, score, fixup,
@@ -80,15 +70,13 @@ initSheet({
   rankParts: s => [
     ['Manches précédentes', s.precedentes], ['Manche en cours', s.manche]
   ],
-  rankExtra: d => (d.manches.length
-    ? ` · ${d.manches.length} manche${d.manches.length > 1 ? 's' : ''}` : '')
-    + (pageCtx && score(d).precedentes >= objectif(pageCtx.players.length)
+  rankExtra: (d, ctx) => manchesRankExtra(d)
+    + (score(d).precedentes >= objectif(ctx.players.length)
     ? ' · objectif atteint' : ''),
   // départage officiel : le plus de points à la dernière manche (celle en cours)
   tiebreak: (a,b) => b.s.manche - a.s.manche,
 
   drawSheet(d, ctx){
-    pageCtx = ctx;
     const nb = ctx.players.length, obj = objectif(nb);
     return `
   <div class="card">
@@ -143,24 +131,22 @@ initSheet({
     <button class="ghost" id="valManche">Valider la manche</button>
   </div>`;
   },
-  afterDraw(d){ drawManches(d); drawSirenes(d); },
+  afterDraw(d){ manchesDraw(d); drawSirenes(d); },
 
   /* Bandeau de fin de partie : seul le cumul des manches validées compte,
      la manche en cours ne déclenche rien tant qu'elle n'est pas validée. */
-  afterRefresh(){
-    const el = document.getElementById('objAtteint');
-    if(!el || !pageCtx) return;
-    const obj = objectif(pageCtx.players.length);
-    const noms = pageCtx.players.filter(p => score(p.d).precedentes >= obj).map(p => p.nom);
-    el.hidden = !noms.length;
-    el.textContent = noms.length
-      ? `Objectif de ${obj} points atteint par ${noms.join(', ')} — la partie se termine !` : '';
+  afterRefresh(d, s, ctx){
+    const obj = objectif(ctx.players.length);
+    manchesFin('objAtteint', ctx.players,
+      p => score(p.d).precedentes >= obj,
+      noms => `Objectif de ${obj} points atteint par ${noms.join(', ')} — la partie se termine !`);
   },
 
   /* plafonne les steppers au nombre de cartes du paquet (appui long compris) */
   stepMax: p => MAX_CARTES[p],
 
   onClick(e, ctx){
+    if(manchesClick(e, ctx)) return true;
     const d = ctx.d;
     const multi = e.target.closest('[data-multi]');
     if(multi){ const k = multi.dataset.multi; d[k] = d[k] ? 0 : 1; ctx.redraw(); return true; }
@@ -172,8 +158,6 @@ initSheet({
     }
     const delSir = e.target.closest('[data-delsir]');
     if(delSir){ d.sirenes.splice(+delSir.dataset.delsir, 1); drawSirenes(d); ctx.refresh(); return true; }
-    const delManche = e.target.closest('[data-delmanche]');
-    if(delManche){ d.manches.splice(+delManche.dataset.delmanche, 1); drawManches(d); ctx.refresh(); return true; }
     if(e.target.id === 'valManche'){
       const manches = d.manches.concat(score(d).manche);
       Object.assign(d, blank(), {manches});
@@ -182,11 +166,8 @@ initSheet({
     return false;
   },
   onInput(e, ctx){
+    if(manchesInput(e, ctx)) return true;
     const d = ctx.d;
-    if(e.target.dataset.manche !== undefined){
-      d.manches[+e.target.dataset.manche] = Math.max(0, +e.target.value || 0);
-      ctx.refresh(); return true;
-    }
     if(e.target.dataset.sir !== undefined){
       d.sirenes[+e.target.dataset.sir] = Math.max(0, +e.target.value || 0);
       ctx.refresh(); return true;

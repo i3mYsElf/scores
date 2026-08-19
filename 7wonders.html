@@ -41,13 +41,14 @@ let exts = {leaders:false, cities:false, armada:false, edifice:false};
 const score = d => rawScore(d, exts);
 
 initSheet({
-  key: '7wonders-score-v1',
+  slug: '7wonders',
   startPlayers: 3,
   maxPlayers: () => exts.cities ? 8 : 7,
   blank, score,
   signed: new Set(['naval','edifice']),
   extraState: () => ({exts}),
   restoreExtra: s => { exts = {...exts, ...(s.exts||{})}; },
+  extLabels: () => EXTS.filter(([k]) => exts[k]).map(([,lab]) => lab),
   sums: s => ({
     militaire:s.militaire, tresor:s.tresor,
     cartes:s.merveille+s.civils+s.commerce+s.guildes, science:s.science,

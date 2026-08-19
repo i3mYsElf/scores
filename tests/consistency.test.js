@@ -43,7 +43,8 @@ for (const {slug, name, subtitle, rules} of GAMES) {
     assert.ok(html.includes('src="lib/registry.js"'), `${page} ne charge pas lib/registry.js`);
     assert.ok(html.indexOf('lib/registry.js') < html.indexOf('src="common.js"'),
       `${page} : lib/registry.js doit être chargé avant common.js`);
-    assert.ok(html.includes(`'${gameKey(slug)}'`), `${page} n'utilise pas la clé ${gameKey(slug)}`);
+    assert.ok(html.includes(`slug: '${slug}'`),
+      `${page} ne déclare pas slug: '${slug}' dans initSheet (la clé ${gameKey(slug)} en découle)`);
     assert.ok(precache.includes(page), `${page} absent du PRECACHE de sw.js`);
     assert.ok(precache.includes(`games/${slug}.js`), `games/${slug}.js absent du PRECACHE de sw.js`);
     assert.ok(index.includes(`data-thumb="${slug}"`),

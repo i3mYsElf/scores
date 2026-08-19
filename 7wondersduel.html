@@ -40,12 +40,13 @@ const score = d => rawScore(d, exts);
 const ZONES = [0, 2, 5, 10];
 
 initSheet({
-  key: '7wondersduel-score-v1',
+  slug: '7wondersduel',
   startPlayers: 2,
   maxPlayers: () => 2,
   blank, score,
   extraState: () => ({exts}),
   restoreExtra: s => { exts = {...exts, ...(s.exts||{})}; },
+  extLabels: () => EXTS.filter(([k]) => exts[k]).map(([,lab]) => lab),
   sums: s => ({
     batiments: s.civils+s.science+s.commerce+s.guildes,
     ville: s.merveilles+s.progres, tresor: s.tresor, militaire: s.militaire,

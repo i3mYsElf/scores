@@ -65,12 +65,13 @@ function drawEau(d){
 }
 
 initSheet({
-  key: 'harmonies-score-v1',
+  slug: 'harmonies',
   startPlayers: 2,
   maxPlayers: () => 4,
   blank, score, fixup,
   stepMin: p => p === 'iles' ? 1 : 0,
   extraState: () => ({exts}),
+  extLabels: () => exts.esprits ? ['Esprits de la nature'] : [],
   restoreExtra(s){
     exts = {esprits: false, ...(s.exts || {})};
     // sauvegardes d'avant l'extension : des points d'esprit saisis -> elle était jouée

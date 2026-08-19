@@ -40,7 +40,7 @@ Chaque page de jeu charge `games/<jeu>.js` (la logique), `common.js` (le moteur)
 1. Créer `games/<jeu>.js` : `blank()` (l'état vierge d'un joueur) et `score(d)` (pur, sans DOM), exportés via le pattern `module.exports` / `globalThis.GameLogic` (copier un jeu existant).
 2. Ajouter ses cas de test dans `tests/scores.test.js` (lancer avec `node --test`).
 3. Déclarer le jeu dans `lib/registry.js` (`slug`, `name`, `subtitle`) — l'accueil, l'historique, l'export et les tests s'en servent.
-4. Créer `<jeu>.html` en partant de `wonderfulworld.html` comme modèle : head + header + `#sheetBody` seulement (le reste du chrome est injecté par `common.js`), puis `initSheet({key: '<jeu>-score-v1', blank, score, drawSheet, sums, rankParts, ...})` — voir les hooks documentés dans `common.js`.
+4. Créer `<jeu>.html` en partant de `wonderfulworld.html` comme modèle : head + header + `#sheetBody` seulement (le reste du chrome est injecté par `common.js`), puis `initSheet({slug: '<jeu>', blank, score, drawSheet, sums, rankParts, ...})` — la clé localStorage `<jeu>-score-v1` est dérivée du registre ; voir les hooks documentés dans `common.js`.
 5. Ajouter la vignette du jeu dans `index.html` : une `<template data-thumb="<jeu>">` contenant son petit SVG — la carte du menu (nom, sous-titre, aperçu) est générée depuis le registre. Ajouter aussi son raccourci dans `manifest.json`.
 6. Dans `sw.js` : ajouter `<jeu>.html` et `games/<jeu>.js` au `PRECACHE` (la version du cache est stampée automatiquement au déploiement, rien à incrémenter).
 

@@ -22,6 +22,7 @@ const PRECACHE = [
   'lib/backup.js',
   'lib/stats.js',
   'lib/domino.js',
+  'lib/manches.js',
   'games/harmonies.js',
   'games/7wonders.js',
   'games/wonderfulworld.js',

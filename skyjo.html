@@ -30,27 +30,17 @@
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/manches.js"></script>
 <script src="games/skyjo.js"></script>
 <script src="common.js"></script>
 <script>
 const {blank, score, fixup, FIN_PARTIE} = GameLogic;
-
-/* Contexte de la feuille (joueurs), posé par drawSheet — le doublement et la
-   fin de partie regardent tous les joueurs, pas seulement l'onglet courant. */
-let pageCtx = null;
-
-function drawManches(d){
-  document.getElementById('mancheList').innerHTML = d.manches.map((m,i)=>`
-    <div class="row">
-      <div class="lab">Manche ${i+1}</div>
-      <input class="num" data-manche="${i}" type="number" value="${m}" style="width:64px" aria-label="score de la manche ${i+1}">
-      <button class="kill" data-delmanche="${i}" aria-label="Supprimer la manche ${i+1}">×</button>
-    </div>`).join('')
-    || '<p class="hint">Aucune manche validée pour l\'instant.</p>';
-}
+// la liste des manches validées et le bandeau de fin de partie sont partagés
+// avec Sea Salt & Paper dans lib/manches.js (ici signed : manches négatives)
+const {manchesRankExtra, manchesDraw, manchesClick, manchesInput, manchesFin} = GameManches;
 
 initSheet({
-  key: 'skyjo-score-v1',
+  slug: 'skyjo',
   startPlayers: 2,
   maxPlayers: () => 8,
   blank, score, fixup,
@@ -60,12 +50,10 @@ initSheet({
   rankParts: s => [
     ['Manches précédentes', s.precedentes], ['Manche en cours', s.manche]
   ],
-  rankExtra: d => (d.manches.length
-    ? ` · ${d.manches.length} manche${d.manches.length > 1 ? 's' : ''}` : '')
-    + (pageCtx && score(d, pageCtx.players).doublee ? ' · manche doublée' : ''),
+  rankExtra: (d, ctx) => manchesRankExtra(d)
+    + (score(d, ctx.players).doublee ? ' · manche doublée' : ''),
 
-  drawSheet(d, ctx){
-    pageCtx = ctx;
+  drawSheet(d){
     return `
   <div class="card">
     <h2>${sq('var(--gris)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
@@ -85,26 +73,24 @@ initSheet({
     <button class="ghost" id="valManche">Valider la manche (tous les joueurs)</button>
   </div>`;
   },
-  afterDraw(d){ drawManches(d); },
+  afterDraw(d){ manchesDraw(d, true); },
 
   /* Doublement du joueur courant et bandeau de fin de partie : seul le cumul
      des manches validées déclenche la fin, la manche en cours n'y compte pas. */
-  afterRefresh(d, s){
+  afterRefresh(d, s, ctx){
     const dbl = document.getElementById('doubleInfo');
     if(dbl){
       dbl.hidden = !s.doublee;
       dbl.textContent = s.doublee
         ? `Pas strictement le plus petit score : manche doublée (${s.brute} → ${s.manche} points).` : '';
     }
-    const el = document.getElementById('finPartie');
-    if(!el || !pageCtx) return;
-    const noms = pageCtx.players.filter(p => score(p.d).precedentes >= FIN_PARTIE).map(p => p.nom);
-    el.hidden = !noms.length;
-    el.textContent = noms.length
-      ? `${noms.join(', ')} a atteint ${FIN_PARTIE} points — la partie se termine, le plus petit total gagne !` : '';
+    manchesFin('finPartie', ctx.players,
+      p => score(p.d).precedentes >= FIN_PARTIE,
+      noms => `${noms.join(', ')} a atteint ${FIN_PARTIE} points — la partie se termine, le plus petit total gagne !`);
   },
 
   onClick(e, ctx){
+    if(manchesClick(e, ctx, true)) return true;
     const d = ctx.d;
     const fin = e.target.closest('[data-fini]');
     if(fin){
@@ -114,8 +100,6 @@ initSheet({
       d.fini = on ? 1 : 0;
       ctx.redraw(); return true;
     }
-    const delManche = e.target.closest('[data-delmanche]');
-    if(delManche){ d.manches.splice(+delManche.dataset.delmanche, 1); drawManches(d); ctx.refresh(); return true; }
     if(e.target.id === 'valManche'){
       /* valide la manche de TOUS les joueurs d'un coup (le doublement compare
          les manches en cours : figer l'un avant l'autre fausserait le calcul) */
@@ -125,13 +109,6 @@ initSheet({
     }
     return false;
   },
-  onInput(e, ctx){
-    const d = ctx.d;
-    if(e.target.dataset.manche !== undefined){
-      d.manches[+e.target.dataset.manche] = +e.target.value || 0; // négatifs permis
-      ctx.refresh(); return true;
-    }
-    return false;
-  }
+  onInput: (e, ctx) => manchesInput(e, ctx, true) // négatifs permis
 });
 </script>

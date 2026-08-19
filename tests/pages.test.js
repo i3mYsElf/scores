@@ -128,6 +128,31 @@ test('annulation : la pile est vidée quand la partie se termine', () => {
   assert.ok(w.document.getElementById('undoBtn').hidden);
 });
 
+test('annulation : annuler la première saisie rend la partie non commencée', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  assert.equal(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).started, true);
+  click(w, '#undoBtn');
+  assert.equal(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).started, false);
+  click(w, '#openRank'); click(w, '#resetAll'); // partie jamais commencée : rien à archiver
+  assert.equal(w.localStorage.getItem('scores-history-v1'), null);
+
+  const w2 = loadPage('wonderfulworld.html'); // même chose via un champ numérique
+  type(w2, '[data-num="fixes"]', '4');
+  click(w2, '#undoBtn');
+  assert.equal(JSON.parse(w2.localStorage.getItem('wonderfulworld-score-v1')).started, false);
+});
+
+test('annulation : started revient à l\'état du snapshot, pas toujours à faux', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#undoBtn'); // annule le 2e cran : la partie reste commencée
+  assert.equal(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).started, true);
+  click(w, '#undoBtn'); // annule le 1er : plus rien de commencé
+  assert.equal(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).started, false);
+});
+
 /* ---------- Partage du classement ---------- */
 test('partage : bouton masqué sans score ou sans canal, texte partagé correct', () => {
   const w = loadPage('harmonies.html');
@@ -469,6 +494,17 @@ test('cascadia : les bonus de majorité se recalculent entre joueurs', () => {
   assert.equal(grand(w), '5'); // le joueur 1 a perdu son bonus
   click(w, '[data-step="montagnes"][data-by="1"]');
   assert.equal(grand(w), '7'); // 6 + 1 : égalité au plus grand corridor
+});
+
+test('cascadia : ancienne sauvegarde sans flag started — feuille vierge scorée hors joueurs', () => {
+  /* load() évalue score(blank(), players) pour dériver started : cette feuille
+     vierge n'appartient pas à players, l'adaptateur doit rendre le score brut
+     (sans bonus de majorité) au lieu de reposer sur un findIndex à -1 */
+  const save = JSON.stringify({players: [{nom: 'Manu', d: {montagnes: 5}}, {nom: 'Léa', d: {}}],
+    cur: 0, totals: [7, 0]});
+  const w = loadPage('cascadia.html', {'cascadia-score-v1': save});
+  assert.equal(grand(w), '7'); // 5 tuiles + 2 de majorité
+  assert.equal(JSON.parse(w.localStorage.getItem('cascadia-score-v1')).started, true);
 });
 
 /* ---------- Steppers : appui long ---------- */

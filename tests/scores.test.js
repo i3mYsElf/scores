@@ -378,3 +378,17 @@ test('Skyjo : fixup répare une sauvegarde abîmée, idempotent', () => {
   skyjo.fixup(d);
   assert.equal(d.fini, 1);
 });
+
+/* ---------- lib/manches.js (partagé Sea Salt & Paper / Skyjo) ---------- */
+test('lib/manches : rankExtra et liste des manches (partie pure)', () => {
+  const {manchesRankExtra, manchesHtml} = require('../lib/manches.js');
+  assert.equal(manchesRankExtra({manches: []}), '');
+  assert.equal(manchesRankExtra({manches: [5]}), ' · 1 manche');
+  assert.equal(manchesRankExtra({manches: [5, -2]}), ' · 2 manches');
+  const signee = manchesHtml([7], true);
+  assert.match(signee, /data-manche="0"/);
+  assert.match(signee, /value="7"/);
+  assert.ok(!signee.includes('min="0"')); // Skyjo : manches négatives permises
+  assert.ok(manchesHtml([7], false).includes('min="0"')); // SSP : positives seulement
+  assert.match(manchesHtml([], false), /Aucune manche/);
+});

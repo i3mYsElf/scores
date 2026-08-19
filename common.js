@@ -51,15 +51,16 @@ function rowNum(d, path, lab, sub, signed){
 }
 
 /* config : {
-     key, startPlayers, maxPlayers: ()=>N, blank,
+     slug (identité du jeu dans le registre — la clé localStorage
+       <slug>-score-v1 en découle via gameKey),
+     startPlayers, maxPlayers: ()=>N, blank,
      score(d, players) -> {..., total} — players permet les calculs
        inter-joueurs (majorités) ; la plupart des jeux l'ignorent
-     drawSheet(d, ctx) -> html du corps de feuille,
      drawSheet(d, ctx) -> html du corps de feuille
      sums(s) -> {cléDataSum: valeur}                       (optionnel)
-     afterDraw(d, ctx), afterRefresh(d, s)                 (optionnels)
+     afterDraw(d, ctx), afterRefresh(d, s, ctx)            (optionnels)
      rankParts(s, d) -> [[label, valeur], ...]
-     rankExtra(d) -> string, tiebreak(a, b) -> number      (optionnels ;
+     rankExtra(d, ctx) -> string, tiebreak(a, b) -> number (optionnels ;
        tiebreak ne doit lire que a.d/a.s et b.d/b.s — jamais a.total,
        absent des objets du classement ; 0 = ex æquo, affiché comme tel)
      lowWins: true — le plus petit total gagne (Skyjo) ;   (optionnel)
@@ -72,6 +73,9 @@ function rowNum(d, path, lab, sub, signed){
        posé dans onClick qui ne voit pas la répétition automatique)
      extraState() -> objet fusionné dans la sauvegarde     (optionnel)
      restoreExtra(sauvegarde), fixup(d)                    (optionnels)
+     extLabels() -> libellés des extensions actives        (optionnel ;
+       archivés avec la partie et mis dans le texte partagé — des libellés
+       stables, pour que les entrées d'historique se comparent entre elles)
    } */
 /* Au focus d'un champ, sélectionner la valeur existante : taper remplace
    (le 0 par défaut, notamment) au lieu d'insérer au point cliqué.
@@ -127,7 +131,11 @@ function injectChrome(slug){
 }
 
 function initSheet(cfg){
-  const slug = cfg.key.replace('-score-v1','');
+  /* slug fourni par la page, clé localStorage dérivée du registre — key reste
+     accepté (anciennes configs) mais slug est la forme canonique */
+  const slug = cfg.slug || (cfg.key || '').replace('-score-v1', '');
+  const key = cfg.key || (typeof GameRegistry !== 'undefined'
+    ? GameRegistry.gameKey(slug) : slug + '-score-v1');
   injectChrome(slug);
   const reg = (typeof GameRegistry !== 'undefined')
     && GameRegistry.GAMES.find(g => g.slug === slug);
@@ -160,11 +168,13 @@ function initSheet(cfg){
      bouton de la feuille (segment, ajout/suppression de ligne), une série de
      frappes dans un même champ, ou un renommage. La pile vit en mémoire
      seulement (elle couvre le geste malheureux, pas l'archéologie) et restaure
-     l'état complet du moment : joueurs, extensions, joueur courant. */
+     l'état complet du moment : joueurs, extensions, joueur courant, drapeau
+     de partie commencée (annuler la toute première saisie rend la feuille
+     « non commencée » : rien à archiver, pas d'aperçu « Partie en cours »). */
   let undoStack = [], lastInputTarget = null;
   function snap(){
     lastInputTarget = null;
-    undoStack.push(JSON.stringify({players, cur, ...(cfg.extraState ? cfg.extraState() : {})}));
+    undoStack.push(JSON.stringify({players, cur, started, ...(cfg.extraState ? cfg.extraState() : {})}));
     if(undoStack.length > 30) undoStack.shift();
   }
   function undo(){
@@ -172,6 +182,7 @@ function initSheet(cfg){
     const s = JSON.parse(undoStack.pop());
     if(cfg.restoreExtra) cfg.restoreExtra(s);
     players = s.players;
+    started = !!s.started;
     cur = Math.min(+s.cur || 0, players.length - 1);
     lastInputTarget = null;
     drawSheet();
@@ -188,7 +199,7 @@ function initSheet(cfg){
   let touched = false, loadedTs = 0;
   function save(){
     try{
-      localStorage.setItem(cfg.key, JSON.stringify({
+      localStorage.setItem(key, JSON.stringify({
         players, cur, started, totals: players.map(p=>cfg.score(p.d, players).total),
         ts: Date.now(), // dernière utilisation — l'accueil ordonne le menu avec
         ...(cfg.extraState ? cfg.extraState() : {})
@@ -197,7 +208,7 @@ function initSheet(cfg){
   }
   function load(){
     try{
-      const s = JSON.parse(localStorage.getItem(cfg.key));
+      const s = JSON.parse(localStorage.getItem(key));
       if(!s || !Array.isArray(s.players) || !s.players.length) return;
       loadedTs = +s.ts || 0; // avant le premier save(), qui écrase ts
       if(cfg.restoreExtra) cfg.restoreExtra(s);
@@ -232,7 +243,7 @@ function initSheet(cfg){
     document.querySelectorAll('[data-sum]').forEach(el=>{
       if(sums[el.dataset.sum] !== undefined) el.textContent = sums[el.dataset.sum] + ' pts';
     });
-    if(cfg.afterRefresh) cfg.afterRefresh(d, s);
+    if(cfg.afterRefresh) cfg.afterRefresh(d, s, ctx);
     document.getElementById('grand').textContent = s.total;
     document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
     document.getElementById('undoBtn').hidden = !undoStack.length;
@@ -323,15 +334,14 @@ function initSheet(cfg){
         if(pos[i] !== i + 1) entry.pos = pos[i];
         const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]);
         if(parts.length) entry.parts = parts;
-        const extra = cfg.rankExtra ? cfg.rankExtra(p.d) : '';
+        const extra = cfg.rankExtra ? cfg.rankExtra(p.d, ctx) : '';
         if(extra) entry.extra = extra;
         return entry;
       });
-      /* Extensions actives, capturées sur les boutons data-ext de la feuille
-         (convention : leur texte est le libellé lisible de l'extension) —
-         sans elles, les scores archivés ne se comparent pas entre eux. */
-      const exts = [...document.querySelectorAll('#sheetBody [data-ext][aria-pressed="true"]')]
-        .map(b => b.textContent.trim());
+      /* Extensions actives, libellés fournis par la page (hook extLabels,
+         même source que la persistance) — sans eux, les scores archivés ne
+         se comparent pas entre eux. */
+      const exts = cfg.extLabels ? cfg.extLabels() : [];
       const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
       h.unshift({g: slug, t: touched ? Date.now() : (loadedTs || Date.now()), players: list,
                  ...(exts.length ? {exts} : {})});
@@ -347,7 +357,7 @@ function initSheet(cfg){
     document.getElementById('rankList').innerHTML = list.map((p,i)=>{
       const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ')
                     || 'Aucun point saisi';
-      const extra = cfg.rankExtra ? cfg.rankExtra(p.d) : '';
+      const extra = cfg.rankExtra ? cfg.rankExtra(p.d, ctx) : '';
       return `<div class="rank ${pos[i]===1?'win':''}">
         <span class="pos">${pos[i]}</span>
         <span class="nm" style="color:${p.c}">${esc(p.nom)}<small>${parts}${extra}</small></span>
@@ -366,8 +376,7 @@ function initSheet(cfg){
   function shareText(){
     const list = players.map(p=>({nom:p.nom, d:p.d, s:cfg.score(p.d, players)})).sort(rankCmp);
     const pos = positions(list);
-    const exts = [...document.querySelectorAll('#sheetBody [data-ext][aria-pressed="true"]')]
-      .map(b => b.textContent.trim());
+    const exts = cfg.extLabels ? cfg.extLabels() : [];
     return gameName + (exts.length ? ' (' + exts.join(', ') + ')' : '')
       + ' — ' + new Date().toLocaleDateString('fr-FR') + '\n'
       + list.map((p,i) =>
@@ -455,10 +464,12 @@ function initSheet(cfg){
   document.addEventListener('pointercancel', stopHold);
 
   document.addEventListener('click', e=>{
+    /* snap toujours avant de poser started : le snapshot doit capturer l'état
+       d'avant le geste pour que l'annuler rende la feuille non commencée */
     const sb = e.target.closest && e.target.closest('#sheetBody button');
-    if(sb){
+    if(sb && sb.dataset.step === undefined){ // les steppers sont snapshotés au pointerdown
+      snap();
       started = touched = true;
-      if(sb.dataset.step === undefined) snap(); // les steppers sont snapshotés au pointerdown
     }
     if(cfg.onClick && cfg.onClick(e, ctx)) return;
     const st = e.target.closest('[data-step]');
@@ -466,6 +477,7 @@ function initSheet(cfg){
       if(holdFired){ holdFired = false; gestureSnapped = false; return; }
       if(!gestureSnapped) snap(); // clic sans pointerdown (clavier, événement synthétique)
       gestureSnapped = false;
+      started = touched = true;
       doStep(st); return;
     }
     if(e.target.id === 'undoBtn'){ undo(); return; }
@@ -518,9 +530,10 @@ function initSheet(cfg){
 
   document.addEventListener('input', e=>{
     if(e.target.closest && (e.target.closest('#sheetBody input') || e.target.id === 'pname')){
-      if(e.target.id !== 'pname') started = touched = true;
-      // une série de frappes dans un même champ = un seul cran d'annulation
+      // une série de frappes dans un même champ = un seul cran d'annulation ;
+      // snap avant started, pour la même raison que dans le handler click
       if(e.target !== lastInputTarget){ snap(); lastInputTarget = e.target; }
+      if(e.target.id !== 'pname') started = touched = true;
     }
     if(cfg.onInput && cfg.onInput(e, ctx)) return;
     const d = players[cur].d;
@@ -536,7 +549,7 @@ function initSheet(cfg){
      se déclenche jamais dans l'onglet qui écrit) : recharger son état plutôt
      que de l'écraser au prochain refresh. */
   window.addEventListener('storage', e => {
-    if(e.key !== cfg.key) return;
+    if(e.key !== key) return;
     undoStack.length = 0;
     load(); drawSheet();
   });
