@@ -48,6 +48,10 @@
     <button id="importBtn" type="button">Importer</button>
     <input id="importFile" type="file" accept=".json,application/json" hidden>
   </div>
+  <div class="backup" style="margin-top:0">
+    <button id="csvBtn" type="button" hidden>Exporter l'historique (CSV)</button>
+  </div>
+  <p class="hint" id="storageInfo" style="text-align:center" hidden></p>
   <button class="reset" id="clearHist" hidden>Effacer l'historique</button>
 </div>
 
@@ -116,6 +120,7 @@ const editCard = (e, i) => `
 function render(){
   const h = readHist();
   document.getElementById('clearHist').hidden = !h.length;
+  document.getElementById('csvBtn').hidden = !h.length;
   document.getElementById('histSub').textContent = GameBackup.historyLabel(h) || 'Parties terminées';
 
   /* Statistiques par joueur (lib/stats.js), au-dessus de la liste des parties */
@@ -190,20 +195,49 @@ function applyBackup(o){
   return n;
 }
 
-document.getElementById('exportBtn').addEventListener('click', async ()=>{
-  const json = JSON.stringify(buildBackup(), null, 1);
-  const name = 'scores-sauvegarde-' + new Date().toISOString().slice(0,10) + '.json';
-  const file = new File([json], name, {type:'application/json'});
+/* partage natif si possible, téléchargement sinon */
+async function shareOrDownload(text, name, type){
+  const file = new File([text], name, {type});
   if(navigator.canShare && navigator.canShare({files:[file]})){
     try{ await navigator.share({files:[file]}); return; }
     catch(e){ if(e.name === 'AbortError') return; } // annulé — sinon on retombe sur le téléchargement
   }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([json], {type:'application/json'}));
+  a.href = URL.createObjectURL(new Blob([text], {type}));
   a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
-});
+}
+
+document.getElementById('exportBtn').addEventListener('click', ()=>
+  shareOrDownload(JSON.stringify(buildBackup(), null, 1),
+    'scores-sauvegarde-' + new Date().toISOString().slice(0,10) + '.json', 'application/json'));
+
+document.getElementById('csvBtn').addEventListener('click', ()=>
+  // BOM : les accents s'ouvrent correctement dans Excel
+  shareOrDownload('\uFEFF' + GameBackup.historyCsv(readHist(), NAMES),
+    'scores-historique-' + new Date().toISOString().slice(0,10) + '.csv', 'text/csv'));
+
+/* État du stockage (best effort) : persistance accordée ? occupation estimée ? */
+(async ()=>{
+  if(!navigator.storage) return;
+  const parts = [];
+  try{
+    if(navigator.storage.persisted)
+      parts.push((await navigator.storage.persisted())
+        ? 'persistant'
+        : 'non persistant — le navigateur peut l\'évincer, exportez régulièrement');
+    if(navigator.storage.estimate){
+      const {usage, quota} = await navigator.storage.estimate();
+      if(quota) parts.push(`${(usage / 1048576).toFixed(1)} Mo utilisés sur ${Math.round(quota / 1048576)} Mo`);
+    }
+  }catch(e){}
+  if(parts.length){
+    const el = document.getElementById('storageInfo');
+    el.hidden = false;
+    el.textContent = 'Stockage : ' + parts.join(' · ');
+  }
+})();
 
 document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importFile').click());
 document.getElementById('importFile').addEventListener('change', async e=>{

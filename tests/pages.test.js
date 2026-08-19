@@ -585,6 +585,14 @@ test('history.html : suppression d\'une seule entrée, avec confirmation', () =>
   assert.equal(w.document.querySelectorAll('#historyList .card').length, 1);
 });
 
+test('history.html : bouton CSV visible seulement avec des parties', () => {
+  const w = loadPage('history.html');
+  assert.ok(w.document.getElementById('csvBtn').hidden);
+  const w2 = loadPage('history.html',
+    {'scores-history-v1': JSON.stringify([{g: 'cascadia', t: 1, players: [{nom: 'Manu', total: 1}]}])});
+  assert.ok(!w2.document.getElementById('csvBtn').hidden);
+});
+
 /* ---------- Export / import des sauvegardes (page Historique) ---------- */
 test('historique : buildBackup n\'embarque que les clés connues et présentes', () => {
   const w = loadPage('history.html', {

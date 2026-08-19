@@ -45,6 +45,7 @@
   <header>
     <h1 class="title">Scores</h1>
     <p class="subtitle">Feuilles de score de jeux de société</p>
+    <p class="hint" id="netState" style="margin-top:10px" hidden>Hors-ligne — vos feuilles restent disponibles.</p>
     <a class="tool" href="history.html" aria-label="Historique et statistiques" title="Historique et statistiques">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
         <rect x="1.5"  y="13" width="6" height="9" rx="1.2" fill="var(--muted)"/>
@@ -158,6 +159,10 @@
 
 </div>
 
+<div class="wrap">
+  <button class="ghost" id="installBtn" type="button" hidden>Installer l'application</button>
+</div>
+
 <script src="lib/registry.js"></script>
 <script src="lib/backup.js"></script>
 <script>
@@ -195,5 +200,27 @@ function renderPreviews(){
 renderPreviews();
 // un autre onglet a joué (l'événement storage ne vient jamais de cet onglet) : rafraîchir
 window.addEventListener('storage', renderPreviews);
+
+/* Invite d'installation (Chrome/Android) : on retient l'événement et on montre
+   un bouton discret en bas du menu — jamais de prompt spontané. */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  installEvt = e;
+  document.getElementById('installBtn').hidden = false;
+});
+document.getElementById('installBtn').addEventListener('click', async ()=>{
+  if(!installEvt) return;
+  installEvt.prompt();
+  await installEvt.userChoice.catch(()=>{});
+  installEvt = null;
+  document.getElementById('installBtn').hidden = true;
+});
+
+/* Indicateur hors-ligne dans le header */
+function syncNet(){ document.getElementById('netState').hidden = navigator.onLine !== false; }
+window.addEventListener('online', syncNet);
+window.addEventListener('offline', syncNet);
+syncNet();
 // enregistrement du SW, bannière de mise à jour et storage.persist : sw-client.js
 </script>

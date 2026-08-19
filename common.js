@@ -12,7 +12,8 @@ const HISTORY_KEY = (typeof GameRegistry !== 'undefined' && GameRegistry.HISTORY
 const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* accès par chemin pointé : 'arbre.0' ou 'pieces' */
+/* accès par chemin pointé : 'arbre.0' ou 'pieces' — un seul niveau,
+   la partie après le point est forcément un index de tableau (pas de 'a.b.c') */
 function get(o,p){ const [a,b] = p.split('.'); return b===undefined ? o[a] : o[a][+b]; }
 function set(o,p,v){ const [a,b] = p.split('.'); if(b===undefined) o[a]=v; else o[a][+b]=v; }
 
@@ -212,7 +213,10 @@ function initSheet(cfg){
     document.getElementById('grand').textContent = s.total;
     document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
     document.getElementById('undoBtn').hidden = !undoStack.length;
-    drawTabs(); save(); syncWakeLock();
+    drawTabs();
+    // pendant la répétition d'appui long (un cran/110ms), une seule écriture au relâchement
+    if(holdInt){ saveDirty = true; } else { save(); saveDirty = false; }
+    syncWakeLock();
   }
 
   function drawTabs(){
@@ -344,8 +348,11 @@ function initSheet(cfg){
   /* Appui long sur un stepper : répétition automatique après 400ms, puis toutes
      les 110ms. Le clic émis au relâchement est neutralisé (holdFired) pour ne
      pas compter un cran de plus. */
-  let holdTimer = null, holdInt = null, holdFired = false, gestureSnapped = false;
-  function stopHold(){ clearTimeout(holdTimer); clearInterval(holdInt); holdTimer = holdInt = null; }
+  let holdTimer = null, holdInt = null, holdFired = false, gestureSnapped = false, saveDirty = false;
+  function stopHold(){
+    clearTimeout(holdTimer); clearInterval(holdInt); holdTimer = holdInt = null;
+    if(saveDirty){ saveDirty = false; save(); }
+  }
   document.addEventListener('pointerdown', e=>{
     const st = e.target.closest && e.target.closest('[data-step]');
     if(!st) return;

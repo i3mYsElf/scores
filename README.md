@@ -6,7 +6,7 @@ Feuilles de score de jeux de société. PWA statique : installable, fonctionne h
 
 ```
 index.html      accueil — menu des jeux généré depuis le registre (trié par usage), aperçus « Partie en cours », bouton Historique
-history.html    parties terminées + statistiques par joueur + export/import (clé scores-history-v1)
+history.html    parties terminées (détail, édition, suppression) + statistiques par joueur + export/import JSON + export CSV (clé scores-history-v1)
 harmonies.html  feuille de score Harmonies
 7wonders.html   feuille de score 7 Wonders (base + extensions activables)
 wonderfulworld.html  feuille de score It's a Wonderful World
@@ -24,7 +24,7 @@ lib/stats.js    statistiques par joueur depuis l'historique — logique pure
 lib/domino.js   partagé Kingdomino/Queendomino : domaines cases × couronnes (départage, rendu de liste, interactions)
 common.js       moteur de feuille partagé : joueurs/onglets, persistance, classement, événements
 common.css      styles partagés (onglets joueurs, cartes, steppers, classement…)
-tests/          tests : calculs (scores), aperçus/backup (backup), statistiques (stats), pages réelles dans jsdom (pages), cohérence de la structure (consistency)
+tests/          tests : calculs (scores), aperçus/backup (backup), statistiques (stats), pages réelles dans jsdom (pages), cohérence de la structure (consistency), stratégies du service worker (sw)
 manifest.json   manifest PWA
 sw.js           service worker (offline ; navigations en network-first ; nouvelle version activée sur demande)
 sw-client.js    enregistrement du SW + bannière « Nouvelle version disponible » + storage.persist (chargé par toutes les pages)
@@ -52,7 +52,8 @@ Push sur `main` → GitHub Actions lance les tests puis, s'ils passent, déploie
 ## Développement local
 
 ```
-npm install   # une fois — jsdom, uniquement pour les tests (aucune dépendance au runtime)
-node --test   # calculs + pages + cohérence
+npm install   # une fois — jsdom + eslint, uniquement pour les tests et le lint (aucune dépendance au runtime)
+node --test   # calculs + pages + cohérence + service worker
+npx eslint .  # lint (aussi en CI)
 npx serve .   # puis http://localhost:3000 — le service worker exige localhost ou HTTPS
 ```

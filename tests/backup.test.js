@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const {backupKeys, previewLabel, historyLabel, buildBackup, applyBackup} = require('../lib/backup.js');
+const {backupKeys, previewLabel, historyLabel, buildBackup, applyBackup, historyCsv} = require('../lib/backup.js');
 const {GAMES, HISTORY_KEY} = require('../lib/registry.js');
 
 const mem = init => {
@@ -79,6 +79,19 @@ test('applyBackup : rejette un format inattendu sans rien écrire (code format)'
   assert.throws(() => applyBackup(s, null), err => err.code === 'format');
   assert.throws(() => applyBackup(s, {app: 'scores', data: null}), err => err.code === 'format');
   assert.equal(s.m.size, 0);
+});
+
+test('historyCsv : une ligne par joueur, noms du registre, champs échappés', () => {
+  const csv = historyCsv([
+    {g: 'cascadia', t: Date.UTC(2026, 7, 19, 10, 30), players: [{nom: 'Manu', total: 84}, {nom: 'Léa;"chat"', total: 70}]},
+    {g: 'jeuinconnu', players: [{nom: null, total: undefined}]},
+  ], {cascadia: 'Cascadia'});
+  const lines = csv.split('\r\n');
+  assert.equal(lines[0], 'date;jeu;position;joueur;total');
+  assert.equal(lines[1], '2026-08-19 10:30;Cascadia;1;Manu;84');
+  assert.equal(lines[2], '2026-08-19 10:30;Cascadia;2;"Léa;""chat""";70'); // ; et " échappés façon CSV
+  assert.equal(lines[3], ';jeuinconnu;1;?;0'); // slug inconnu tel quel, valeurs manquantes tolérées
+  assert.equal(historyCsv(null).split('\r\n').length, 1); // historique invalide : en-tête seule
 });
 
 test('applyBackup : atomique — un échec d\'écriture restaure l\'état d\'avant (code storage)', () => {
