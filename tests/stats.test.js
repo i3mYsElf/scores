@@ -66,6 +66,17 @@ test('tri : victoires desc, puis parties desc, puis nom', () => {
   assert.deepEqual(s.map(x => x.nom), ['Ana', 'Zoé', 'Bob']); // 1 victoire chacune, égalité de parties -> alpha ; Bob 0 victoire
 });
 
+test('ex æquo : pos figé par archive() -> une victoire pour chaque premier, exts toléré', () => {
+  const s = computeStats([
+    {g: 'cascadia', t: 2, players: [
+      {nom: 'Manu', total: 80}, {nom: 'Léa', total: 80, pos: 1}, {nom: 'Bob', total: 60, pos: 3}]},
+    {g: 'cascadia', t: 1, exts: ['Variante'], players: [{nom: 'Bob', total: 90}, {nom: 'Manu', total: 70}]},
+  ]);
+  // 1 victoire chacun ; Bob et Manu 2 parties (alpha), Léa 1 partie mais 100 %
+  assert.deepEqual(s.map(x => [x.nom, x.victoires, x.taux]),
+    [['Bob', 1, 50], ['Manu', 1, 50], ['Léa', 1, 100]]);
+});
+
 test('entrées malformées ignorées, historique vide ou invalide toléré', () => {
   assert.deepEqual(computeStats([]), []);
   assert.deepEqual(computeStats(null), []);

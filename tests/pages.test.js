@@ -815,3 +815,177 @@ test('iaww : départage par cartes construites à égalité de points', () => {
   const first = w.document.querySelector('#rankList .rank.win .nm').textContent;
   assert.ok(first.startsWith('Joueur 2'));
 });
+
+/* ---------- Ex æquo : positions partagées (1, 1, 3) ---------- */
+test('ex æquo sans départage : positions partagées au classement et figées à l\'archive', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '#addP'); // 3 joueurs, le 3e reste à 0
+  click(w, '[data-tab="0"]');
+  click(w, '[data-step="champs"][data-by="1"]');   // Joueur 1 : 5
+  click(w, '[data-tab="1"]');
+  click(w, '[data-step="champs"][data-by="1"]');   // Joueur 2 : 5
+  click(w, '#openRank');
+  assert.deepEqual([...w.document.querySelectorAll('#rankList .pos')].map(e => e.textContent),
+    ['1', '1', '3']);
+  assert.equal(w.document.querySelectorAll('#rankList .rank.win').length, 2);
+  click(w, '#resetAll');
+  const e = JSON.parse(w.localStorage.getItem('scores-history-v1'))[0];
+  assert.equal(e.players[0].pos, undefined); // égal au rang : non écrit
+  assert.equal(e.players[1].pos, 1);         // ex æquo figé
+  assert.equal(e.players[2].pos, undefined);
+});
+
+test('kingdomino : égalité de total et de plus grand domaine -> ex æquo', () => {
+  const w = loadPage('kingdomino.html');
+  type(w, '[data-dc="0"]', '4'); type(w, '[data-dk="0"]', '3');
+  click(w, '[data-tab="1"]');
+  type(w, '[data-dc="0"]', '4'); type(w, '[data-dk="0"]', '3'); // départage muet
+  click(w, '#openRank');
+  assert.deepEqual([...w.document.querySelectorAll('#rankList .pos')].map(e => e.textContent),
+    ['1', '1']);
+  assert.equal(w.document.querySelectorAll('#rankList .rank.win').length, 2);
+});
+
+test('7 wonders : départage officiel au trésor (pièces)', () => {
+  const w = loadPage('7wonders.html');
+  type(w, '[data-num="civils"]', '10');
+  click(w, '[data-step="pieces"][data-by="1"]');   // 1 pièce -> 0 pt de trésor
+  click(w, '[data-tab="1"]');
+  type(w, '[data-num="civils"]', '10');
+  click(w, '[data-step="pieces"][data-by="1"]');
+  click(w, '[data-step="pieces"][data-by="1"]');   // 2 pièces -> 0 pt aussi
+  click(w, '#openRank');
+  assert.ok(w.document.querySelector('#rankList .rank.win .nm').textContent.startsWith('Joueur 2'));
+  assert.equal(w.document.querySelectorAll('#rankList .rank.win').length, 1);
+});
+
+test('sea salt & paper : départage officiel aux points de la dernière manche', () => {
+  const save = JSON.stringify({players: [
+    {nom: 'Ana', d: {manches: [10], crabes: 10}},  // manche en cours 5, total 15
+    {nom: 'Bob', d: {manches: [5],  crabes: 20}}   // manche en cours 10, total 15
+  ], cur: 0, started: true, totals: [15, 15]});
+  const w = loadPage('seasaltpaper.html', {'seasaltpaper-score-v1': save});
+  click(w, '#openRank');
+  assert.ok(w.document.querySelector('#rankList .rank.win .nm').textContent.startsWith('Bob'));
+  assert.equal(w.document.querySelectorAll('#rankList .rank.win').length, 1);
+});
+
+test('history.html : positions figées rendues, plusieurs vainqueurs surlignés', () => {
+  const hist = JSON.stringify([
+    {g: 'harmonies', t: 2, players: [
+      {nom: 'Manu', total: 80}, {nom: 'Léa', total: 80, pos: 1}, {nom: 'Bob', total: 60, pos: 3}]},
+    {g: 'cascadia', t: 1, players: [{nom: 'Manu', total: 50}, {nom: 'Léa', total: 40}]} // ancienne entrée sans pos
+  ]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  const cards = w.document.querySelectorAll('#historyList .card');
+  assert.deepEqual([...cards[0].querySelectorAll('.pos')].map(e => e.textContent), ['1', '1', '3']);
+  assert.equal(cards[0].querySelectorAll('.rank.win').length, 2);
+  assert.equal(cards[1].querySelectorAll('.rank.win').length, 1); // comportement d'avant
+});
+
+test('history.html : édition — pos recalculé par égalité de total, obsolète purgé', () => {
+  const hist = JSON.stringify([{g: 'cascadia', t: 1, players: [
+    {nom: 'Manu', total: 50}, {nom: 'Léa', total: 40, pos: 1} // pos incohérent volontaire
+  ]}]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  click(w, '[data-edit="0"]');
+  w.document.querySelector('[data-etot="1"]').value = '50'; // égalité après édition
+  click(w, '[data-esave="0"]');
+  const e = JSON.parse(w.localStorage.getItem('scores-history-v1'))[0];
+  assert.equal(e.players[0].pos, undefined);
+  assert.equal(e.players[1].pos, 1);
+  assert.equal(w.document.querySelectorAll('#historyList .rank.win').length, 2);
+});
+
+/* ---------- Extensions recopiées dans l'historique ---------- */
+test('archive : extensions actives recopiées en libellés lisibles', () => {
+  const w = loadPage('7wonders.html');
+  click(w, '[data-ext="leaders"]');
+  click(w, '[data-ext="cities"]');
+  type(w, '[data-num="civils"]', '10');
+  click(w, '#openRank'); click(w, '#resetAll');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].exts,
+    ['Leaders', 'Cities']);
+
+  const w2 = loadPage('kingdomino.html');
+  click(w2, '[data-ext="geants"]');
+  type(w2, '[data-dc="0"]', '4'); type(w2, '[data-dk="0"]', '2');
+  click(w2, '#openRank'); click(w2, '#resetAll');
+  assert.deepEqual(JSON.parse(w2.localStorage.getItem('scores-history-v1'))[0].exts,
+    ['Age of Giants']);
+});
+
+test('archive : extension désactivée ou jeu sans extension -> pas de champ exts', () => {
+  const w = loadPage('kingdomino.html');
+  click(w, '[data-ext="geants"]');
+  click(w, '[data-ext="geants"]'); // désactivée avant la fin
+  type(w, '[data-dc="0"]', '4'); type(w, '[data-dk="0"]', '2');
+  click(w, '#openRank'); click(w, '#resetAll');
+  assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].exts, undefined);
+
+  const w2 = loadPage('harmonies.html');
+  click(w2, '[data-step="champs"][data-by="1"]');
+  click(w2, '#openRank'); click(w2, '#resetAll');
+  assert.equal(JSON.parse(w2.localStorage.getItem('scores-history-v1'))[0].exts, undefined);
+});
+
+test('history.html : extensions dans le détail replié, échappées, dépliable sans parts', () => {
+  const hist = JSON.stringify([{g: '7wonders', t: 1, exts: ['Cities', '<img src=x onerror=alert(1)>'],
+    players: [{nom: 'Manu', total: 50}, {nom: 'Léa', total: 40}]}]); // aucun parts
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  const card = w.document.querySelector('#historyList .card');
+  assert.ok(card.classList.contains('hasDetail')); // dépliable grâce aux extensions seules
+  assert.ok(!card.classList.contains('open'));     // replié par défaut (CSS)
+  assert.ok(card.querySelector('.exts').textContent.includes('Cities'));
+  assert.equal(card.querySelector('.exts img'), null); // libellés importés échappés
+  click(w, '#historyList .card h2');
+  assert.ok(card.classList.contains('open'));
+});
+
+/* ---------- Filtres de l'historique ---------- */
+const setFilter = (w, id, val) => {
+  const sel = w.document.getElementById(id);
+  sel.value = val;
+  sel.dispatchEvent(new w.Event('change', {bubbles: true}));
+};
+
+test('history.html : filtres par jeu et par joueur — liste, stats et compteur filtrés', () => {
+  const hist = JSON.stringify([
+    {g: 'cascadia',  t: 3, players: [{nom: 'Manu', total: 84}, {nom: 'Léa', total: 70}]},
+    {g: 'harmonies', t: 2, players: [{nom: 'Léa', total: 112}, {nom: 'Bob', total: 90}]},
+    {g: 'cascadia',  t: 1, players: [{nom: 'léa', total: 60}, {nom: 'Bob', total: 50}]}
+  ]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  assert.ok(!w.document.getElementById('filters').hidden);
+  setFilter(w, 'filterG', 'harmonies');
+  assert.equal(w.document.querySelectorAll('#historyList .card').length, 1);
+  assert.ok(w.document.getElementById('histSub').textContent.includes('1 partie'));
+  assert.ok(!w.document.getElementById('statsCard').textContent.includes('Manu')); // stats filtrées
+  setFilter(w, 'filterG', '');
+  setFilter(w, 'filterP', 'léa'); // clé insensible à la casse : Léa et léa
+  assert.equal(w.document.querySelectorAll('#historyList .card').length, 3);
+  setFilter(w, 'filterG', 'harmonies'); // combiné : harmonies + Manu = rien
+  setFilter(w, 'filterP', 'manu');
+  assert.equal(w.document.querySelectorAll('#historyList .card').length, 0);
+  assert.ok(w.document.getElementById('historyList').textContent.includes('Aucune partie ne correspond'));
+  assert.ok(!w.document.getElementById('csvBtn').hidden);   // export/effacement : historique complet
+  assert.ok(!w.document.getElementById('clearHist').hidden);
+});
+
+test('history.html : filtres masqués sans historique', () => {
+  const w = loadPage('history.html');
+  assert.ok(w.document.getElementById('filters').hidden);
+});
+
+test('history.html : suppression sous filtre -> la bonne entrée du tableau stocké', () => {
+  const hist = JSON.stringify([
+    {g: 'cascadia',  t: 3, players: [{nom: 'Manu', total: 84}]},
+    {g: 'harmonies', t: 2, players: [{nom: 'Léa', total: 112}]},
+    {g: 'cascadia',  t: 1, players: [{nom: 'Bob', total: 60}]}
+  ]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  setFilter(w, 'filterG', 'harmonies');
+  click(w, '[data-del="1"]'); // l'index porté est celui du tableau stocké
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('scores-history-v1')).map(e => e.g),
+    ['cascadia', 'cascadia']);
+});

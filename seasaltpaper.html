@@ -84,6 +84,8 @@ initSheet({
     ? ` · ${d.manches.length} manche${d.manches.length > 1 ? 's' : ''}` : '')
     + (pageCtx && score(d).precedentes >= objectif(pageCtx.players.length)
     ? ' · objectif atteint' : ''),
+  // départage officiel : le plus de points à la dernière manche (celle en cours)
+  tiebreak: (a,b) => b.s.manche - a.s.manche,
 
   drawSheet(d, ctx){
     pageCtx = ctx;

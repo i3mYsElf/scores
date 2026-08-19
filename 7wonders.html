@@ -58,6 +58,9 @@ initSheet({
     ['Civils',s.civils],['Commerce',s.commerce],['Guildes',s.guildes],['Science',s.science],
     ['Leaders',s.leaders],['Cities',s.cities],['Armada',s.armada],['Édifice',s.edifice]
   ],
+  // départage officiel (2e édition) : le joueur le plus riche l'emporte
+  rankExtra: d => d.pieces ? ` · ${d.pieces} pièce${d.pieces > 1 ? 's' : ''}` : '',
+  tiebreak: (a,b) => b.d.pieces - a.d.pieces,
 
   drawSheet(d){
     return `

@@ -59,7 +59,9 @@ function rowNum(d, path, lab, sub, signed){
      sums(s) -> {cléDataSum: valeur}                       (optionnel)
      afterDraw(d, ctx), afterRefresh(d, s)                 (optionnels)
      rankParts(s, d) -> [[label, valeur], ...]
-     rankExtra(d) -> string, tiebreak(a, b) -> number      (optionnels)
+     rankExtra(d) -> string, tiebreak(a, b) -> number      (optionnels ;
+       tiebreak ne doit lire que a.d/a.s et b.d/b.s — jamais a.total,
+       absent des objets du classement ; 0 = ex æquo, affiché comme tel)
      onClick(e, ctx) / onInput(e, ctx) -> bool « géré »    (optionnels)
      signed: Set de chemins autorisés en négatif           (optionnel)
      stepMin(path) -> minimum du stepper                   (optionnel)
@@ -279,6 +281,17 @@ function initSheet(cfg){
   }
   document.addEventListener('visibilitychange', syncWakeLock);
 
+  /* Classement « competition ranking » (1,1,3) : total puis départage du jeu ;
+     deux voisins que le comparateur ne sépare pas partagent la même position —
+     l'ordre des onglets ne fabrique jamais un vainqueur. */
+  const rankCmp = (a,b)=> b.s.total - a.s.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0);
+  function positions(list){
+    const pos = [];
+    for(let i = 0; i < list.length; i++)
+      pos[i] = i > 0 && rankCmp(list[i-1], list[i]) === 0 ? pos[i-1] : i + 1;
+    return pos;
+  }
+
   /* Archive la partie dans l'historique global (clé scores-history-v1, lue par
      history.html) : classement figé au moment du reset, si des scores ont été saisis.
      Datée de la dernière vraie interaction : Date.now() si on vient de jouer,
@@ -288,23 +301,32 @@ function initSheet(cfg){
     try{
       /* Chaque joueur archive aussi sa ventilation, figée en paires
          [libellé, valeur] prêtes à afficher (mêmes libellés que le classement) :
-         l'historique ne sait pas re-calculer un barème. Champs additifs —
-         les anciennes entrées sans parts/extra restent valides. */
-      const list = players.map(p=>{
+         l'historique ne sait pas re-calculer un barème. Position figée de même
+         (le départage n'est pas recalculable), mais seulement quand elle dévie
+         du rang (ex æquo). Champs additifs — les anciennes entrées sans
+         parts/extra/pos restent valides. */
+      const sorted = players.map(p=>{
         const s = cfg.score(p.d, players);
         return {nom:p.nom, total:s.total, d:p.d, s};
-      })
-        .sort((a,b)=> b.total - a.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0))
-        .map(p=>{
-          const entry = {nom:p.nom, total:p.total};
-          const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]);
-          if(parts.length) entry.parts = parts;
-          const extra = cfg.rankExtra ? cfg.rankExtra(p.d) : '';
-          if(extra) entry.extra = extra;
-          return entry;
-        });
+      }).sort(rankCmp);
+      const pos = positions(sorted);
+      const list = sorted.map((p,i)=>{
+        const entry = {nom:p.nom, total:p.total};
+        if(pos[i] !== i + 1) entry.pos = pos[i];
+        const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]);
+        if(parts.length) entry.parts = parts;
+        const extra = cfg.rankExtra ? cfg.rankExtra(p.d) : '';
+        if(extra) entry.extra = extra;
+        return entry;
+      });
+      /* Extensions actives, capturées sur les boutons data-ext de la feuille
+         (convention : leur texte est le libellé lisible de l'extension) —
+         sans elles, les scores archivés ne se comparent pas entre eux. */
+      const exts = [...document.querySelectorAll('#sheetBody [data-ext][aria-pressed="true"]')]
+        .map(b => b.textContent.trim());
       const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-      h.unshift({g: slug, t: touched ? Date.now() : (loadedTs || Date.now()), players: list});
+      h.unshift({g: slug, t: touched ? Date.now() : (loadedTs || Date.now()), players: list,
+                 ...(exts.length ? {exts} : {})});
       localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 200)));
       fillNameSuggestions();
     }catch(e){ storageWarn(); }
@@ -312,13 +334,14 @@ function initSheet(cfg){
 
   function showRank(){
     const list = players.map(p=>({...p, s:cfg.score(p.d, players), c:COLORS[p.c]}))
-      .sort((a,b)=> b.s.total - a.s.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0));
+      .sort(rankCmp);
+    const pos = positions(list);
     document.getElementById('rankList').innerHTML = list.map((p,i)=>{
       const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ')
                     || 'Aucun point saisi';
       const extra = cfg.rankExtra ? cfg.rankExtra(p.d) : '';
-      return `<div class="rank ${i===0?'win':''}">
-        <span class="pos">${i+1}</span>
+      return `<div class="rank ${pos[i]===1?'win':''}">
+        <span class="pos">${pos[i]}</span>
         <span class="nm" style="color:${p.c}">${esc(p.nom)}<small>${parts}${extra}</small></span>
         <span class="pt">${p.s.total}</span></div>`;
     }).join('');

@@ -94,6 +94,18 @@ test('historyCsv : une ligne par joueur, noms du registre, champs échappés', (
   assert.equal(historyCsv(null).split('\r\n').length, 1); // historique invalide : en-tête seule
 });
 
+test('historyCsv : positions figées des ex æquo (pos), rang sinon', () => {
+  const csv = historyCsv([
+    {g: 'cascadia', t: Date.UTC(2026, 7, 19, 10, 0), players: [
+      {nom: 'Manu', total: 80}, {nom: 'Léa', total: 80, pos: 1}, {nom: 'Bob', total: 60, pos: 3}]},
+  ], {cascadia: 'Cascadia'});
+  assert.deepEqual(csv.split('\r\n').slice(1), [
+    '2026-08-19 10:00;Cascadia;1;Manu;80',
+    '2026-08-19 10:00;Cascadia;1;Léa;80',
+    '2026-08-19 10:00;Cascadia;3;Bob;60',
+  ]);
+});
+
 test('applyBackup : atomique — un échec d\'écriture restaure l\'état d\'avant (code storage)', () => {
   const s = mem({'harmonies-score-v1': '"ancienne"'});
   let calls = 0;
