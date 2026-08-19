@@ -6,9 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-
-const ROOT = path.resolve(__dirname, '..');
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const {ROOT, read} = require('./helpers.js');
 
 const {GAMES, gameKey, gamePage, HISTORY_KEY} = require('../lib/registry.js');
 
@@ -81,6 +79,24 @@ test('toutes les pages ont lang="fr" et chargent sw-client.js et theme.js', () =
     assert.ok(html.includes('src="theme.js"'), `${f} ne charge pas theme.js (bascule de thème)`);
     assert.ok(html.includes('rel="stylesheet" crossorigin'),
       `${f} : la CSS Google Fonts doit être chargée avec crossorigin (cache offline du SW)`);
+  }
+});
+
+/* Sans build, le head commun (manifest, theme-color, icônes, polices, CSS,
+   theme.js, sw-client.js) est dupliqué dans chaque page : ce test le fige.
+   Toute évolution du head doit être reportée à l'identique sur les 13 pages —
+   seule la ligne <title> diffère. */
+test('le head commun est identique sur toutes les pages (au titre près)', () => {
+  const pages = ['index.html', 'history.html', ...GAMES.map(g => gamePage(g.slug))];
+  const headOf = f => {
+    const lines = read(f).replace(/\r\n/g, '\n').split('\n');
+    const end = lines.findIndex(l => l.includes('src="sw-client.js"'));
+    assert.ok(end > 0, `${f} : script sw-client.js introuvable dans le head`);
+    return lines.slice(0, end + 1).filter(l => !l.includes('<title>')).join('\n');
+  };
+  const ref = headOf(pages[0]);
+  for (const f of pages.slice(1)) {
+    assert.equal(headOf(f), ref, `${f} : head commun divergent de ${pages[0]}`);
   }
 });
 

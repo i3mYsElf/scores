@@ -6,12 +6,10 @@
    location d'emprunt passé en paramètre pour compter les rechargements. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
 const { JSDOM } = require('jsdom');
+const {read} = require('./helpers.js');
 
-const ROOT = path.resolve(__dirname, '..');
-const SRC = fs.readFileSync(path.join(ROOT, 'sw-client.js'), 'utf8');
+const SRC = read('sw-client.js');
 const tick = () => new Promise(r => setImmediate(r)); // laisse register().then(...) se résoudre
 
 /* faux worker (reg.installing / reg.waiting) */

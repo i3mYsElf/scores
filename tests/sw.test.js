@@ -4,11 +4,9 @@
    un bac à sable Node qui rejoue les événements du service worker. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
+const {read} = require('./helpers.js');
 
-const ROOT = path.resolve(__dirname, '..');
-const SRC = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+const SRC = read('sw.js');
 const SCOPE = 'https://example.test/scores/';
 
 /* Charge sw.js avec self/caches/location/fetch factices.

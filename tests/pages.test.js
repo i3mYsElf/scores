@@ -1,33 +1,10 @@
 /* Tests d'intégration des pages réelles dans jsdom : moteur commun (common.js),
-   interactions, échappement des noms, persistance et relecture d'anciens formats. */
+   interactions, échappement des noms, persistance et relecture d'anciens formats.
+   Le chargement des pages (loadPage) et les interactions vivent dans helpers.js. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-const { JSDOM } = require('jsdom');
-
-const ROOT = path.resolve(__dirname, '..');
-
-function loadPage(file, storage) {
-  const html = fs.readFileSync(path.join(ROOT, file), 'utf8');
-  const dom = new JSDOM(html, { url: 'http://localhost/' + file, runScripts: 'outside-only', pretendToBeVisual: true });
-  const { window } = dom;
-  window.confirm = () => true; // jsdom ne l'implémente pas (falsy) — accepter par défaut
-  for (const [k, v] of Object.entries(storage || {})) window.localStorage.setItem(k, v);
-  // exécute les scripts dans l'ordre du document (src résolus sur le disque)
-  for (const s of window.document.querySelectorAll('script')) {
-    const code = s.src ? fs.readFileSync(path.join(ROOT, new URL(s.src).pathname), 'utf8') : s.textContent;
-    window.eval(code);
-  }
-  return window;
-}
-const click = (w, sel) => w.document.querySelector(sel).dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-const type = (w, sel, val) => {
-  const el = w.document.querySelector(sel);
-  el.value = val;
-  el.dispatchEvent(new w.Event('input', { bubbles: true }));
-};
-const grand = w => w.document.getElementById('grand').textContent;
+const {loadPage, click, type, grand} = require('./helpers.js');
+const {GAMES} = require('../lib/registry.js');
 
 /* ---------- Harmonies ---------- */
 test('harmonies : steppers, faces eau, minimum îles', () => {
@@ -508,23 +485,34 @@ test('cascadia : ancienne sauvegarde sans flag started — feuille vierge scoré
 });
 
 /* ---------- Steppers : appui long ---------- */
-test('steppers : l\'appui long répète, le clic du relâchement ne compte pas double', async () => {
+test('steppers : l\'appui long répète, le clic du relâchement ne compte pas double', () => {
   const w = loadPage('harmonies.html');
+  /* horloge maîtrisée : on capture les timers du moteur (armement 400ms puis
+     répétition 110ms) au lieu de dormir en temps réel — comptes exacts, zéro
+     flake sur un runner chargé */
+  const timers = [];
+  let tick = null;
+  w.setTimeout = fn => { timers.push(fn); return timers.length; };
+  w.clearTimeout = () => {};
+  w.setInterval = fn => { tick = fn; return 1; };
+  w.clearInterval = () => { tick = null; };
+
   const btn = w.document.querySelector('[data-step="champs"][data-by="1"]');
   btn.dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
-  await new Promise(r => setTimeout(r, 750)); // 400ms d'armement + quelques répétitions
+  timers.pop()(); // l'armement échoit : premier cran + départ de la répétition
+  tick(); tick(); // deux répétitions
   w.document.dispatchEvent(new w.Event('pointerup', { bubbles: true }));
-  const held = JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].d.champs;
-  assert.ok(held >= 2, `attendu au moins 2 crans, obtenu ${held}`);
-  btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true })); // le clic natif émis au relâchement
   let d = JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].d;
-  assert.equal(d.champs, held); // neutralisé : pas de cran en plus
-  // un tap court reste un incrément simple
+  assert.equal(d.champs, 3); // 1 (armement) + 2 (répétitions), sauvé au relâchement
+  btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true })); // le clic natif émis au relâchement
+  d = JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].d;
+  assert.equal(d.champs, 3); // neutralisé : pas de cran en plus
+  // un tap court (relâché avant l'armement) reste un incrément simple
   btn.dispatchEvent(new w.Event('pointerdown', { bubbles: true }));
   w.document.dispatchEvent(new w.Event('pointerup', { bubbles: true }));
   btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   d = JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].d;
-  assert.equal(d.champs, held + 1);
+  assert.equal(d.champs, 4);
 });
 
 /* ---------- Historique des parties ---------- */
@@ -599,7 +587,6 @@ test('retirer un joueur : confirmation seulement si sa feuille n\'est pas vierge
 
 /* ---------- Lien vers les règles officielles ---------- */
 test('feuilles : lien règles du registre dans le header', () => {
-  const {GAMES} = require('../lib/registry.js');
   const w = loadPage('harmonies.html');
   const a = w.document.querySelector('header a.rules');
   assert.ok(a, 'lien .rules absent du header');
@@ -630,7 +617,6 @@ test('history.html : état vide', () => {
 
 test('accueil : cartes générées depuis le registre, vignettes clonées', () => {
   const w = loadPage('index.html');
-  const {GAMES} = require('../lib/registry.js');
   const cards = w.document.querySelectorAll('a.game');
   assert.equal(cards.length, GAMES.length);
   for (const card of cards){
