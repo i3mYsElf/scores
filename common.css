@@ -175,6 +175,17 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
 .rank.win .pos{color:var(--accent)}
 .close{width:100%;margin-top:18px;padding:13px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-weight:600;cursor:pointer}
 .reset{width:100%;margin-top:8px;padding:13px;border-radius:9px;border:none;background:transparent;color:var(--danger);font:inherit;font-size:13px;cursor:pointer}
+/* ---------- accessibilité ---------- */
+/* focus clavier visible sur tous les contrôles (les champs gardent leurs :focus définis plus haut) */
+:is(button,a):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* cibles tactiles ~44px sans changer le dessin : zone de clic étendue par
+   pseudo-élément — pas d'extension latérale quand des voisins cliquables sont
+   à moins de 10px (onglets, segments, les deux boutons ✎/× de l'historique) */
+:is(.step button,.kill,.tab,.seg button){position:relative}
+.step button::after{content:'';position:absolute;inset:-3px}
+.kill::after{content:'';position:absolute;inset:-8px -4px}
+:is(.tab,.seg button)::after{content:'';position:absolute;inset:-5px 0}
+
 /* ---------- bannières système ---------- */
 /* sauvegarde impossible (common.js) et nouvelle version disponible (sw-client.js) */
 .storage-warn,.sw-update{

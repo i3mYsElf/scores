@@ -128,6 +128,40 @@ test('annulation : la pile est vidée quand la partie se termine', () => {
   assert.ok(w.document.getElementById('undoBtn').hidden);
 });
 
+/* ---------- Accessibilité ---------- */
+test('accessibilité : classement en dialog, focus géré, Escape ferme', () => {
+  const w = loadPage('harmonies.html');
+  const dlg = w.document.querySelector('#rankSheet [role="dialog"]');
+  assert.ok(dlg, 'panel du classement sans role=dialog');
+  assert.equal(dlg.getAttribute('aria-modal'), 'true');
+  click(w, '#openRank');
+  assert.equal(w.document.activeElement, w.document.getElementById('closeRank')); // focus dans le dialog
+  w.document.dispatchEvent(new w.KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+  assert.ok(!w.document.getElementById('rankSheet').classList.contains('open'));
+  assert.equal(w.document.activeElement, w.document.getElementById('openRank')); // focus rendu à l'ouvreur
+});
+
+test('accessibilité : total en aria-live, tablist branché sur le tabpanel', () => {
+  const w = loadPage('harmonies.html');
+  assert.ok(w.document.querySelector('.bar .tot[aria-live="polite"]'));
+  assert.equal(w.document.getElementById('sheetBody').getAttribute('role'), 'tabpanel');
+  assert.equal(w.document.querySelector('#tabs .tab').getAttribute('aria-controls'), 'sheetBody');
+});
+
+test('accessibilité : flèches gauche/droite dans les onglets joueurs', () => {
+  const w = loadPage('harmonies.html');
+  const tabs = w.document.querySelectorAll('#tabs .tab');
+  tabs[0].focus();
+  const arrow = key => w.document.getElementById('tabs')
+    .dispatchEvent(new w.KeyboardEvent('keydown', {key, bubbles: true}));
+  arrow('ArrowRight');
+  assert.equal(w.document.activeElement, tabs[1]);
+  arrow('ArrowLeft');
+  assert.equal(w.document.activeElement, tabs[0]);
+  arrow('ArrowLeft'); // circulaire : revient au dernier (le bouton +)
+  assert.equal(w.document.activeElement, tabs[tabs.length - 1]);
+});
+
 test('écriture localStorage impossible : bannière « sauvegarde impossible »', () => {
   const w = loadPage('harmonies.html');
   assert.equal(w.document.querySelector('.storage-warn'), null);

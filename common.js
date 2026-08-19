@@ -87,6 +87,7 @@ function injectChrome(slug){
     back.insertAdjacentHTML('afterend',
       `<a class="rules" href="${esc(reg.rules)}" target="_blank" rel="noopener">Règles ↗</a>`);
   }
+  document.getElementById('sheetBody').setAttribute('role', 'tabpanel');
   document.getElementById('sheetBody').insertAdjacentHTML('beforebegin', `
   <div class="whois">
     <span class="swatch" id="swatch"></span>
@@ -97,13 +98,13 @@ function injectChrome(slug){
   document.body.insertAdjacentHTML('beforeend', `
   <div class="bar">
     <div class="inner">
-      <div class="tot"><b id="grand">0</b><span id="whoTot"></span></div>
+      <div class="tot" aria-live="polite"><b id="grand">0</b><span id="whoTot"></span></div>
       <button class="undo" id="undoBtn" aria-label="Annuler la dernière saisie" title="Annuler la dernière saisie" hidden>↺</button>
       <button class="go" id="openRank">Classement</button>
     </div>
   </div>
   <div class="sheet" id="rankSheet">
-    <div class="panel"><div class="in">
+    <div class="panel" role="dialog" aria-modal="true" aria-label="Classement"><div class="in">
       <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
       <div id="rankList"></div>
       <button class="close" id="closeRank">Retour à la saisie</button>
@@ -214,7 +215,7 @@ function initSheet(cfg){
   function drawTabs(){
     const t = document.getElementById('tabs');
     t.innerHTML = players.map((p,i)=>`
-      <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" style="color:${i===cur?'var(--bg)':COLORS[i]}">
+      <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" aria-controls="sheetBody" style="color:${i===cur?'var(--bg)':COLORS[i]}">
         <span class="dot" style="color:${COLORS[i]}"></span>${esc(p.nom)}
         <span class="pts">${cfg.score(p.d, players).total}</span>
       </button>`).join('')
@@ -296,7 +297,37 @@ function initSheet(cfg){
         <span class="pt">${p.s.total}</span></div>`;
     }).join('');
     document.getElementById('rankSheet').classList.add('open');
+    document.getElementById('closeRank').focus(); // le dialog prend le focus à l'ouverture
   }
+
+  function closeRank(){
+    document.getElementById('rankSheet').classList.remove('open');
+    document.getElementById('openRank').focus(); // rendre le focus au bouton qui a ouvert
+  }
+
+  /* Clavier : Escape ferme le classement, Tab reste dans le dialog tant qu'il
+     est ouvert (piège de focus léger sur ses boutons). */
+  document.addEventListener('keydown', e=>{
+    const sheet = document.getElementById('rankSheet');
+    if(!sheet.classList.contains('open')) return;
+    if(e.key === 'Escape'){ closeRank(); return; }
+    if(e.key === 'Tab'){
+      const f = sheet.querySelectorAll('button');
+      const first = f[0], last = f[f.length - 1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    }
+  });
+
+  /* Clavier : flèches gauche/droite pour circuler dans les onglets joueurs. */
+  document.getElementById('tabs').addEventListener('keydown', e=>{
+    if(e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const tabs = [...document.querySelectorAll('#tabs .tab')];
+    const i = tabs.indexOf(document.activeElement);
+    if(i < 0) return;
+    e.preventDefault();
+    tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length].focus();
+  });
 
   /* ---------- interactions ---------- */
   function doStep(st){
@@ -352,20 +383,20 @@ function initSheet(cfg){
       players.splice(cur,1); cur = 0; drawSheet(); return;
     }
     if(e.target.id === 'openRank'){ showRank(); return; }
-    if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
+    if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ closeRank(); return; }
     if(e.target.id === 'resetAll'){
       if(started && !confirm('Terminer la partie ? Elle sera archivée dans l\'historique et les scores remis à zéro.')) return;
       archive();
       undoStack.length = 0; // nouvelle partie : rien à annuler
       players = players.map(p=>mk(p.nom)); cur = 0; started = false;
-      document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
+      closeRank(); drawSheet(); return;
     }
     if(e.target.id === 'resetPlayers'){
       if(started && !confirm('Réinitialiser les joueurs et les scores ? La partie en cours sera archivée dans l\'historique.')) return;
       archive();
       undoStack.length = 0; // nouvelle partie : rien à annuler
       players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0; started = false;
-      document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
+      closeRank(); drawSheet(); return;
     }
   });
 
