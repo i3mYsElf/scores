@@ -15,6 +15,7 @@ const PRECACHE = [
   'history.html',
   'common.css',
   'common.js',
+  'sw-client.js',
   'lib/registry.js',
   'lib/backup.js',
   'lib/stats.js',
@@ -36,11 +37,14 @@ const PRECACHE = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));
+});
+
+// La nouvelle version attend le feu vert de l'utilisateur (bannière « Recharger »
+// de sw-client.js) : un skipWaiting automatique mélangerait l'ancien HTML déjà
+// affiché avec les assets de la nouvelle version en pleine partie.
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
@@ -60,8 +64,11 @@ self.addEventListener('fetch', e => {
   const staleWhileRevalidate = () =>
     caches.open(CACHE).then(async c => {
       const hit = await c.match(e.request);
+      // type 'opaque' : réponse cross-origin sans CORS (status masqué, r.ok faux) —
+      // le cas de la CSS Google Fonts chargée sans crossorigin par d'anciennes pages ;
+      // on la met en cache quand même, sinon les polices ne sont jamais dispo offline.
       const net = fetch(e.request)
-        .then(r => { if (r.ok) c.put(e.request, r.clone()); return r; })
+        .then(r => { if (r.ok || r.type === 'opaque') c.put(e.request, r.clone()); return r; })
         .catch(() => hit);
       if (hit) { e.waitUntil(net.then(() => {}, () => {})); return hit; }
       return net;

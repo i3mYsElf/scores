@@ -77,6 +77,31 @@ test('harmonies : Nouvelle partie garde les joueurs, Réinitialiser les remet à
   assert.ok(!w.document.getElementById('tabs').textContent.includes('Manu')); // noms par défaut
 });
 
+test('terminer la partie demande confirmation quand des scores sont saisis', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  w.confirm = () => false;
+  click(w, '#openRank'); click(w, '#resetAll');
+  assert.equal(grand(w), '5'); // refus : rien ne bouge, rien n'est archivé
+  assert.equal(w.localStorage.getItem('scores-history-v1'), null);
+  w.confirm = () => true;
+  click(w, '#resetAll');
+  assert.equal(grand(w), '0');
+  assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1')).length, 1);
+});
+
+test('écriture localStorage impossible : bannière « sauvegarde impossible »', () => {
+  const w = loadPage('harmonies.html');
+  assert.equal(w.document.querySelector('.storage-warn'), null);
+  w.Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
+  click(w, '[data-step="champs"][data-by="1"]');
+  const warn = w.document.querySelector('.storage-warn');
+  assert.ok(warn, 'bannière .storage-warn absente après un échec de sauvegarde');
+  assert.match(warn.textContent, /[Ss]auvegarde impossible/);
+  click(w, '[data-step="champs"][data-by="1"]'); // second échec : pas de doublon
+  assert.equal(w.document.querySelectorAll('.storage-warn').length, 1);
+});
+
 /* ---------- 7 Wonders ---------- */
 test('7 wonders : trésor, science avec joker', () => {
   const w = loadPage('7wonders.html');

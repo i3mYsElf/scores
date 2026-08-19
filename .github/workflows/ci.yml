@@ -36,12 +36,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Stamper la version du cache avec le SHA du commit
-        run: sed -i "s/const VERSION = 'dev'/const VERSION = '${GITHUB_SHA::7}'/" sw.js && grep "const VERSION" sw.js
+        run: |
+          sed -i "s/const VERSION = 'dev'/const VERSION = '${GITHUB_SHA::7}'/" sw.js
+          grep "const VERSION" sw.js
+          if grep -q "const VERSION = 'dev'" sw.js; then
+            echo "Stamping raté : VERSION vaut encore 'dev'"; exit 1
+          fi
       - name: Assembler le site (fichiers publics uniquement)
         run: |
           mkdir _site
           rsync -a --exclude '.git' --exclude '.github' --exclude 'node_modules' \
                 --exclude 'tests' --exclude 'package.json' --exclude 'package-lock.json' \
+                --exclude 'README.md' --exclude 'CLAUDE.md' --exclude '.gitattributes' \
+                --exclude '.claude' --exclude '.idea' \
                 --exclude '_site' ./ _site/
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

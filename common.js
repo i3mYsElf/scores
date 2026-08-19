@@ -16,6 +16,17 @@ const esc = s => String(s).replace(/[&<>"']/g, c =>
 function get(o,p){ const [a,b] = p.split('.'); return b===undefined ? o[a] : o[a][+b]; }
 function set(o,p,v){ const [a,b] = p.split('.'); if(b===undefined) o[a]=v; else o[a][+b]=v; }
 
+/* Écriture localStorage impossible (quota plein, navigation privée Safari,
+   stockage bloqué…) : l'UI continue de fonctionner mais rien ne survivrait à un
+   rechargement — l'utilisateur doit le savoir. Une seule bannière par session. */
+let storageWarned = false;
+function storageWarn(){
+  if(storageWarned) return;
+  storageWarned = true;
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="storage-warn" role="alert">Sauvegarde impossible — les scores seront perdus en quittant la page.</div>');
+}
+
 function sq(color){
   return `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${color};margin-right:7px"></span>`;
 }
@@ -135,7 +146,7 @@ function initSheet(cfg){
         ts: Date.now(), // dernière utilisation — l'accueil ordonne le menu avec
         ...(cfg.extraState ? cfg.extraState() : {})
       }));
-    }catch(e){}
+    }catch(e){ storageWarn(); }
   }
   function load(){
     try{
@@ -230,7 +241,7 @@ function initSheet(cfg){
       h.unshift({g: slug, t: touched ? Date.now() : (loadedTs || Date.now()), players: list});
       localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 200)));
       fillNameSuggestions();
-    }catch(e){}
+    }catch(e){ storageWarn(); }
   }
 
   function showRank(){
@@ -296,6 +307,7 @@ function initSheet(cfg){
     if(e.target.id === 'openRank'){ showRank(); return; }
     if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ document.getElementById('rankSheet').classList.remove('open'); return; }
     if(e.target.id === 'resetAll'){
+      if(started && !confirm('Terminer la partie ? Elle sera archivée dans l\'historique et les scores remis à zéro.')) return;
       archive();
       players = players.map(p=>mk(p.nom)); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
@@ -324,10 +336,6 @@ function initSheet(cfg){
   fillNameSuggestions();
   drawSheet();
 
-  if ('serviceWorker' in navigator){
-    addEventListener('load', ()=>navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}));
-  }
-  // demande au navigateur de ne pas évincer le stockage (parties en cours)
-  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+  // enregistrement du SW, bannière de mise à jour et storage.persist : sw-client.js
   return ctx;
 }

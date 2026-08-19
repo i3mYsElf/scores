@@ -169,6 +169,20 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
 .rank.win .pos{color:var(--accent)}
 .close{width:100%;margin-top:18px;padding:13px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-weight:600;cursor:pointer}
 .reset{width:100%;margin-top:8px;padding:13px;border-radius:9px;border:none;background:transparent;color:var(--danger);font:inherit;font-size:13px;cursor:pointer}
+/* ---------- bannières système ---------- */
+/* sauvegarde impossible (common.js) et nouvelle version disponible (sw-client.js) */
+.storage-warn,.sw-update{
+  position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:60;
+  padding:11px 14px;border-radius:var(--r);font-size:13.5px;font-weight:500;text-align:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.28);
+}
+.storage-warn{background:var(--danger);color:#fff}
+.sw-update{background:var(--card-2);color:var(--ctl-ink);display:flex;gap:12px;align-items:center;justify-content:center}
+.sw-update button{
+  border:none;border-radius:8px;padding:7px 13px;background:var(--accent);color:var(--go-ink);
+  font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+}
+
 @media (prefers-reduced-motion:no-preference){
   .card{animation:rise .3s ease both}
   @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

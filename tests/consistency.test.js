@@ -57,8 +57,28 @@ test('la version du SW committée reste "dev" (stampée au déploiement)', () =>
 });
 
 test('les fichiers communs sont précachés', () => {
-  for (const f of ['.', 'common.css', 'common.js', 'manifest.json', 'lib/registry.js', 'lib/backup.js', 'lib/stats.js', 'history.html']) {
+  for (const f of ['.', 'common.css', 'common.js', 'sw-client.js', 'manifest.json', 'lib/registry.js', 'lib/backup.js', 'lib/stats.js', 'history.html']) {
     assert.ok(precache.includes(f), `${f} absent du PRECACHE`);
+  }
+});
+
+/* Le sens inverse : une entrée du PRECACHE qui n'existe plus sur le disque fait
+   échouer caches.addAll (tout-ou-rien) et donc l'installation entière du SW,
+   silencieusement — le site ne se mettrait plus à jour offline. */
+test('chaque entrée du PRECACHE existe sur le disque', () => {
+  for (const f of precache) {
+    assert.ok(fs.existsSync(path.join(ROOT, f === '.' ? 'index.html' : f)),
+      `${f} précaché mais absent du disque`);
+  }
+});
+
+test('toutes les pages ont lang="fr" et chargent sw-client.js', () => {
+  for (const f of ['index.html', 'history.html', ...GAMES.map(g => gamePage(g.slug))]) {
+    const html = read(f);
+    assert.ok(html.includes('<html lang="fr">'), `${f} : <html lang="fr"> manquant`);
+    assert.ok(html.includes('src="sw-client.js"'), `${f} ne charge pas sw-client.js`);
+    assert.ok(html.includes('rel="stylesheet" crossorigin'),
+      `${f} : la CSS Google Fonts doit être chargée avec crossorigin (cache offline du SW)`);
   }
 });
 

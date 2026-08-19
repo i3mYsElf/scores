@@ -25,7 +25,9 @@ common.js       moteur de feuille partagé : joueurs/onglets, persistance, class
 common.css      styles partagés (onglets joueurs, cartes, steppers, classement…)
 tests/          tests : calculs (scores), aperçus/backup (backup), statistiques (stats), pages réelles dans jsdom (pages), cohérence de la structure (consistency)
 manifest.json   manifest PWA
-sw.js           service worker (offline ; navigations en network-first)
+sw.js           service worker (offline ; navigations en network-first ; nouvelle version activée sur demande)
+sw-client.js    enregistrement du SW + bannière « Nouvelle version disponible » + storage.persist (chargé par toutes les pages)
+404.html        page introuvable servie par GitHub Pages (autonome, liens absolus)
 icons/          icônes de l'app (SVG sources + PNG générés)
 ```
 
