@@ -33,7 +33,10 @@
 <script src="games/harmonies.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score, fixup} = GameLogic;
+const {blank, score: rawScore, fixup} = GameLogic;
+
+let exts = {esprits: false};
+const score = d => rawScore(d, exts);
 
 const TOK = {
   marron:['#9A6B45','#7A5133'], vert:['#6E9C55','#4F7439'], gris:['#93A0A8','#6E7B83'],
@@ -67,10 +70,17 @@ initSheet({
   maxPlayers: () => 4,
   blank, score, fixup,
   stepMin: p => p === 'iles' ? 1 : 0,
+  extraState: () => ({exts}),
+  restoreExtra(s){
+    exts = {esprits: false, ...(s.exts || {})};
+    // sauvegardes d'avant l'extension : des points d'esprit saisis -> elle était jouée
+    if(!s.exts && Array.isArray(s.players) && s.players.some(p => p && p.d && +p.d.esprit))
+      exts.esprits = true;
+  },
   sums: s => ({arbre:s.arbre, mont:s.mont, cb:s.champs+s.batiments, eau:s.eau, animaux:s.animaux+s.esprit}),
   rankParts: s => [
     ['Arbres',s.arbre],['Montagnes',s.mont],['Champs',s.champs],
-    ['Bâtiments',s.batiments],['Eau',s.eau],['Animaux',s.animaux+s.esprit]
+    ['Bâtiments',s.batiments],['Eau',s.eau],['Animaux',s.animaux],['Esprits',s.esprit]
   ],
 
   drawSheet(d){
@@ -111,13 +121,26 @@ initSheet({
     <h2>Cartes animaux <span class="sum" data-sum="animaux">0</span></h2>
     <p class="hint">Additionnez les points inscrits sur vos cartes animaux et saisissez le total.</p>
     ${rowNum(d,'animaux','Points des animaux','total de vos cartes')}
-    ${rowNum(d,'esprit','Esprit de la nature',"Laissez à 0 si vous n'y jouez pas")}
+    ${exts.esprits ? rowNum(d,'esprit','Esprits de la nature','total de vos cartes Esprit') : ''}
+  </div>
+
+  <div class="card">
+    <h2>Extension</h2>
+    <p class="hint">Esprits de la nature : ajoute la ligne des points d'Esprit au décompte (commun à tous les joueurs).</p>
+    <div class="seg">
+      <button data-ext="esprits" aria-pressed="${exts.esprits}">Esprits de la nature</button>
+    </div>
   </div>`;
   },
   afterDraw(d){ drawEau(d); },
 
   onClick(e, ctx){
     const d = ctx.d;
+    const ext = e.target.closest('[data-ext]');
+    if(ext){
+      exts[ext.dataset.ext] = !exts[ext.dataset.ext];
+      ctx.redraw(); return true;
+    }
     const face = e.target.closest('[data-face]');
     if(face){
       d.face = face.dataset.face;

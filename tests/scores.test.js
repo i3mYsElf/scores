@@ -34,10 +34,11 @@ test('Harmonies : îles (face B), minimum 1', () => {
   assert.equal(harmonies.score(d).eau, 15);
 });
 
-test('Harmonies : total complet', () => {
+test('Harmonies : total complet, esprits comptés seulement avec l\'extension', () => {
   const d = harmonies.blank();
   d.arbre = [0,0,2]; d.champs = 2; d.riviere = 4; d.animaux = 13; d.esprit = 3;
-  assert.equal(harmonies.score(d).total, 14 + 10 + 8 + 13 + 3);
+  assert.equal(harmonies.score(d).total, 14 + 10 + 8 + 13); // extension inactive : esprits ignorés
+  assert.equal(harmonies.score(d, {esprits: true}).total, 14 + 10 + 8 + 13 + 3);
 });
 
 test('Harmonies : migration des animaux par carte (ancien format)', () => {

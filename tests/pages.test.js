@@ -923,10 +923,41 @@ test('archive : extension désactivée ou jeu sans extension -> pas de champ ext
   click(w, '#openRank'); click(w, '#resetAll');
   assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].exts, undefined);
 
-  const w2 = loadPage('harmonies.html');
+  const w2 = loadPage('harmonies.html'); // extension présente mais inactive
   click(w2, '[data-step="champs"][data-by="1"]');
   click(w2, '#openRank'); click(w2, '#resetAll');
   assert.equal(JSON.parse(w2.localStorage.getItem('scores-history-v1'))[0].exts, undefined);
+});
+
+test('harmonies : extension Esprits de la nature — ligne conditionnelle, points, archive', () => {
+  const w = loadPage('harmonies.html');
+  assert.equal(w.document.querySelector('[data-num="esprit"]'), null); // masquée sans extension
+  click(w, '[data-ext="esprits"]');
+  type(w, '[data-num="esprit"]', '4');
+  assert.equal(grand(w), '4');
+  assert.ok(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).exts.esprits); // persisté
+  click(w, '#openRank'); click(w, '#resetAll');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].exts,
+    ['Esprits de la nature']);
+  // désactivée : la ligne disparaît et ses points ne comptent plus
+  const w2 = loadPage('harmonies.html');
+  click(w2, '[data-ext="esprits"]');
+  type(w2, '[data-num="esprit"]', '4');
+  click(w2, '[data-ext="esprits"]');
+  assert.equal(grand(w2), '0');
+  assert.equal(w2.document.querySelector('[data-num="esprit"]'), null);
+});
+
+test('harmonies : sauvegarde d\'avant l\'extension avec esprits saisis -> auto-activée, total conservé', () => {
+  const save = JSON.stringify({players: [{nom: 'Manu', d: {champs: 1, esprit: 3}}],
+    cur: 0, started: true, totals: [8]});
+  const w = loadPage('harmonies.html', {'harmonies-score-v1': save});
+  assert.equal(grand(w), '8'); // 5 + 3 : rien n'est perdu
+  assert.equal(w.document.querySelector('[data-ext="esprits"]').getAttribute('aria-pressed'), 'true');
+  // sans esprit saisi : extension inactive par défaut
+  const save2 = JSON.stringify({players: [{nom: 'Manu', d: {champs: 1}}], cur: 0, started: true, totals: [5]});
+  const w2 = loadPage('harmonies.html', {'harmonies-score-v1': save2});
+  assert.equal(w2.document.querySelector('[data-ext="esprits"]').getAttribute('aria-pressed'), 'false');
 });
 
 test('history.html : extensions dans le détail replié, échappées, dépliable sans parts', () => {
