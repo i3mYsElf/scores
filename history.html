@@ -68,15 +68,21 @@ function render(){
       ${stats.map((s,i) => `
         <div class="rank ${i===0 ? 'win' : ''}">
           <span class="pos">${i+1}</span>
-          <span class="nm">${esc(s.nom)}<small>${s.parties} partie${s.parties>1?'s':''}${s.best ? ` · record ${s.best.total} (${esc(NAMES[s.best.g] || s.best.g)})` : ''}</small></span>
+          <span class="nm">${esc(s.nom)}<small>${[
+            `${s.parties} partie${s.parties>1?'s':''}`,
+            s.taux === null ? '' : `${s.taux} % de victoires`,
+            /* record du jeu le plus joué — les totaux ne se comparent pas entre jeux */
+            s.bests.length ? `record ${s.bests[0].total} (${esc(NAMES[s.bests[0].g] || s.bests[0].g)})` : ''
+          ].filter(Boolean).join(' · ')}</small></span>
           <span class="pt">${s.victoires}<small style="display:block;font-size:10px;color:var(--muted)">victoire${s.victoires>1?'s':''}</small></span>
         </div>`).join('')}
     </div>` : '';
 
-  document.getElementById('historyList').innerHTML = h.length ? h.map(e => `
+  document.getElementById('historyList').innerHTML = h.length ? h.map((e, i) => `
     <div class="card">
       <h2>${esc(NAMES[e.g] || e.g)}
-        <span class="sum">${e.t ? new Date(e.t).toLocaleString('fr-FR', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}</span></h2>
+        <span class="sum">${e.t ? new Date(e.t).toLocaleString('fr-FR', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}</span>
+        <button class="kill" data-del="${i}" aria-label="Supprimer cette partie" title="Supprimer cette partie">×</button></h2>
       ${(e.players || []).map((p,i) => `
         <div class="rank ${i===0 ? 'win' : ''}">
           <span class="pos">${i+1}</span>
@@ -87,6 +93,19 @@ function render(){
     : '<p class="hint">Aucune partie terminée pour l\'instant. Les parties s\'archivent ici quand vous terminez une partie depuis le classement d\'une feuille.</p>';
 }
 render();
+
+/* suppression d'une seule partie (l'index suit l'ordre de rendu, re-rendu après) */
+document.getElementById('historyList').addEventListener('click', e=>{
+  const b = e.target.closest('[data-del]');
+  if(!b) return;
+  if(!confirm('Supprimer cette partie de l\'historique ?')) return;
+  let h = [];
+  try{ h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(err){}
+  h.splice(+b.dataset.del, 1);
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); }
+  catch(err){ alert('Suppression impossible : stockage indisponible.'); return; }
+  render();
+});
 
 document.getElementById('clearHist').addEventListener('click', ()=>{
   if(!confirm("Effacer tout l'historique des parties ?")) return;

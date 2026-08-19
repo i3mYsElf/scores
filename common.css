@@ -147,6 +147,12 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
   color:var(--accent-2);font-variant-numeric:tabular-nums;line-height:1;
 }
 .bar .tot span{color:var(--bar-muted);font-size:13px}
+.bar .undo{
+  flex:0 0 auto;width:44px;height:44px;border-radius:50%;padding:0;
+  border:1px solid rgba(255,255,255,.22);background:transparent;color:var(--bar-ink);
+  font-size:19px;line-height:1;cursor:pointer;
+}
+.bar .undo:active{opacity:.7}
 .bar .go{
   background:var(--accent);color:var(--go-ink);border:none;border-radius:9px;
   padding:13px 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;

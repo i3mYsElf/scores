@@ -90,6 +90,44 @@ test('terminer la partie demande confirmation quand des scores sont saisis', () 
   assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1')).length, 1);
 });
 
+test('annulation : chaque geste est annulable, bouton masqué pile vide', () => {
+  const w = loadPage('harmonies.html');
+  assert.ok(w.document.getElementById('undoBtn').hidden);
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '[data-step="arbre.2"][data-by="1"]');
+  assert.equal(grand(w), '12'); // 5 + 7
+  assert.ok(!w.document.getElementById('undoBtn').hidden);
+  click(w, '#undoBtn');
+  assert.equal(grand(w), '5');
+  click(w, '#undoBtn');
+  assert.equal(grand(w), '0');
+  assert.ok(w.document.getElementById('undoBtn').hidden);
+});
+
+test('annulation : une série de frappes dans un même champ = un seul cran', () => {
+  const w = loadPage('wonderfulworld.html');
+  type(w, '[data-num="fixes"]', '4');
+  type(w, '[data-num="fixes"]', '42');
+  assert.equal(grand(w), '42');
+  click(w, '#undoBtn');
+  assert.equal(grand(w), '0'); // retour avant la saisie entière, pas frappe par frappe
+});
+
+test('annulation : un toggle d\'extension (état hors feuille) est annulable', () => {
+  const w = loadPage('7wonders.html');
+  click(w, '[data-ext="leaders"]');
+  assert.equal(w.document.querySelector('[data-ext="leaders"]').getAttribute('aria-pressed'), 'true');
+  click(w, '#undoBtn');
+  assert.equal(w.document.querySelector('[data-ext="leaders"]').getAttribute('aria-pressed'), 'false');
+});
+
+test('annulation : la pile est vidée quand la partie se termine', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#openRank'); click(w, '#resetAll'); // confirm stubbé à true
+  assert.ok(w.document.getElementById('undoBtn').hidden);
+});
+
 test('écriture localStorage impossible : bannière « sauvegarde impossible »', () => {
   const w = loadPage('harmonies.html');
   assert.equal(w.document.querySelector('.storage-warn'), null);
@@ -403,7 +441,7 @@ test('feuilles : suggestions de noms depuis l\'historique (datalist)', () => {
   assert.deepEqual(opts, ['Léa', 'Manu']); // uniques, ordre de récence, « Joueur N » exclus
 });
 
-test('history.html : carte Statistiques (victoires, record), absente si vide', () => {
+test('history.html : carte Statistiques (victoires, taux, record du jeu le plus joué), absente si vide', () => {
   const hist = JSON.stringify([
     {g: 'cascadia',  t: 2, players: [{nom: 'Manu', total: 84}, {nom: 'Léa', total: 70}]},
     {g: 'harmonies', t: 1, players: [{nom: 'Léa', total: 112}, {nom: 'Manu', total: 90}]}
@@ -414,9 +452,28 @@ test('history.html : carte Statistiques (victoires, record), absente si vide', (
   // 1 victoire et 2 parties chacune -> égalité, tri alphabétique : Léa d'abord
   assert.ok(rows[0].querySelector('.nm').textContent.startsWith('Léa'));
   assert.ok(rows[0].querySelector('.pt').textContent.startsWith('1'));
-  assert.ok(rows[0].textContent.includes('record 112 (Harmonies)'));
+  assert.ok(rows[0].textContent.includes('50 % de victoires'));
+  // record du jeu le plus joué (égalité 1-1 -> le plus récent : Cascadia), pas le max inter-jeux
+  assert.ok(rows[0].textContent.includes('record 70 (Cascadia)'));
   const w2 = loadPage('history.html');
   assert.equal(w2.document.getElementById('statsCard').innerHTML, '');
+});
+
+test('history.html : suppression d\'une seule entrée, avec confirmation', () => {
+  const hist = JSON.stringify([
+    {g: 'cascadia',  t: 2, players: [{nom: 'Manu', total: 84}, {nom: 'Léa', total: 70}]},
+    {g: 'harmonies', t: 1, players: [{nom: 'Léa', total: 112}, {nom: 'Manu', total: 90}]}
+  ]);
+  const w = loadPage('history.html', {'scores-history-v1': hist});
+  w.confirm = () => false;
+  click(w, '[data-del="0"]');
+  assert.equal(w.document.querySelectorAll('#historyList .card').length, 2); // refus : rien ne bouge
+  w.confirm = () => true;
+  click(w, '[data-del="0"]');
+  const h = JSON.parse(w.localStorage.getItem('scores-history-v1'));
+  assert.equal(h.length, 1);
+  assert.equal(h[0].g, 'harmonies'); // c'est bien la 1re entrée qui a sauté
+  assert.equal(w.document.querySelectorAll('#historyList .card').length, 1);
 });
 
 /* ---------- Export / import des sauvegardes (page Historique) ---------- */

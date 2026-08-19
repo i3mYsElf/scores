@@ -98,6 +98,7 @@ function injectChrome(slug){
   <div class="bar">
     <div class="inner">
       <div class="tot"><b id="grand">0</b><span id="whoTot"></span></div>
+      <button class="undo" id="undoBtn" aria-label="Annuler la dernière saisie" title="Annuler la dernière saisie" hidden>↺</button>
       <button class="go" id="openRank">Classement</button>
     </div>
   </div>
@@ -129,6 +130,29 @@ function initSheet(cfg){
       if(players.length > maxP()){ players = players.slice(0, maxP()); cur = Math.min(cur, players.length-1); }
     }
   };
+
+  /* ---------- annulation ---------- */
+  /* Un cran par « geste » : un appui sur un stepper (court ou long — snapshoté
+     au pointerdown, la répétition automatique compte pour un seul cran), un
+     bouton de la feuille (segment, ajout/suppression de ligne), une série de
+     frappes dans un même champ, ou un renommage. La pile vit en mémoire
+     seulement (elle couvre le geste malheureux, pas l'archéologie) et restaure
+     l'état complet du moment : joueurs, extensions, joueur courant. */
+  let undoStack = [], lastInputTarget = null;
+  function snap(){
+    lastInputTarget = null;
+    undoStack.push(JSON.stringify({players, cur, ...(cfg.extraState ? cfg.extraState() : {})}));
+    if(undoStack.length > 30) undoStack.shift();
+  }
+  function undo(){
+    if(!undoStack.length) return;
+    const s = JSON.parse(undoStack.pop());
+    if(cfg.restoreExtra) cfg.restoreExtra(s);
+    players = s.players;
+    cur = Math.min(+s.cur || 0, players.length - 1);
+    lastInputTarget = null;
+    drawSheet();
+  }
 
   /* ---------- persistance ---------- */
   /* started : vrai dès la première saisie de score — l'accueil s'en sert pour
@@ -183,6 +207,7 @@ function initSheet(cfg){
     if(cfg.afterRefresh) cfg.afterRefresh(d, s);
     document.getElementById('grand').textContent = s.total;
     document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
+    document.getElementById('undoBtn').hidden = !undoStack.length;
     drawTabs(); save(); syncWakeLock();
   }
 
@@ -270,11 +295,12 @@ function initSheet(cfg){
   /* Appui long sur un stepper : répétition automatique après 400ms, puis toutes
      les 110ms. Le clic émis au relâchement est neutralisé (holdFired) pour ne
      pas compter un cran de plus. */
-  let holdTimer = null, holdInt = null, holdFired = false;
+  let holdTimer = null, holdInt = null, holdFired = false, gestureSnapped = false;
   function stopHold(){ clearTimeout(holdTimer); clearInterval(holdInt); holdTimer = holdInt = null; }
   document.addEventListener('pointerdown', e=>{
     const st = e.target.closest && e.target.closest('[data-step]');
     if(!st) return;
+    snap(); gestureSnapped = true; // l'appui entier (clic ou répétition longue) = un cran d'annulation
     holdFired = false;
     holdTimer = setTimeout(()=>{
       holdFired = true; started = true; touched = true;
@@ -286,13 +312,20 @@ function initSheet(cfg){
   document.addEventListener('pointercancel', stopHold);
 
   document.addEventListener('click', e=>{
-    if(e.target.closest && e.target.closest('#sheetBody button')) started = touched = true;
+    const sb = e.target.closest && e.target.closest('#sheetBody button');
+    if(sb){
+      started = touched = true;
+      if(sb.dataset.step === undefined) snap(); // les steppers sont snapshotés au pointerdown
+    }
     if(cfg.onClick && cfg.onClick(e, ctx)) return;
     const st = e.target.closest('[data-step]');
     if(st){
-      if(holdFired){ holdFired = false; return; }
+      if(holdFired){ holdFired = false; gestureSnapped = false; return; }
+      if(!gestureSnapped) snap(); // clic sans pointerdown (clavier, événement synthétique)
+      gestureSnapped = false;
       doStep(st); return;
     }
+    if(e.target.id === 'undoBtn'){ undo(); return; }
     const tab = e.target.closest('[data-tab]');
     if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
     if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
@@ -309,19 +342,25 @@ function initSheet(cfg){
     if(e.target.id === 'resetAll'){
       if(started && !confirm('Terminer la partie ? Elle sera archivée dans l\'historique et les scores remis à zéro.')) return;
       archive();
+      undoStack.length = 0; // nouvelle partie : rien à annuler
       players = players.map(p=>mk(p.nom)); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }
     if(e.target.id === 'resetPlayers'){
       if(started && !confirm('Réinitialiser les joueurs et les scores ? La partie en cours sera archivée dans l\'historique.')) return;
       archive();
+      undoStack.length = 0; // nouvelle partie : rien à annuler
       players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0; started = false;
       document.getElementById('rankSheet').classList.remove('open'); drawSheet(); return;
     }
   });
 
   document.addEventListener('input', e=>{
-    if(e.target.closest && e.target.closest('#sheetBody input')) started = touched = true;
+    if(e.target.closest && (e.target.closest('#sheetBody input') || e.target.id === 'pname')){
+      if(e.target.id !== 'pname') started = touched = true;
+      // une série de frappes dans un même champ = un seul cran d'annulation
+      if(e.target !== lastInputTarget){ snap(); lastInputTarget = e.target; }
+    }
     if(cfg.onInput && cfg.onInput(e, ctx)) return;
     const d = players[cur].d;
     if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); refresh(); return; }
