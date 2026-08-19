@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin>
 <link rel="stylesheet" href="common.css">
+<script src="theme.js"></script>
 <script src="sw-client.js" defer></script>
 <style>
   /* styles propres à l'accueil */
@@ -39,6 +40,7 @@
     background:var(--card);display:grid;place-items:center;text-decoration:none;
   }
   .tool:active{border-color:var(--muted)}
+  .tool.theme{right:54px}
 </style>
 
 <div class="wrap">
@@ -46,6 +48,24 @@
     <h1 class="title">Scores</h1>
     <p class="subtitle">Feuilles de score de jeux de société</p>
     <p class="hint" id="netState" style="margin-top:10px" hidden>Hors-ligne — vos feuilles restent disponibles.</p>
+    <button class="tool theme" id="themeBtn" type="button" aria-label="Thème">
+      <!-- automatique : cercle mi-clair mi-sombre -->
+      <svg data-mode="auto" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" fill="none" stroke="var(--muted)" stroke-width="2"/>
+        <path d="M12,3.5 A8.5,8.5 0 0 1 12,20.5 Z" fill="var(--muted)"/>
+      </svg>
+      <!-- clair : soleil -->
+      <svg data-mode="light" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" hidden>
+        <circle cx="12" cy="12" r="5" fill="var(--accent)"/>
+        <g stroke="var(--accent)" stroke-width="2" stroke-linecap="round">
+          <path d="M12,2.5 V5 M12,19 V21.5 M2.5,12 H5 M19,12 H21.5 M5.3,5.3 L7,7 M17,17 L18.7,18.7 M18.7,5.3 L17,7 M7,17 L5.3,18.7"/>
+        </g>
+      </svg>
+      <!-- sombre : lune -->
+      <svg data-mode="dark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" hidden>
+        <path d="M20.5,13.5 A9,9 0 1 1 10.5,3.5 7,7 0 0 0 20.5,13.5 Z" fill="var(--accent)"/>
+      </svg>
+    </button>
     <a class="tool" href="history.html" aria-label="Historique et statistiques" title="Historique et statistiques">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
         <rect x="1.5"  y="13" width="6" height="9" rx="1.2" fill="var(--muted)"/>
@@ -216,6 +236,23 @@ document.getElementById('installBtn').addEventListener('click', async ()=>{
   installEvt = null;
   document.getElementById('installBtn').hidden = true;
 });
+
+/* Bascule de thème (theme.js) : automatique -> sombre -> clair -> automatique */
+const themeBtn = document.getElementById('themeBtn');
+const THEME_LABELS = {auto: 'automatique (système)', dark: 'sombre', light: 'clair'};
+function syncThemeBtn(){
+  const t = Theme.get() || 'auto';
+  themeBtn.querySelectorAll('[data-mode]').forEach(el => { el.hidden = el.dataset.mode !== t; });
+  const label = 'Thème : ' + THEME_LABELS[t];
+  themeBtn.title = label;
+  themeBtn.setAttribute('aria-label', label);
+}
+themeBtn.addEventListener('click', ()=>{
+  Theme.set({auto: 'dark', dark: 'light', light: null}[Theme.get() || 'auto']);
+  syncThemeBtn();
+});
+window.addEventListener('storage', e => { if(e.key === Theme.KEY) syncThemeBtn(); });
+syncThemeBtn();
 
 /* Indicateur hors-ligne dans le header */
 function syncNet(){ document.getElementById('netState').hidden = navigator.onLine !== false; }

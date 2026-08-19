@@ -24,8 +24,11 @@
   --p5:#9A6BD0; --p6:#D065A2; --p7:#45AFA5; --p8:#B07A4A;
   --r:12px;
 }
+/* Tokens sombres — le même bloc deux fois : via le thème système (sauf forçage
+   clair) et via le forçage manuel data-theme="dark" posé par theme.js.
+   Un test de cohérence impose que les deux blocs restent identiques. */
 @media (prefers-color-scheme: dark){
-  :root{
+  :root:not([data-theme="light"]){
     --bg:#141414;
     --card:#1F1F1D;
     --card-2:#2C2C29;
@@ -41,6 +44,22 @@
     --overlay:rgba(0,0,0,.65);
     --go-ink:#141414;
   }
+}
+:root[data-theme="dark"]{
+  --bg:#141414;
+  --card:#1F1F1D;
+  --card-2:#2C2C29;
+  --ctl-ink:#F2F2EE;
+  --field:#2C2C29;
+  --line:rgba(242,242,238,.13);
+  --text:#F2F2EE;
+  --muted:#8F8F87;
+  --accent:#FF6B2B;
+  --accent-2:#FF6B2B;
+  --danger:#E05A5A;
+  --bar-bg:rgba(0,0,0,.92); --bar-ink:#F2F2EE; --bar-muted:#8F8F87;
+  --overlay:rgba(0,0,0,.65);
+  --go-ink:#141414;
 }
 *{box-sizing:border-box}
 /* pas de zoom double-tap sur les contrôles (steppers cliqués vite), pinch-zoom conservé */

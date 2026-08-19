@@ -277,6 +277,29 @@ test('7 wonders duel : stepper des Grands Temples plafonné à 3 (stepMax)', () 
   assert.equal(w.document.querySelector('[data-val="temples"]').textContent, '3');
 });
 
+/* ---------- Thème ---------- */
+test('thème : choix persisté appliqué avant le rendu, cycle du bouton, metas alignées', () => {
+  const w = loadPage('index.html', {'scores-theme-v1': 'dark'});
+  assert.equal(w.document.documentElement.dataset.theme, 'dark');
+  w.document.querySelectorAll('meta[name="theme-color"]').forEach(m => assert.equal(m.content, '#141414'));
+  click(w, '#themeBtn'); // sombre -> clair
+  assert.equal(w.document.documentElement.dataset.theme, 'light');
+  assert.equal(w.localStorage.getItem('scores-theme-v1'), 'light');
+  w.document.querySelectorAll('meta[name="theme-color"]').forEach(m => assert.equal(m.content, '#F4F4F1'));
+  click(w, '#themeBtn'); // clair -> automatique
+  assert.equal(w.document.documentElement.dataset.theme, undefined);
+  assert.equal(w.localStorage.getItem('scores-theme-v1'), null);
+  w.document.querySelectorAll('meta[name="theme-color"]').forEach(m =>
+    assert.equal(m.content, m.getAttribute('media').includes('dark') ? '#141414' : '#F4F4F1')); // retour aux media queries
+  click(w, '#themeBtn'); // automatique -> sombre
+  assert.equal(w.document.documentElement.dataset.theme, 'dark');
+});
+
+test('thème : les feuilles appliquent aussi le choix enregistré', () => {
+  const w = loadPage('harmonies.html', {'scores-theme-v1': 'light'});
+  assert.equal(w.document.documentElement.dataset.theme, 'light');
+});
+
 /* ---------- Multi-onglets ---------- */
 test('multi-onglets : une écriture externe recharge la feuille au lieu de l\'écraser', () => {
   const w = loadPage('harmonies.html');

@@ -16,6 +16,7 @@ const PRECACHE = [
   'common.css',
   'common.js',
   'sw-client.js',
+  'theme.js',
   'lib/registry.js',
   'lib/backup.js',
   'lib/stats.js',

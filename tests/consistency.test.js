@@ -57,7 +57,7 @@ test('la version du SW committée reste "dev" (stampée au déploiement)', () =>
 });
 
 test('les fichiers communs sont précachés', () => {
-  for (const f of ['.', 'common.css', 'common.js', 'sw-client.js', 'manifest.json', 'lib/registry.js', 'lib/backup.js', 'lib/stats.js', 'history.html']) {
+  for (const f of ['.', 'common.css', 'common.js', 'sw-client.js', 'theme.js', 'manifest.json', 'lib/registry.js', 'lib/backup.js', 'lib/stats.js', 'history.html']) {
     assert.ok(precache.includes(f), `${f} absent du PRECACHE`);
   }
 });
@@ -72,14 +72,25 @@ test('chaque entrée du PRECACHE existe sur le disque', () => {
   }
 });
 
-test('toutes les pages ont lang="fr" et chargent sw-client.js', () => {
+test('toutes les pages ont lang="fr" et chargent sw-client.js et theme.js', () => {
   for (const f of ['index.html', 'history.html', ...GAMES.map(g => gamePage(g.slug))]) {
     const html = read(f);
     assert.ok(html.includes('<html lang="fr">'), `${f} : <html lang="fr"> manquant`);
     assert.ok(html.includes('src="sw-client.js"'), `${f} ne charge pas sw-client.js`);
+    assert.ok(html.includes('src="theme.js"'), `${f} ne charge pas theme.js (bascule de thème)`);
     assert.ok(html.includes('rel="stylesheet" crossorigin'),
       `${f} : la CSS Google Fonts doit être chargée avec crossorigin (cache offline du SW)`);
   }
+});
+
+/* Le forçage manuel duplique les tokens sombres du média system : les deux
+   blocs doivent rester strictement identiques (voir common.css). */
+test('thème : les deux blocs de tokens sombres de common.css sont identiques', () => {
+  const css = read('common.css');
+  const blocks = [...css.matchAll(/:root(?::not\(\[data-theme="light"\]\)|\[data-theme="dark"\])\{([^}]*)\}/g)]
+    .map(m => m[1].replace(/\s+/g, ' ').trim());
+  assert.equal(blocks.length, 2, 'blocs de tokens sombres introuvables');
+  assert.equal(blocks[0], blocks[1], 'les tokens sombres système et data-theme="dark" divergent');
 });
 
 test('la clé d\'historique du registre est celle qu\'écrit common.js', () => {

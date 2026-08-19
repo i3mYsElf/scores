@@ -24,6 +24,7 @@ lib/stats.js    statistiques par joueur depuis l'historique — logique pure
 lib/domino.js   partagé Kingdomino/Queendomino : domaines cases × couronnes (départage, rendu de liste, interactions)
 common.js       moteur de feuille partagé : joueurs/onglets, persistance, classement, événements
 common.css      styles partagés (onglets joueurs, cartes, steppers, classement…)
+theme.js        bascule clair/sombre persistée (clé scores-theme-v1), chargé bloquant dans le head de chaque page
 tests/          tests : calculs (scores), aperçus/backup (backup), statistiques (stats), pages réelles dans jsdom (pages), cohérence de la structure (consistency), stratégies du service worker (sw)
 manifest.json   manifest PWA
 sw.js           service worker (offline ; navigations en network-first ; nouvelle version activée sur demande)
