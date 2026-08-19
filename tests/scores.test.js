@@ -267,6 +267,27 @@ test('Kingdomino : feuille vide = 0', () => {
   assert.equal(kingdomino.score(kingdomino.blank()).total, 0);
 });
 
+test('Kingdomino : Age of Giants — les défis remplacent les bonus des variantes', () => {
+  const d = kingdomino.blank();
+  d.domaines = [{c:5,k:1}];
+  d.harmonie = true; d.milieu = true;
+  d.defis = [12, 7];
+  // sans extension : bonus comptés, défis ignorés
+  assert.equal(kingdomino.score(d).total, 20); // 5 + 5 + 10
+  // avec : défis comptés, bonus remplacés
+  const s = kingdomino.score(d, {geants: true});
+  assert.equal(s.defis, 19);
+  assert.equal(s.bonus, 0);
+  assert.equal(s.total, 24); // 5 + 12 + 7
+});
+
+test('Kingdomino : fixup répare domaines et défis manquants (anciennes sauvegardes)', () => {
+  const d = {};
+  kingdomino.fixup(d);
+  assert.deepEqual(d.domaines, [{c:0,k:0}]);
+  assert.deepEqual(d.defis, [0,0]);
+});
+
 /* ---------- Queendomino ---------- */
 test('Queendomino : domaines + bâtiments + quêtes + trésor', () => {
   const d = queendomino.blank();

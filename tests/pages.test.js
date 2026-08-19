@@ -330,6 +330,11 @@ test('thème : choix persisté appliqué avant le rendu, cycle du bouton, metas 
     assert.equal(m.content, m.getAttribute('media').includes('dark') ? '#141414' : '#F4F4F1')); // retour aux media queries
   click(w, '#themeBtn'); // automatique -> sombre
   assert.equal(w.document.documentElement.dataset.theme, 'dark');
+  // une seule icône visible à la fois (hidden est sans effet sur les SVG — bug vu en prod)
+  const visibles = [...w.document.querySelectorAll('#themeBtn [data-mode]')]
+    .filter(el => el.style.display !== 'none');
+  assert.equal(visibles.length, 1);
+  assert.equal(visibles[0].dataset.mode, 'dark');
 });
 
 test('thème : les feuilles appliquent aussi le choix enregistré', () => {
@@ -709,6 +714,32 @@ test('kingdomino : domaines dynamiques et bonus de variantes', () => {
   assert.equal(saved.players[0].d.milieu, true);
   click(w, '[data-deldom="0"]');
   assert.equal(grand(w), '14'); // 4×1 + 10
+});
+
+test('kingdomino : extension Age of Giants — défis, 5e joueur, bonus remplacés', () => {
+  const w = loadPage('kingdomino.html');
+  assert.ok(w.document.querySelector('[data-bonus="harmonie"]')); // variantes visibles sans extension
+  click(w, '[data-ext="geants"]');
+  assert.equal(w.document.querySelector('[data-bonus="harmonie"]'), null); // remplacées par les défis
+  type(w, '[data-num="defis.0"]', '12');
+  type(w, '[data-num="defis.1"]', '7');
+  assert.equal(grand(w), '19');
+  assert.ok(JSON.parse(w.localStorage.getItem('kingdomino-score-v1')).exts.geants); // persisté
+  // 5e joueur possible avec l'extension
+  click(w, '#addP'); click(w, '#addP'); click(w, '#addP');
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 5);
+  assert.equal(w.document.getElementById('addP'), null); // plafond atteint
+  // désactivation : retour à 4 joueurs max, défis ignorés au total
+  click(w, '[data-ext="geants"]');
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 4);
+});
+
+test('kingdomino : sauvegarde Age of Giants relue (extension active, défis comptés)', () => {
+  const save = JSON.stringify({players: [{nom: 'A', d: {domaines: [{c:3,k:2}], defis: [5,0]}}],
+    cur: 0, started: true, totals: [11], exts: {geants: true}});
+  const w = loadPage('kingdomino.html', {'kingdomino-score-v1': save});
+  assert.equal(grand(w), '11'); // 6 de domaines + 5 de défi
+  assert.equal(w.document.querySelector('[data-ext="geants"]').getAttribute('aria-pressed'), 'true');
 });
 
 test('kingdomino : départage au plus grand domaine', () => {

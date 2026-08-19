@@ -34,24 +34,36 @@
 <script src="games/kingdomino.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score} = GameLogic;
+const {blank, score: rawScore, fixup} = GameLogic;
 // tout ce qui touche aux domaines (rendu, interactions, départage) est partagé
 // avec Queendomino dans lib/domino.js
-const {fixupDomaines, domsRankExtra, domsTiebreak, domsDraw, domsRefresh, domsClick, domsInput} = GameDomino;
+const {domsRankExtra, domsTiebreak, domsDraw, domsRefresh, domsClick, domsInput} = GameDomino;
+
+let exts = {geants: false};
+const score = d => rawScore(d, exts);
 
 initSheet({
   key: 'kingdomino-score-v1',
   startPlayers: 2,
-  maxPlayers: () => 4,
-  blank, score,
-  fixup: fixupDomaines,
-  sums: s => ({domaines:s.domaines, bonus:s.bonus}),
-  rankParts: s => [['Domaines',s.domaines],['Bonus',s.bonus]],
+  maxPlayers: () => exts.geants ? 5 : 4, // Age of Giants ajoute un 5e joueur
+  blank, score, fixup,
+  extraState: () => ({exts}),
+  restoreExtra: s => { exts = {...exts, ...(s.exts||{})}; },
+  sums: s => ({domaines:s.domaines, bonus:s.bonus, defis:s.defis}),
+  rankParts: s => [['Domaines',s.domaines],['Bonus',s.bonus],['Défis',s.defis]],
   rankExtra: domsRankExtra,
   tiebreak: domsTiebreak,
 
   drawSheet(d){
     return `
+  <div class="card">
+    <h2>Extension</h2>
+    <p class="hint">Age of Giants : jusqu'à 5 joueurs, 2 tuiles Défi tirées en début de partie, et les géants couvrent des couronnes — ne comptez que les couronnes visibles dans vos domaines.</p>
+    <div class="seg">
+      <button data-ext="geants" aria-pressed="${exts.geants}">Age of Giants</button>
+    </div>
+  </div>
+
   <div class="card">
     <h2>${sq('var(--jaune)')}Domaines <span class="sum" data-sum="domaines">0</span></h2>
     <p class="hint">Un domaine = des cases du même terrain connectées entre elles (les diagonales ne comptent pas). Une ligne par domaine : ses cases × ses couronnes, l'app fait la multiplication. Sans couronne, un domaine vaut 0. En cas d'égalité au score, le plus grand domaine l'emporte.</p>
@@ -59,6 +71,13 @@ initSheet({
     <button class="ghost" id="addDom">+ Ajouter un domaine</button>
   </div>
 
+  ${exts.geants ? `
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Défis <span class="sum" data-sum="defis">0</span></h2>
+    <p class="hint">Les points gagnés sur les 2 tuiles Défi de la partie (elles remplacent les bonus des variantes classiques).</p>
+    ${rowNum(d,'defis.0','Défi 1')}
+    ${rowNum(d,'defis.1','Défi 2')}
+  </div>` : `
   <div class="card">
     <h2>${sq('var(--vert)')}Bonus des variantes <span class="sum" data-sum="bonus">0</span></h2>
     <p class="hint">Harmonie : royaume complet, aucun domino défaussé. Empire du Milieu : château au centre du royaume. Ignorez si vous jouez sans.</p>
@@ -66,12 +85,18 @@ initSheet({
       <button data-bonus="harmonie" aria-pressed="${d.harmonie}">Harmonie +5</button>
       <button data-bonus="milieu" aria-pressed="${d.milieu}">Empire du Milieu +10</button>
     </div>
-  </div>`;
+  </div>`}`;
   },
   afterDraw: domsDraw,
   afterRefresh: domsRefresh,
 
   onClick(e, ctx){
+    const ext = e.target.closest('[data-ext]');
+    if(ext){
+      exts[ext.dataset.ext] = !exts[ext.dataset.ext];
+      ctx.trimToMax(); // retour à 4 joueurs max si on désactive
+      ctx.redraw(); return true;
+    }
     if(domsClick(e, ctx)) return true;
     const d = ctx.d;
     const bonus = e.target.closest('[data-bonus]');
