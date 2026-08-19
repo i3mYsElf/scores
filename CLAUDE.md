@@ -25,14 +25,15 @@ Suivre la recette du README (games/*.js → tests → registre → page → cart
 
 ## Vérification avant push
 
-1. `npm install` (une fois), puis `node --test` — six familles de tests :
+1. `npm install` (une fois), puis `node --test` — sept familles de tests :
    - `tests/scores.test.js` : les barèmes (à compléter pour tout nouveau jeu)
    - `tests/backup.test.js` : la logique pure aperçus/export/import/CSV de `lib/backup.js`
    - `tests/stats.test.js` : les statistiques par joueur de `lib/stats.js`
    - `tests/pages.test.js` : les pages réelles dans jsdom (moteur, interactions, échappement, anciens formats de sauvegarde)
    - `tests/consistency.test.js` : la structure (PRECACHE, menu, clés, shortcuts) — attrape les oublis de la recette
    - `tests/sw.test.js` : les stratégies de cache de `sw.js` rejouées dans un bac à sable Node
-2. `node --check sw.js common.js games/*.js lib/*.js` et `npx eslint .` (la CI lance les deux)
+   - `tests/sw-client.test.js` : la moitié client de la mise à jour (`sw-client.js` : bannière, SKIP_WAITING, anti-boucle de rechargement) rejouée en jsdom avec un faux `navigator.serviceWorker`
+2. `node --check sw.js sw-client.js theme.js common.js games/*.js lib/*.js` et `npx eslint .` (la CI lance les deux)
 3. Servir en local : `npx serve .` (le SW exige localhost ou HTTPS)
 
 ## Déploiement

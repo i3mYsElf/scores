@@ -17,9 +17,9 @@ jobs:
         run: npm ci
       - name: Vérification syntaxe
         run: |
-          node --check sw.js
-          node --check common.js
-          for f in games/*.js lib/*.js; do node --check "$f"; done
+          for f in sw.js sw-client.js theme.js common.js games/*.js lib/*.js; do
+            node --check "$f"
+          done
       - name: Lint
         run: npx eslint .
       - name: Tests
@@ -28,6 +28,11 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: test
+    # deux pushes rapprochés : les déploiements Pages se suivent au lieu de
+    # se chevaucher (sans annuler celui en cours, le dernier gagne)
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -44,14 +49,31 @@ jobs:
           if grep -q "const VERSION = 'dev'" sw.js; then
             echo "Stamping raté : VERSION vaut encore 'dev'"; exit 1
           fi
-      - name: Assembler le site (fichiers publics uniquement)
+      - name: Assembler le site (allowlist — un fichier non listé n'est pas publié)
         run: |
           mkdir _site
-          rsync -a --exclude '.git' --exclude '.github' --exclude 'node_modules' \
-                --exclude 'tests' --exclude 'package.json' --exclude 'package-lock.json' \
-                --exclude 'README.md' --exclude 'CLAUDE.md' --exclude '.gitattributes' \
-                --exclude '.claude' --exclude '.idea' --exclude 'eslint.config.mjs' \
-                --exclude '_site' ./ _site/
+          rsync -a \
+            --include='/*.html' --include='/*.css' --include='/*.js' \
+            --include='/manifest.json' \
+            --include='/lib/***' --include='/games/***' --include='/icons/***' \
+            --exclude='*' ./ _site/
+      - name: Vérifier le site assemblé (précache complet, rien de privé)
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pre = [...fs.readFileSync('sw.js', 'utf8')
+              .match(/PRECACHE = \[([^\]]*)\]/s)[1]
+              .matchAll(/'([^']+)'/g)].map(m => m[1]);
+            const missing = pre.filter(f => !fs.existsSync('_site/' + (f === '.' ? 'index.html' : f)));
+            const leaked = ['tests', 'package.json', 'package-lock.json', 'node_modules',
+              '.github', '.git', '.gitignore', 'README.md', 'CLAUDE.md', 'eslint.config.mjs']
+              .filter(f => fs.existsSync('_site/' + f));
+            if (missing.length || leaked.length) {
+              console.error('précache manquant :', missing, '— fichiers privés publiés :', leaked);
+              process.exit(1);
+            }
+            console.log(pre.length + ' entrées du précache présentes, rien de privé dans _site');
+          "
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
