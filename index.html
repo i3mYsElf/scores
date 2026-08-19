@@ -55,14 +55,14 @@
         <path d="M12,3.5 A8.5,8.5 0 0 1 12,20.5 Z" fill="var(--muted)"/>
       </svg>
       <!-- clair : soleil -->
-      <svg data-mode="light" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" hidden>
+      <svg data-mode="light" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="display:none">
         <circle cx="12" cy="12" r="5" fill="var(--accent)"/>
         <g stroke="var(--accent)" stroke-width="2" stroke-linecap="round">
           <path d="M12,2.5 V5 M12,19 V21.5 M2.5,12 H5 M19,12 H21.5 M5.3,5.3 L7,7 M17,17 L18.7,18.7 M18.7,5.3 L17,7 M7,17 L5.3,18.7"/>
         </g>
       </svg>
       <!-- sombre : lune -->
-      <svg data-mode="dark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" hidden>
+      <svg data-mode="dark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="display:none">
         <path d="M20.5,13.5 A9,9 0 1 1 10.5,3.5 7,7 0 0 0 20.5,13.5 Z" fill="var(--accent)"/>
       </svg>
     </button>
@@ -242,7 +242,8 @@ const themeBtn = document.getElementById('themeBtn');
 const THEME_LABELS = {auto: 'automatique (système)', dark: 'sombre', light: 'clair'};
 function syncThemeBtn(){
   const t = Theme.get() || 'auto';
-  themeBtn.querySelectorAll('[data-mode]').forEach(el => { el.hidden = el.dataset.mode !== t; });
+  // style.display et non hidden : l'attribut hidden est sans effet sur les SVG
+  themeBtn.querySelectorAll('[data-mode]').forEach(el => { el.style.display = el.dataset.mode === t ? '' : 'none'; });
   const label = 'Thème : ' + THEME_LABELS[t];
   themeBtn.title = label;
   themeBtn.setAttribute('aria-label', label);
