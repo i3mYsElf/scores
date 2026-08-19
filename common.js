@@ -94,9 +94,11 @@ function injectChrome(slug){
   document.getElementById('sheetBody').setAttribute('role', 'tabpanel');
   document.getElementById('sheetBody').insertAdjacentHTML('beforebegin', `
   <div class="whois">
-    <span class="swatch" id="swatch"></span>
+    <button class="swatch" id="swatch" type="button" aria-label="Changer la couleur de ce joueur" title="Changer la couleur"></button>
     <input id="pname" aria-label="Nom du joueur" autocomplete="off" spellcheck="false" list="pnames">
     <datalist id="pnames"></datalist>
+    <button class="mv" id="mvL" type="button" aria-label="Avancer ce joueur dans l'ordre du tour" title="Avancer dans l'ordre" hidden>◂</button>
+    <button class="mv" id="mvR" type="button" aria-label="Reculer ce joueur dans l'ordre du tour" title="Reculer dans l'ordre" hidden>▸</button>
     <button class="kill" id="kill" title="Retirer ce joueur" hidden>×</button>
   </div>`);
   document.body.insertAdjacentHTML('beforeend', `
@@ -123,8 +125,16 @@ function initSheet(cfg){
   const slug = cfg.key.replace('-score-v1','');
   injectChrome(slug);
   const maxP = cfg.maxPlayers || (()=>4);
-  const mk = nom => ({nom, d: cfg.blank()});
-  let players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1)));
+  /* c : couleur du joueur (index dans COLORS) — attachée au joueur, pas à sa
+     position, pour survivre au réordonnancement. Sans c explicite : première
+     couleur libre. */
+  const freeColor = () => {
+    const used = new Set(players.map(p => p.c));
+    for(let i = 0; i < COLORS.length; i++) if(!used.has(i)) return i;
+    return players.length % COLORS.length;
+  };
+  const mk = (nom, c) => ({nom, d: cfg.blank(), c: c !== undefined ? c : freeColor()});
+  let players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1), i));
   let cur = 0;
 
   const ctx = {
@@ -183,7 +193,12 @@ function initSheet(cfg){
       if(!s || !Array.isArray(s.players) || !s.players.length) return;
       loadedTs = +s.ts || 0; // avant le premier save(), qui écrase ts
       if(cfg.restoreExtra) cfg.restoreExtra(s);
-      players = s.players.slice(0, maxP()).map((p,i)=>({nom: p.nom || 'Joueur '+(i+1), d: {...cfg.blank(), ...p.d}}));
+      players = s.players.slice(0, maxP()).map((p,i)=>({
+        nom: p.nom || 'Joueur '+(i+1),
+        d: {...cfg.blank(), ...p.d},
+        // anciennes sauvegardes sans couleur : par position, comme avant
+        c: Number.isInteger(p.c) && p.c >= 0 && p.c < COLORS.length ? p.c : i
+      }));
       if(cfg.fixup) players.forEach(p=>cfg.fixup(p.d));
       cur = Math.min(+s.cur || 0, players.length-1);
       if(s.started !== undefined) started = !!s.started;
@@ -222,14 +237,18 @@ function initSheet(cfg){
   function drawTabs(){
     const t = document.getElementById('tabs');
     t.innerHTML = players.map((p,i)=>`
-      <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" aria-controls="sheetBody" style="color:${i===cur?'var(--bg)':COLORS[i]}">
-        <span class="dot" style="color:${COLORS[i]}"></span>${esc(p.nom)}
+      <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" aria-controls="sheetBody" style="color:${i===cur?'var(--bg)':COLORS[p.c]}">
+        <span class="dot" style="color:${COLORS[p.c]}"></span>${esc(p.nom)}
         <span class="pts">${cfg.score(p.d, players).total}</span>
       </button>`).join('')
       + (players.length < maxP() ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
     document.getElementById('pname').value = players[cur].nom;
-    document.getElementById('swatch').style.background = COLORS[cur];
+    document.getElementById('swatch').style.background = COLORS[players[cur].c];
     document.getElementById('kill').hidden = players.length < 2;
+    const mvL = document.getElementById('mvL'), mvR = document.getElementById('mvR');
+    mvL.hidden = mvR.hidden = players.length < 2;
+    mvL.disabled = cur === 0;
+    mvR.disabled = cur === players.length - 1;
   }
 
   /* Suggestions de noms au renommage : derniers joueurs vus dans l'historique,
@@ -292,7 +311,7 @@ function initSheet(cfg){
   }
 
   function showRank(){
-    const list = players.map((p,i)=>({...p, s:cfg.score(p.d, players), c:COLORS[i]}))
+    const list = players.map(p=>({...p, s:cfg.score(p.d, players), c:COLORS[p.c]}))
       .sort((a,b)=> b.s.total - a.s.total || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0));
     document.getElementById('rankList').innerHTML = list.map((p,i)=>{
       const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ')
@@ -382,6 +401,23 @@ function initSheet(cfg){
       doStep(st); return;
     }
     if(e.target.id === 'undoBtn'){ undo(); return; }
+    if(e.target.id === 'swatch'){
+      // couleur libre suivante (jamais celle d'un autre joueur) — annulable
+      const used = new Set(players.filter((_,i)=>i!==cur).map(p=>p.c));
+      for(let k = 1; k < COLORS.length; k++){
+        const cand = (players[cur].c + k) % COLORS.length;
+        if(!used.has(cand)){ snap(); players[cur].c = cand; refresh(); break; }
+      }
+      return;
+    }
+    if(e.target.id === 'mvL' || e.target.id === 'mvR'){
+      const j = cur + (e.target.id === 'mvL' ? -1 : 1);
+      if(j < 0 || j >= players.length) return;
+      snap();
+      [players[cur], players[j]] = [players[j], players[cur]];
+      cur = j; // le joueur déplacé reste sélectionné
+      drawSheet(); return;
+    }
     const tab = e.target.closest('[data-tab]');
     if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
     if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
@@ -399,14 +435,14 @@ function initSheet(cfg){
       if(started && !confirm('Terminer la partie ? Elle sera archivée dans l\'historique et les scores remis à zéro.')) return;
       archive();
       undoStack.length = 0; // nouvelle partie : rien à annuler
-      players = players.map(p=>mk(p.nom)); cur = 0; started = false;
+      players = players.map(p=>mk(p.nom, p.c)); cur = 0; started = false; // noms et couleurs conservés
       closeRank(); drawSheet(); return;
     }
     if(e.target.id === 'resetPlayers'){
       if(started && !confirm('Réinitialiser les joueurs et les scores ? La partie en cours sera archivée dans l\'historique.')) return;
       archive();
       undoStack.length = 0; // nouvelle partie : rien à annuler
-      players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1))); cur = 0; started = false;
+      players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1), i)); cur = 0; started = false;
       closeRank(); drawSheet(); return;
     }
   });

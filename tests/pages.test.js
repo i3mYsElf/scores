@@ -277,6 +277,43 @@ test('7 wonders duel : stepper des Grands Temples plafonné à 3 (stepMax)', () 
   assert.equal(w.document.querySelector('[data-val="temples"]').textContent, '3');
 });
 
+/* ---------- Joueurs : ordre du tour et couleurs ---------- */
+test('joueurs : réordonner le joueur courant (scores et sélection suivent), annulable', () => {
+  const w = loadPage('harmonies.html');
+  type(w, '#pname', 'Manu');
+  click(w, '[data-step="champs"][data-by="1"]'); // Manu : 5 pts, en position 1
+  assert.ok(w.document.getElementById('mvL').disabled);   // déjà premier
+  assert.ok(!w.document.getElementById('mvR').disabled);
+  click(w, '#mvR');
+  const tabs = [...w.document.querySelectorAll('[data-tab]')];
+  assert.ok(tabs[1].textContent.includes('Manu')); // passé en position 2
+  assert.equal(grand(w), '5');                     // toujours sélectionné, avec ses points
+  assert.ok(w.document.getElementById('mvR').disabled); // désormais dernier
+  const saved = JSON.parse(w.localStorage.getItem('harmonies-score-v1'));
+  assert.equal(saved.players[1].nom, 'Manu'); // ordre persisté
+  click(w, '#undoBtn');
+  assert.equal(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).players[0].nom, 'Manu');
+});
+
+test('joueurs : tap sur la pastille = couleur libre suivante, jamais celle d\'un autre', () => {
+  const w = loadPage('harmonies.html'); // couleurs initiales : 0 et 1
+  click(w, '#swatch'); // joueur 1 : 0 -> saute 1 (pris) -> 2
+  let s = JSON.parse(w.localStorage.getItem('harmonies-score-v1'));
+  assert.equal(s.players[0].c, 2);
+  assert.equal(s.players[1].c, 1);
+  click(w, '[data-tab="1"]');
+  click(w, '#swatch'); // joueur 2 : 1 -> saute 2 (pris) -> 3
+  s = JSON.parse(w.localStorage.getItem('harmonies-score-v1'));
+  assert.equal(s.players[1].c, 3);
+});
+
+test('joueurs : ancienne sauvegarde sans couleurs relue avec les couleurs par position', () => {
+  const legacy = JSON.stringify({players: [{nom: 'A', d: {}}, {nom: 'B', d: {}}], cur: 0, started: true, totals: [0, 0]});
+  const w = loadPage('harmonies.html', {'harmonies-score-v1': legacy});
+  const s = JSON.parse(w.localStorage.getItem('harmonies-score-v1'));
+  assert.deepEqual(s.players.map(p => p.c), [0, 1]);
+});
+
 /* ---------- Thème ---------- */
 test('thème : choix persisté appliqué avant le rendu, cycle du bouton, metas alignées', () => {
   const w = loadPage('index.html', {'scores-theme-v1': 'dark'});
