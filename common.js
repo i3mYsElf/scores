@@ -115,6 +115,7 @@ function injectChrome(slug){
     <div class="panel" role="dialog" aria-modal="true" aria-label="Classement"><div class="in">
       <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
       <div id="rankList"></div>
+      <button class="share" id="shareRank" type="button" hidden>Partager le classement</button>
       <button class="close" id="closeRank">Retour à la saisie</button>
       <button class="reset" id="resetAll">Terminer la partie (mêmes joueurs)</button>
       <button class="reset" id="resetPlayers">Réinitialiser joueurs et scores</button>
@@ -126,6 +127,9 @@ function injectChrome(slug){
 function initSheet(cfg){
   const slug = cfg.key.replace('-score-v1','');
   injectChrome(slug);
+  const reg = (typeof GameRegistry !== 'undefined')
+    && GameRegistry.GAMES.find(g => g.slug === slug);
+  const gameName = (reg && reg.name) || slug;
   const maxP = cfg.maxPlayers || (()=>4);
   /* c : couleur du joueur (index dans COLORS) — attachée au joueur, pas à sa
      position, pour survivre au réordonnancement. Sans c explicite : première
@@ -346,7 +350,44 @@ function initSheet(cfg){
         <span class="pt">${p.s.total}</span></div>`;
     }).join('');
     document.getElementById('rankSheet').classList.add('open');
+    // partage : seulement si des scores ont été saisis et qu'un canal existe
+    document.getElementById('shareRank').hidden =
+      !started || !(navigator.share || navigator.clipboard);
     document.getElementById('closeRank').focus(); // le dialog prend le focus à l'ouverture
+  }
+
+  /* Texte du classement pour partage (le groupe de la soirée) : jeu, extensions
+     actives, date, puis une ligne par joueur — mêmes positions partagées que le
+     panneau, 🏆 pour chaque vainqueur. En solo, pas de position. */
+  function shareText(){
+    const list = players.map(p=>({nom:p.nom, d:p.d, s:cfg.score(p.d, players)})).sort(rankCmp);
+    const pos = positions(list);
+    const exts = [...document.querySelectorAll('#sheetBody [data-ext][aria-pressed="true"]')]
+      .map(b => b.textContent.trim());
+    return gameName + (exts.length ? ' (' + exts.join(', ') + ')' : '')
+      + ' — ' + new Date().toLocaleDateString('fr-FR') + '\n'
+      + list.map((p,i) =>
+          (list.length > 1 ? (pos[i] === 1 ? '🏆 ' : pos[i] + '. ') : '')
+          + p.nom + ' — ' + p.s.total + ' pts').join('\n');
+  }
+
+  /* Partage natif si disponible, copie dans le presse-papier sinon (le bouton
+     n'apparaît que si l'un des deux existe). L'annulation du partage par
+     l'utilisateur n'est pas une erreur. */
+  let shareResetTimer = null;
+  async function shareRank(){
+    const text = shareText();
+    if(navigator.share){
+      try{ await navigator.share({text}); }catch(e){}
+      return;
+    }
+    try{
+      await navigator.clipboard.writeText(text);
+      const b = document.getElementById('shareRank');
+      b.textContent = 'Classement copié ✓';
+      clearTimeout(shareResetTimer);
+      shareResetTimer = setTimeout(()=>{ b.textContent = 'Partager le classement'; }, 1500);
+    }catch(e){}
   }
 
   function closeRank(){
@@ -453,6 +494,7 @@ function initSheet(cfg){
       players.splice(cur,1); cur = 0; drawSheet(); return;
     }
     if(e.target.id === 'openRank'){ showRank(); return; }
+    if(e.target.id === 'shareRank'){ shareRank(); return; }
     if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ closeRank(); return; }
     if(e.target.id === 'resetAll'){
       if(started && !confirm('Terminer la partie ? Elle sera archivée dans l\'historique et les scores remis à zéro.')) return;

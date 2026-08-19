@@ -128,6 +128,65 @@ test('annulation : la pile est vidée quand la partie se termine', () => {
   assert.ok(w.document.getElementById('undoBtn').hidden);
 });
 
+/* ---------- Partage du classement ---------- */
+test('partage : bouton masqué sans score ou sans canal, texte partagé correct', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '#openRank');
+  assert.ok(w.document.getElementById('shareRank').hidden); // aucun score saisi
+  click(w, '#closeRank');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#openRank');
+  assert.ok(w.document.getElementById('shareRank').hidden); // jsdom : ni share ni clipboard
+  click(w, '#closeRank');
+
+  let shared = null;
+  w.navigator.share = data => { shared = data; return Promise.resolve(); };
+  click(w, '#openRank');
+  assert.ok(!w.document.getElementById('shareRank').hidden);
+  click(w, '#shareRank');
+  const lines = shared.text.split('\n');
+  assert.equal(lines[0], 'Harmonies — ' + new w.Date().toLocaleDateString('fr-FR'));
+  assert.equal(lines[1], '🏆 Joueur 1 — 5 pts');
+  assert.equal(lines[2], '2. Joueur 2 — 0 pts');
+});
+
+test('partage : ex æquo tous vainqueurs, solo sans position', () => {
+  const w = loadPage('harmonies.html');
+  let shared = null;
+  w.navigator.share = data => { shared = data; return Promise.resolve(); };
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '[data-tab="1"]');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#openRank'); click(w, '#shareRank');
+  assert.deepEqual(shared.text.split('\n').slice(1),
+    ['🏆 Joueur 1 — 5 pts', '🏆 Joueur 2 — 5 pts']);
+  click(w, '#closeRank');
+  click(w, '#kill'); // confirm stubbé à true — reste un seul joueur
+  click(w, '#openRank'); click(w, '#shareRank');
+  assert.deepEqual(shared.text.split('\n').slice(1), ['Joueur 1 — 5 pts']);
+});
+
+test('partage : repli presse-papier avec confirmation sur le bouton', async () => {
+  const w = loadPage('harmonies.html');
+  let copied = null;
+  w.navigator.clipboard = { writeText: t => { copied = t; return Promise.resolve(); } };
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#openRank'); click(w, '#shareRank');
+  await new Promise(r => setImmediate(r)); // laisser la promesse de copie se résoudre
+  assert.match(copied, /^Harmonies — /);
+  assert.equal(w.document.getElementById('shareRank').textContent, 'Classement copié ✓');
+});
+
+test('partage : les extensions actives figurent dans l\'en-tête', () => {
+  const w = loadPage('7wonders.html');
+  let shared = null;
+  w.navigator.share = data => { shared = data; return Promise.resolve(); };
+  click(w, '[data-ext="leaders"]');
+  click(w, '[data-ext="armada"]');
+  click(w, '#openRank'); click(w, '#shareRank');
+  assert.match(shared.text.split('\n')[0], /^7 Wonders \(Leaders, Armada\) — /);
+});
+
 /* ---------- Accessibilité ---------- */
 test('accessibilité : classement en dialog, focus géré, Escape ferme', () => {
   const w = loadPage('harmonies.html');
