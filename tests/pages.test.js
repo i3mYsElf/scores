@@ -270,6 +270,25 @@ test('sea salt & paper : steppers de collections plafonnés au paquet', () => {
   assert.equal(grand(w), '5');
 });
 
+test('7 wonders duel : stepper des Grands Temples plafonné à 3 (stepMax)', () => {
+  const w = loadPage('7wondersduel.html');
+  click(w, '[data-ext="pantheon"]');
+  for (let i = 0; i < 5; i++) click(w, '[data-step="temples"][data-by="1"]');
+  assert.equal(w.document.querySelector('[data-val="temples"]').textContent, '3');
+});
+
+/* ---------- Multi-onglets ---------- */
+test('multi-onglets : une écriture externe recharge la feuille au lieu de l\'écraser', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  // un autre onglet écrit un nouvel état (l'événement storage ne vient jamais de l'onglet écrivain)
+  const autre = JSON.stringify({players: [{nom: 'Ailleurs', d: {}}], cur: 0, started: true, totals: [0], ts: 1});
+  w.localStorage.setItem('harmonies-score-v1', autre);
+  w.dispatchEvent(new w.StorageEvent('storage', {key: 'harmonies-score-v1'}));
+  assert.equal(w.document.getElementById('pname').value, 'Ailleurs');
+  assert.ok(w.document.getElementById('undoBtn').hidden); // pile d'annulation vidée
+});
+
 /* ---------- Accueil : aperçu « Partie en cours » ---------- */
 test('accueil : visiter une feuille ne déclenche pas « Partie en cours »', () => {
   // sauvegarde TM créée par une simple visite : totaux à 20 (NT), aucune saisie
@@ -447,6 +466,17 @@ test('history.html : état vide', () => {
   const w = loadPage('history.html');
   assert.ok(w.document.getElementById('historyList').textContent.includes('Aucune partie'));
   assert.ok(w.document.getElementById('clearHist').hidden);
+});
+
+test('accueil : cartes générées depuis le registre, vignettes clonées', () => {
+  const w = loadPage('index.html');
+  const {GAMES} = require('../lib/registry.js');
+  const cards = w.document.querySelectorAll('a.game');
+  assert.equal(cards.length, GAMES.length);
+  for (const card of cards){
+    assert.ok(card.querySelector('.thumb svg'), `${card.getAttribute('href')} sans vignette SVG`);
+    assert.ok(card.querySelector('b').textContent.length > 0);
+  }
 });
 
 /* ---------- Menu par usage, noms mémorisés, statistiques ---------- */

@@ -62,6 +62,9 @@ function rowNum(d, path, lab, sub, signed){
      onClick(e, ctx) / onInput(e, ctx) -> bool « géré »    (optionnels)
      signed: Set de chemins autorisés en négatif           (optionnel)
      stepMin(path) -> minimum du stepper                   (optionnel)
+     stepMax(path) -> maximum du stepper, undefined = illimité (optionnel ;
+       appliqué aussi pendant l'appui long, contrairement à un plafond
+       posé dans onClick qui ne voit pas la répétition automatique)
      extraState() -> objet fusionné dans la sauvegarde     (optionnel)
      restoreExtra(sauvegarde), fixup(d)                    (optionnels)
    } */
@@ -333,7 +336,8 @@ function initSheet(cfg){
   function doStep(st){
     const d = players[cur].d;
     const p = st.dataset.step, min = cfg.stepMin ? cfg.stepMin(p) : 0;
-    set(d, p, Math.max(min, get(d,p) + (+st.dataset.by)));
+    const max = cfg.stepMax ? cfg.stepMax(p) : undefined;
+    set(d, p, Math.max(min, Math.min(max === undefined ? Infinity : max, get(d,p) + (+st.dataset.by))));
     refresh();
   }
 
@@ -414,6 +418,15 @@ function initSheet(cfg){
       set(d, p, (cfg.signed && cfg.signed.has(p)) ? v : Math.max(0, v));
       refresh();
     }
+  });
+
+  /* Un autre onglet a modifié la sauvegarde de ce jeu (l'événement storage ne
+     se déclenche jamais dans l'onglet qui écrit) : recharger son état plutôt
+     que de l'écraser au prochain refresh. */
+  window.addEventListener('storage', e => {
+    if(e.key !== cfg.key) return;
+    undoStack.length = 0;
+    load(); drawSheet();
   });
 
   load();

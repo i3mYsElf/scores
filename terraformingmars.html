@@ -54,10 +54,7 @@ initSheet({
   <div class="card">
     <h2>${sq('var(--rouge)')}Niveau de terraformation <span class="sum" data-sum="nt">0</span></h2>
     <p class="hint">Votre position finale sur la piste NT (départ à 20). C'est la base de votre score.</p>
-    <div class="row">
-      <div class="lab">NT final</div>
-      <input class="num" data-num="tr" type="number" min="0" inputmode="numeric" value="${d.tr}">
-    </div>
+    ${rowNum(d,'tr','NT final')}
   </div>
 
   <div class="card">
@@ -72,28 +69,19 @@ initSheet({
   <div class="card">
     <h2>${sq('var(--vert)')}Plateau <span class="sum" data-sum="plateau">0</span></h2>
     ${rowStep('forets','Forêts','1 point chacune')}
-    <div class="row">
-      <div class="lab">Points de villes<small>1 pt par forêt adjacente à chacune de vos villes, quel qu'en soit le propriétaire</small></div>
-      <input class="num" data-num="villes" type="number" min="0" inputmode="numeric" value="${d.villes}">
-    </div>
+    ${rowNum(d,'villes','Points de villes',"1 pt par forêt adjacente à chacune de vos villes, quel qu'en soit le propriétaire")}
   </div>
 
   <div class="card">
     <h2>${sq('var(--bleu)')}Cartes <span class="sum" data-sum="cartes">0</span></h2>
     <p class="hint">La somme des PV de vos cartes jouées (ressources comprises) ; les malus en négatif.</p>
-    <div class="row">
-      <div class="lab">Points des cartes</div>
-      <input class="num" data-num="cartes" type="number" value="${d.cartes}">
-    </div>
+    ${rowNum(d,'cartes','Points des cartes',null,true)}
   </div>
 
   <div class="card">
     <h2>${sq('var(--gris)')}Départage <span class="sum">0 pts</span></h2>
     <p class="hint">Ne rapporte aucun point : en cas d'égalité, le plus de mégacrédits l'emporte.</p>
-    <div class="row">
-      <div class="lab">Mégacrédits restants</div>
-      <input class="num" data-num="mc" type="number" min="0" inputmode="numeric" value="${d.mc}">
-    </div>
+    ${rowNum(d,'mc','Mégacrédits restants')}
   </div>`;
   }
 });

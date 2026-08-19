@@ -15,7 +15,10 @@ function score(d){
           total: fixes + mults + financiers + generaux};
 }
 
-const api = {blank, score};
+/* relecture d'anciennes sauvegardes : toujours au moins une ligne de multiplicateur */
+const fixup = d => { if(!Array.isArray(d.mults) || !d.mults.length) d.mults = [{v:0,n:0}]; };
+
+const api = {blank, score, fixup};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

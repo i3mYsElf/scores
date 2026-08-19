@@ -46,8 +46,8 @@ for (const {slug, name, subtitle, rules} of GAMES) {
     assert.ok(html.includes(`'${gameKey(slug)}'`), `${page} n'utilise pas la clé ${gameKey(slug)}`);
     assert.ok(precache.includes(page), `${page} absent du PRECACHE de sw.js`);
     assert.ok(precache.includes(`games/${slug}.js`), `games/${slug}.js absent du PRECACHE de sw.js`);
-    assert.ok(index.includes(`href="${page}"`), `${page} absent du menu index.html`);
-    assert.ok(index.includes(`data-sub="${slug}"`), `aperçu data-sub="${slug}" absent de index.html`);
+    assert.ok(index.includes(`data-thumb="${slug}"`),
+      `vignette <template data-thumb="${slug}"> absente de index.html (la carte du menu est générée depuis le registre)`);
   });
 }
 

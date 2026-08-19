@@ -252,10 +252,15 @@ test('Kingdomino : bonus Harmonie +5 et Empire du Milieu +10', () => {
   assert.equal(kingdomino.score(d).total, 20);
 });
 
-test('Kingdomino : plus grand domaine (départage)', () => {
+test('Kingdomino/Queendomino : plus grand domaine (départage, lib/domino.js)', () => {
+  const {maxDomaine, fixupDomaines} = require('../lib/domino.js');
   const d = kingdomino.blank();
   d.domaines = [{c:3,k:2},{c:7,k:0},{c:5,k:1}];
-  assert.equal(kingdomino.maxDomaine(d), 7);
+  assert.equal(maxDomaine(d), 7);
+  // relecture d'une sauvegarde sans domaines : une ligne vierge est recréée
+  const vide = {};
+  fixupDomaines(vide);
+  assert.deepEqual(vide.domaines, [{c:0,k:0}]);
 });
 
 test('Kingdomino : feuille vide = 0', () => {

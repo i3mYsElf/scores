@@ -76,14 +76,8 @@ initSheet({
   <div class="card">
     <h2>${sq('var(--bleu)')}Cartes <span class="sum" data-sum="cartes">0</span></h2>
     <p class="hint">Points imprimés sur vos aménagements et savoir-faire, plus les points bonus gagnés en cours de partie.</p>
-    <div class="row">
-      <div class="lab">Points des cartes</div>
-      <input class="num" data-num="cartes" type="number" min="0" inputmode="numeric" value="${d.cartes}">
-    </div>
-    <div class="row">
-      <div class="lab">Points bonus</div>
-      <input class="num" data-num="bonus" type="number" min="0" inputmode="numeric" value="${d.bonus}">
-    </div>
+    ${rowNum(d,'cartes','Points des cartes')}
+    ${rowNum(d,'bonus','Points bonus')}
     ${rowStep('mendicite','Cartes mendicité','−3 points chacune')}
   </div>`;
   }

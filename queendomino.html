@@ -29,32 +29,25 @@
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/domino.js"></script>
 <script src="games/queendomino.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score, maxDomaine} = GameLogic;
-
-function drawDoms(d){
-  document.getElementById('domList').innerHTML = d.domaines.map((m,i)=>`
-    <div class="row">
-      <input class="num" data-dc="${i}" type="number" min="0" inputmode="numeric" value="${m.c}" style="width:58px" aria-label="cases du domaine">
-      <span style="color:var(--muted);font-size:13px">cases ×</span>
-      <input class="num" data-dk="${i}" type="number" min="0" inputmode="numeric" value="${m.k}" style="width:58px" aria-label="couronnes du domaine">
-      <span class="val" data-dtot="${i}" style="flex:1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">0</span>
-      <button class="kill" data-deldom="${i}" aria-label="Supprimer ce domaine">×</button>
-    </div>`).join('');
-}
+const {blank, score} = GameLogic;
+// tout ce qui touche aux domaines (rendu, interactions, départage) est partagé
+// avec Kingdomino dans lib/domino.js
+const {fixupDomaines, domsRankExtra, domsTiebreak, domsDraw, domsRefresh, domsClick, domsInput} = GameDomino;
 
 initSheet({
   key: 'queendomino-score-v1',
   startPlayers: 2,
   maxPlayers: () => 4,
   blank, score,
-  fixup: d => { if(!Array.isArray(d.domaines) || !d.domaines.length) d.domaines = [{c:0,k:0}]; },
+  fixup: fixupDomaines,
   sums: s => ({domaines:s.domaines, batiments:s.batiments, quetes:s.quetes, tresor:s.tresor}),
   rankParts: s => [['Domaines',s.domaines],['Bâtiments',s.batiments],['Quêtes',s.quetes],['Trésor',s.tresor]],
-  rankExtra: d => { const m = maxDomaine(d); return m ? ` · plus grand domaine ${m} cases` : ''; },
-  tiebreak: (a,b) => maxDomaine(b.d) - maxDomaine(a.d),
+  rankExtra: domsRankExtra,
+  tiebreak: domsTiebreak,
 
   drawSheet(d){
     return `
@@ -85,30 +78,9 @@ initSheet({
     ${rowStep('pieces','Pièces','dans votre réserve')}
   </div>`;
   },
-  afterDraw(d){ drawDoms(d); },
-  afterRefresh(d){
-    document.querySelectorAll('[data-dtot]').forEach(el=>{
-      const m = d.domaines[+el.dataset.dtot];
-      el.textContent = m ? (+m.c||0)*(+m.k||0) : 0;
-    });
-  },
-
-  onClick(e, ctx){
-    const d = ctx.d;
-    if(e.target.id === 'addDom'){ d.domaines.push({c:0,k:0}); drawDoms(d); ctx.refresh(); return true; }
-    const del = e.target.closest('[data-deldom]');
-    if(del){
-      d.domaines.splice(+del.dataset.deldom,1);
-      if(!d.domaines.length) d.domaines.push({c:0,k:0});
-      drawDoms(d); ctx.refresh(); return true;
-    }
-    return false;
-  },
-  onInput(e, ctx){
-    const d = ctx.d;
-    if(e.target.dataset.dc !== undefined){ d.domaines[+e.target.dataset.dc].c = Math.max(0, +e.target.value||0); ctx.refresh(); return true; }
-    if(e.target.dataset.dk !== undefined){ d.domaines[+e.target.dataset.dk].k = Math.max(0, +e.target.value||0); ctx.refresh(); return true; }
-    return false;
-  }
+  afterDraw: domsDraw,
+  afterRefresh: domsRefresh,
+  onClick: domsClick,
+  onInput: domsInput
 });
 </script>

@@ -124,10 +124,9 @@ initSheet({
       document.querySelectorAll('[data-zone]').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.zone===d.milZone));
       ctx.refresh(); return true;
     }
-    /* plafonne les Grands Temples à 3 */
-    const st = e.target.closest('[data-step="temples"]');
-    if(st && +st.dataset.by > 0 && d.temples >= 3) return true;
     return false;
-  }
+  },
+  /* plafonne les Grands Temples à 3 (appui long compris) */
+  stepMax: p => p === 'temples' ? 3 : undefined
 });
 </script>

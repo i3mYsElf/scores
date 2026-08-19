@@ -42,7 +42,14 @@ function score(d){
           total: precedentes + manche};
 }
 
-const api = {blank, score, objectif};
+/* relecture d'anciennes sauvegardes : listes et drapeau de fin toujours valides */
+const fixup = d => {
+  if(!Array.isArray(d.manches)) d.manches = [];
+  if(!Array.isArray(d.sirenes)) d.sirenes = [];
+  if(!['stop','gagne','perdu'].includes(d.fin)) d.fin = 'stop';
+};
+
+const api = {blank, score, objectif, fixup};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

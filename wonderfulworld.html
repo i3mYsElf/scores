@@ -32,7 +32,7 @@
 <script src="games/wonderfulworld.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score} = GameLogic;
+const {blank, score, fixup} = GameLogic;
 
 function drawMults(d){
   document.getElementById('multList').innerHTML = d.mults.map((m,i)=>`
@@ -49,8 +49,7 @@ initSheet({
   key: 'wonderfulworld-score-v1',
   startPlayers: 2,
   maxPlayers: () => 5,
-  blank, score,
-  fixup: d => { if(!Array.isArray(d.mults) || !d.mults.length) d.mults = [{v:0,n:0}]; },
+  blank, score, fixup,
   sums: s => ({cartes:s.fixes+s.mults, persos:s.financiers+s.generaux}),
   rankParts: s => [
     ['Cartes',s.fixes],['Multiplicateurs',s.mults],
@@ -65,10 +64,7 @@ initSheet({
   <div class="card">
     <h2>${sq('var(--bleu)')}Points des cartes <span class="sum" data-sum="cartes">0</span></h2>
     <p class="hint">La somme des PV fixes imprimés sur vos cartes construites.</p>
-    <div class="row">
-      <div class="lab">Points fixes</div>
-      <input class="num" data-num="fixes" type="number" min="0" inputmode="numeric" value="${d.fixes}">
-    </div>
+    ${rowNum(d,'fixes','Points fixes')}
     <p class="hint" style="margin-top:8px">Une ligne par carte multiplicatrice : sa valeur en PV × le nombre d'éléments concernés (cartes d'une catégorie, jetons…). L'app fait la multiplication.</p>
     <div id="multList"></div>
     <button class="ghost" id="addMult">+ Ajouter un multiplicateur</button>

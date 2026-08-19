@@ -225,5 +225,12 @@ document.getElementById('importFile').addEventListener('change', async e=>{
   }
 });
 
+// un autre onglet a archivé ou modifié des parties : re-rendre
+window.addEventListener('storage', e => {
+  if(e.key !== HISTORY_KEY) return;
+  editIdx = null;
+  render();
+});
+
 // enregistrement du SW, bannière de mise à jour et storage.persist : sw-client.js
 </script>

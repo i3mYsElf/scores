@@ -11,10 +11,8 @@ function score(d){
   return {domaines, bonus, total: domaines + bonus};
 }
 
-/* Départage officiel : le plus grand domaine (en cases) */
-const maxDomaine = d => d.domaines.reduce((a,m)=>Math.max(a, +m.c||0), 0);
-
-const api = {blank, score, maxDomaine};
+/* Le départage (plus grand domaine) est partagé avec Queendomino : lib/domino.js */
+const api = {blank, score};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

@@ -110,10 +110,7 @@ initSheet({
     <h2>Cartes animaux <span class="sum" data-sum="animaux">0</span></h2>
     <p class="hint">Additionnez les points inscrits sur vos cartes animaux et saisissez le total.</p>
     ${rowNum(d,'animaux','Points des animaux','total de vos cartes')}
-    <div class="row">
-      <div class="lab">Esprit de la nature<small>Laissez à 0 si vous n'y jouez pas</small></div>
-      <input class="num" data-num="esprit" type="number" inputmode="numeric" min="0" value="${d.esprit}">
-    </div>
+    ${rowNum(d,'esprit','Esprit de la nature',"Laissez à 0 si vous n'y jouez pas")}
   </div>`;
   },
   afterDraw(d){ drawEau(d); },

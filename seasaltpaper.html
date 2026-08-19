@@ -32,7 +32,7 @@
 <script src="games/seasaltpaper.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score, objectif} = GameLogic;
+const {blank, score, objectif, fixup} = GameLogic;
 
 /* Contexte de la feuille (joueurs), posé par drawSheet — la fin de partie est
    globale : le bandeau et le classement regardent tous les joueurs. */
@@ -73,12 +73,7 @@ initSheet({
   key: 'seasaltpaper-score-v1',
   startPlayers: 2,
   maxPlayers: () => 4,
-  blank, score,
-  fixup: d => {
-    if(!Array.isArray(d.manches)) d.manches = [];
-    if(!Array.isArray(d.sirenes)) d.sirenes = [];
-    if(!['stop','gagne','perdu'].includes(d.fin)) d.fin = 'stop';
-  },
+  blank, score, fixup,
   sums: s => ({prec: s.precedentes, duos: s.duos, collections: s.collections,
                mult: s.mult, sirenes: s.sirenes, manche: s.manche}),
   rankParts: s => [
@@ -159,14 +154,11 @@ initSheet({
       ? `Objectif de ${obj} points atteint par ${noms.join(', ')} — la partie se termine !` : '';
   },
 
+  /* plafonne les steppers au nombre de cartes du paquet (appui long compris) */
+  stepMax: p => MAX_CARTES[p],
+
   onClick(e, ctx){
     const d = ctx.d;
-    /* plafonne les steppers au nombre de cartes du paquet */
-    const st = e.target.closest('[data-step]');
-    if(st && +st.dataset.by > 0){
-      const cap = MAX_CARTES[st.dataset.step];
-      if(cap !== undefined && d[st.dataset.step] >= cap) return true;
-    }
     const multi = e.target.closest('[data-multi]');
     if(multi){ const k = multi.dataset.multi; d[k] = d[k] ? 0 : 1; ctx.redraw(); return true; }
     const fin = e.target.closest('[data-fin]');
