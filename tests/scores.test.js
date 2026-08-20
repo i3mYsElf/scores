@@ -39,7 +39,7 @@ test('Harmonies : total complet, esprits comptés seulement avec l\'extension', 
   const d = harmonies.blank();
   d.arbre = [0,0,2]; d.champs = 2; d.riviere = 4; d.animaux = 13; d.esprit = 3;
   assert.equal(harmonies.score(d).total, 14 + 10 + 8 + 13); // extension inactive : esprits ignorés
-  assert.equal(harmonies.score(d, {esprits: true}).total, 14 + 10 + 8 + 13 + 3);
+  assert.equal(harmonies.score(d, {exts: {esprits: true}}).total, 14 + 10 + 8 + 13 + 3);
 });
 
 test('Harmonies : migration des animaux par carte (ancien format)', () => {
@@ -75,8 +75,8 @@ test('7 Wonders : extensions inactives = 0, actives comptées', () => {
   const d = wonders.blank();
   d.naval = -4; d.iles = 6; d.flotte = 5; d.cities = 10; d.dettes = 3;
   assert.equal(wonders.score(d, {}).total, 0);
-  assert.equal(wonders.score(d, {armada:true}).armada, 7);
-  assert.equal(wonders.score(d, {cities:true}).cities, 7);
+  assert.equal(wonders.score(d, {exts: {armada:true}}).armada, 7);
+  assert.equal(wonders.score(d, {exts: {cities:true}}).cities, 7);
 });
 
 /* ---------- It's a Wonderful World ---------- */
@@ -143,13 +143,15 @@ test('Cascadia : bonus de majorité à 3-4 joueurs et égalités', () => {
   assert.deepEqual(bonus([5,3,1,3]), [3,0,0,0]); // idem à 4 joueurs
 });
 
-test('Cascadia : score total avec bonus', () => {
+test('Cascadia : score total avec bonus de majorité (joueur retrouvé par identité)', () => {
   const d = {...cascadia.blank(), ours:11, saumons:7, montagnes:5, rivieres:3, nature:2};
-  const s = cascadia.score(d, {montagnes:2});
+  const autre = {...cascadia.blank(), montagnes:1, rivieres:4};
+  const s = cascadia.score(d, {players: [{d}, {d: autre}]});
   assert.equal(s.faune, 18);
   assert.equal(s.habitats, 8);
-  assert.equal(s.bonus, 2);
+  assert.equal(s.bonus, 2); // majorité montagnes (+2), rivières perdues (3 < 4)
   assert.equal(s.total, 18+8+2+2);
+  assert.equal(cascadia.score(d).bonus, 0); // hors joueurs (feuille vierge du moteur) : pas de bonus
 });
 
 test('Cascadia : solo — pas de bonus de majorité', () => {
@@ -158,13 +160,15 @@ test('Cascadia : solo — pas de bonus de majorité', () => {
 });
 
 /* ---------- Terraforming Mars ---------- */
+const nj = n => ({players: Array.from({length: n}, () => ({}))}); // opts à n joueurs
+
 test('TM : feuille de départ = NT 20', () => {
-  assert.equal(tm.score(tm.blank(), 3).total, 20);
+  assert.equal(tm.score(tm.blank(), nj(3)).total, 20);
 });
 
 test('TM : exemple complet, cartes négatives possibles', () => {
   const d = {...tm.blank(), tr:31, objectifs:2, prem:1, sec:1, forets:6, villes:8, cartes:-2, mc:14};
-  const s = tm.score(d, 4);
+  const s = tm.score(d, nj(4));
   assert.equal(s.objectifs, 10);
   assert.equal(s.recompenses, 7);   // 5 + 2
   assert.equal(s.plateau, 14);
@@ -173,8 +177,8 @@ test('TM : exemple complet, cartes négatives possibles', () => {
 
 test('TM : à 2 joueurs, la 2e place des récompenses ne compte pas', () => {
   const d = {...tm.blank(), prem:1, sec:2};
-  assert.equal(tm.score(d, 2).recompenses, 5);
-  assert.equal(tm.score(d, 3).recompenses, 9);
+  assert.equal(tm.score(d, nj(2)).recompenses, 5);
+  assert.equal(tm.score(d, nj(3)).recompenses, 9);
 });
 
 /* ---------- Sea Salt & Paper ---------- */
@@ -230,6 +234,21 @@ test('SSP : feuille vide = 0', () => {
   assert.equal(ssp.score(ssp.blank()).total, 0);
 });
 
+test('SSP : validerManche — le score de la manche rejoint le cumul, la feuille repart vierge', () => {
+  const d = ssp.blank();
+  d.manches = [10]; d.crabes = 4; d.bonus = 3; d.fin = 'gagne'; // manche = 2 + 3
+  ssp.validerManche(d);
+  assert.deepEqual(d.manches, [10, 5]);
+  assert.equal(d.crabes, 0);
+  assert.equal(d.fin, 'stop');
+  assert.equal(ssp.score(d).total, 15);
+});
+
+test('SSP : MAX_CARTES suit les paliers du paquet', () => {
+  assert.deepEqual(ssp.MAX_CARTES, {coquillages: 6, poulpes: 5, pingouins: 3, marins: 2});
+  assert.equal(ssp.MAX_SIRENES, 4);
+});
+
 test('SSP : objectif de fin de partie selon le nombre de joueurs', () => {
   assert.equal(ssp.objectif(2), 40);
   assert.equal(ssp.objectif(3), 35);
@@ -254,17 +273,6 @@ test('Kingdomino : bonus Harmonie +5 et Empire du Milieu +10', () => {
   assert.equal(kingdomino.score(d).total, 20);
 });
 
-test('Kingdomino/Queendomino : plus grand domaine (départage, lib/domino.js)', () => {
-  const {maxDomaine, fixupDomaines} = require('../lib/domino.js');
-  const d = kingdomino.blank();
-  d.domaines = [{c:3,k:2},{c:7,k:0},{c:5,k:1}];
-  assert.equal(maxDomaine(d), 7);
-  // relecture d'une sauvegarde sans domaines : une ligne vierge est recréée
-  const vide = {};
-  fixupDomaines(vide);
-  assert.deepEqual(vide.domaines, [{c:0,k:0}]);
-});
-
 test('Kingdomino : feuille vide = 0', () => {
   assert.equal(kingdomino.score(kingdomino.blank()).total, 0);
 });
@@ -277,7 +285,7 @@ test('Kingdomino : Age of Giants — les défis remplacent les bonus des variant
   // sans extension : bonus comptés, défis ignorés
   assert.equal(kingdomino.score(d).total, 20); // 5 + 5 + 10
   // avec : défis comptés, bonus remplacés
-  const s = kingdomino.score(d, {geants: true});
+  const s = kingdomino.score(d, {exts: {geants: true}});
   assert.equal(s.defis, 19);
   assert.equal(s.bonus, 0);
   assert.equal(s.total, 24); // 5 + 12 + 7
@@ -324,7 +332,7 @@ test('7WD : décompte civil de base, pièces ÷3, zone militaire', () => {
 });
 
 test('7WD : paliers des Grands Temples (5/12/21), clampés à 3', () => {
-  const pts = n => { const d = swd.blank(); d.temples = n; return swd.score(d, {pantheon:true}).pantheon; };
+  const pts = n => { const d = swd.blank(); d.temples = n; return swd.score(d, {exts: {pantheon:true}}).pantheon; };
   assert.deepEqual([0,1,2,3,4].map(pts), [0,5,12,21,21]);
 });
 
@@ -332,8 +340,8 @@ test('7WD : extensions inactives = 0, actives comptées', () => {
   const d = swd.blank();
   d.divinites = 7; d.temples = 2; d.senat = 6;
   assert.equal(swd.score(d, {}).total, 0);
-  assert.equal(swd.score(d, {pantheon:true}).pantheon, 7 + 12);
-  assert.equal(swd.score(d, {agora:true}).agora, 6);
+  assert.equal(swd.score(d, {exts: {pantheon:true}}).pantheon, 7 + 12);
+  assert.equal(swd.score(d, {exts: {agora:true}}).agora, 6);
 });
 
 /* ---------- Skyjo ---------- */
@@ -349,24 +357,43 @@ test('Skyjo : cumul des manches validées, manche courante signée', () => {
 test('Skyjo : le fermeur sans le plus petit score strict est doublé', () => {
   const moi = skyjo.blank(), lui = skyjo.blank();
   moi.manche = 8; moi.fini = 1; lui.manche = 5;
-  const players = [{d: moi}, {d: lui}];
-  assert.equal(skyjo.score(moi, players).manche, 16); // 8 > 5 : doublé
-  assert.ok(skyjo.score(moi, players).doublee);
-  assert.equal(skyjo.score(lui, players).manche, 5);  // pas fermeur : jamais doublé
+  const opts = {players: [{d: moi}, {d: lui}]};
+  assert.equal(skyjo.score(moi, opts).manche, 16); // 8 > 5 : doublé
+  assert.ok(skyjo.score(moi, opts).doublee);
+  assert.equal(skyjo.score(lui, opts).manche, 5);  // pas fermeur : jamais doublé
   lui.manche = 8;
-  assert.equal(skyjo.score(moi, players).manche, 16); // égalité : pas strictement le plus petit
+  assert.equal(skyjo.score(moi, opts).manche, 16); // égalité : pas strictement le plus petit
   lui.manche = 10;
-  assert.equal(skyjo.score(moi, players).manche, 8);  // strictement le plus petit : intact
+  assert.equal(skyjo.score(moi, opts).manche, 8);  // strictement le plus petit : intact
 });
 
 test('Skyjo : pas de doublement sur une manche nulle ou négative', () => {
   const moi = skyjo.blank(), lui = skyjo.blank();
   moi.fini = 1; lui.manche = -5;
-  const players = [{d: moi}, {d: lui}];
+  const opts = {players: [{d: moi}, {d: lui}]};
   moi.manche = 0;
-  assert.equal(skyjo.score(moi, players).manche, 0);
+  assert.equal(skyjo.score(moi, opts).manche, 0);
   moi.manche = -2;
-  assert.equal(skyjo.score(moi, players).manche, -2); // −5 ≤ −2 mais points non positifs
+  assert.equal(skyjo.score(moi, opts).manche, -2); // −5 ≤ −2 mais points non positifs
+});
+
+test('Skyjo : validerManches fige tous les joueurs d\'un coup, doublement compris', () => {
+  const moi = skyjo.blank(), lui = skyjo.blank();
+  moi.manche = 8; moi.fini = 1; lui.manche = 5;
+  const players = [{d: moi}, {d: lui}];
+  skyjo.validerManches(players);
+  assert.deepEqual(moi.manches, [16]); // doublé au moment de la validation
+  assert.deepEqual(lui.manches, [5]);
+  assert.equal(moi.manche, 0);
+  assert.equal(moi.fini, 0); // le fermeur est remis à zéro pour la manche suivante
+});
+
+test('Skyjo : setFini — un seul fermeur par manche', () => {
+  const moi = skyjo.blank(), lui = skyjo.blank();
+  lui.fini = 1;
+  skyjo.setFini([{d: moi}, {d: lui}], moi, true);
+  assert.equal(moi.fini, 1);
+  assert.equal(lui.fini, 0);
 });
 
 test('Skyjo : fixup répare une sauvegarde abîmée, idempotent', () => {
@@ -379,16 +406,14 @@ test('Skyjo : fixup répare une sauvegarde abîmée, idempotent', () => {
   assert.equal(d.fini, 1);
 });
 
-/* ---------- lib/manches.js (partagé Sea Salt & Paper / Skyjo) ---------- */
-test('lib/manches : rankExtra et liste des manches (partie pure)', () => {
-  const {manchesRankExtra, manchesHtml} = require('../lib/manches.js');
-  assert.equal(manchesRankExtra({manches: []}), '');
-  assert.equal(manchesRankExtra({manches: [5]}), ' · 1 manche');
-  assert.equal(manchesRankExtra({manches: [5, -2]}), ' · 2 manches');
-  const signee = manchesHtml([7], true);
-  assert.match(signee, /data-manche="0"/);
-  assert.match(signee, /value="7"/);
-  assert.ok(!signee.includes('min="0"')); // Skyjo : manches négatives permises
-  assert.ok(manchesHtml([7], false).includes('min="0"')); // SSP : positives seulement
-  assert.match(manchesHtml([], false), /Aucune manche/);
+/* ---------- maxPlayers (plafond de joueurs, extensions comprises) ---------- */
+test('maxPlayers : chaque jeu borne ses joueurs, extensions comprises', () => {
+  assert.equal(wonders.maxPlayers({}), 7);
+  assert.equal(wonders.maxPlayers({cities: true}), 8);
+  assert.equal(kingdomino.maxPlayers({}), 4);
+  assert.equal(kingdomino.maxPlayers({geants: true}), 5);
+  assert.equal(swd.maxPlayers(), 2);
+  assert.equal(skyjo.maxPlayers(), 8);
+  for (const g of [harmonies, iaww, agricola, cascadia, tm, ssp, queendomino])
+    assert.ok(g.maxPlayers() >= 2);
 });

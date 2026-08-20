@@ -120,6 +120,26 @@ test('sw-client : controllerchange recharge une seule fois (anti-boucle)', async
   assert.equal(w.__reloads, 1);
 });
 
+test('sw-client : première installation (claim) ne recharge pas la page', async () => {
+  const {sw} = fakeSW(); // controller null : la page n'était pas contrôlée
+  const w = await load(sw);
+  sw.fire('controllerchange'); // clients.claim() du tout premier SW
+  assert.equal(w.__reloads, 0); // pas de flash de rechargement à la première visite
+  sw.fire('controllerchange'); // vraie mise à jour ensuite : rechargement normal
+  assert.equal(w.__reloads, 1);
+});
+
+test('sw-client : retour au premier plan -> vérification de mise à jour', async () => {
+  const {sw, reg} = fakeSW({controller: {}});
+  reg.updates = 0;
+  reg.update = function(){ this.updates++; return Promise.resolve(); };
+  const w = await load(sw);
+  // jsdom répond 'prerender' : simuler une page réellement visible
+  Object.defineProperty(w.document, 'visibilityState', {value: 'visible', configurable: true});
+  w.document.dispatchEvent(new w.Event('visibilitychange'));
+  assert.equal(reg.updates, 1); // une PWA laissée ouverte revoit la bannière un jour
+});
+
 test('sw-client : updatefound sans installing, clic sans waiting -> pas de crash', async () => {
   const {sw, reg} = fakeSW({controller: {}, waiting: fakeWorker()});
   const w = await load(sw);

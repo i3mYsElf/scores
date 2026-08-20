@@ -9,9 +9,21 @@
 
   if (!('serviceWorker' in navigator)) return;
 
+  /* conteneur commun des bannières (partagé avec common.js, même id) :
+     elles s'empilent au lieu de se recouvrir */
+  function bannerHost(){
+    let b = document.getElementById('banners');
+    if (!b){
+      b = document.createElement('div');
+      b.id = 'banners'; b.className = 'banners';
+      document.body.appendChild(b);
+    }
+    return b;
+  }
+
   function offerUpdate(reg){
     if (document.getElementById('swUpdate')) return;
-    document.body.insertAdjacentHTML('beforeend',
+    bannerHost().insertAdjacentHTML('beforeend',
       `<div class="sw-update" id="swUpdate" role="status">Nouvelle version disponible
          <button id="swReload" type="button">Recharger</button></div>`);
     document.getElementById('swReload').addEventListener('click', ()=>{
@@ -31,10 +43,18 @@
           if (w.state === 'installed' && navigator.serviceWorker.controller) offerUpdate(reg);
         });
       });
+      // PWA laissée ouverte plusieurs jours : re-vérifier au retour au premier plan
+      document.addEventListener('visibilitychange', ()=>{
+        if (document.visibilityState === 'visible') reg.update().catch(()=>{});
+      });
     }).catch(()=>{});
 
+    /* clients.claim() du premier SW déclenche controllerchange sur une page qui
+       n'était pas encore contrôlée : ne recharger que sur une vraie mise à jour */
+    let controlled = !!navigator.serviceWorker.controller;
     let reloaded = false;
     navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if (!controlled){ controlled = true; return; }
       if (reloaded) return;
       reloaded = true;
       location.reload();

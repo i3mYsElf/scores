@@ -70,11 +70,13 @@
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
+<script src="lib/history.js"></script>
 <script src="lib/backup.js"></script>
 <script src="lib/stats.js"></script>
 <script>
-const esc = s => String(s).replace(/[&<>"']/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = GameHtml.esc;
 
 const NAMES = Object.fromEntries(GameRegistry.GAMES.map(g => [g.slug, g.name]));
 // jeux où le plus petit total gagne (Skyjo) : re-tri d'édition et record inversés
@@ -83,15 +85,12 @@ const HISTORY_KEY = GameRegistry.HISTORY_KEY;
 
 let editIdx = null; // index de l'entrée en cours d'édition, null sinon
 
-function readHist(){
-  try{
-    const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-    return Array.isArray(h) ? h : [];
-  }catch(e){ return []; }
-}
+/* lecture/écriture et re-tri : lib/history.js (testé en Node) */
+const readHist = () => GameHistory.readHist(localStorage);
 function writeHist(h){
-  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); return true; }
-  catch(e){ alert('Enregistrement impossible : stockage indisponible.'); return false; }
+  if(GameHistory.writeHist(localStorage, h)) return true;
+  alert('Enregistrement impossible : stockage indisponible.');
+  return false;
 }
 
 /* Ventilation d'un joueur archivé : paires [libellé, valeur] figées par
@@ -231,16 +230,9 @@ document.getElementById('historyList').addEventListener('click', e=>{
       const noms = [...card.querySelectorAll('[data-enom]')].map(el => el.value.trim());
       const tots = [...card.querySelectorAll('[data-etot]')].map(el => +el.value || 0);
       entry.players = (entry.players || [])
-        .map((p, j) => ({...p, nom: noms[j] || (p && p.nom) || '?', total: tots[j]}))
-        // tri stable : l'ordre existant départage les égalités
-        .sort((a, b) => LOW_WINS.includes(entry.g) ? a.total - b.total : b.total - a.total);
-      /* pos figé par archive() obsolète après édition manuelle : le recalculer
-         par égalité de total seul (le départage du jeu n'est pas recalculable) */
-      entry.players.forEach((p, j) => {
-        delete p.pos;
-        if(j > 0 && p.total === entry.players[j - 1].total)
-          p.pos = entry.players[j - 1].pos || j;
-      });
+        .map((p, j) => ({...p, nom: noms[j] || (p && p.nom) || '?', total: tots[j]}));
+      // re-tri et positions figées recalculées (lib/history.js)
+      GameHistory.reorderEntry(entry, LOW_WINS.includes(entry.g));
       if(!writeHist(h)) return;
     }
     editIdx = null; render(); return;

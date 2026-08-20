@@ -23,22 +23,24 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">Agricola</h1>
     <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="games/agricola.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score} = GameLogic;
+const {blank, score, maxPlayers} = GameLogic;
 
 initSheet({
   slug: 'agricola',
   startPlayers: 2,
-  maxPlayers: () => 5,
+  maxPlayers,
   blank, score,
   sums: s => ({cultures:s.cultures, elevage:s.elevage, ferme:s.ferme, cartes:s.cartes+s.mendicite}),
   rankParts: s => [

@@ -19,6 +19,9 @@ const PRECACHE = [
   'sw-client.js',
   'theme.js',
   'lib/registry.js',
+  'lib/html.js',
+  'lib/sheet.js',
+  'lib/history.js',
   'lib/backup.js',
   'lib/stats.js',
   'lib/domino.js',
@@ -74,7 +77,8 @@ self.addEventListener('fetch', e => {
       // le cas de la CSS Google Fonts chargée sans crossorigin par d'anciennes pages ;
       // on la met en cache quand même, sinon les polices ne sont jamais dispo offline.
       const net = fetch(e.request)
-        .then(r => { if (r.ok || r.type === 'opaque') c.put(e.request, r.clone()); return r; })
+        // put peut échouer (quota plein) : ne jamais laisser un rejet non géré
+        .then(r => { if (r.ok || r.type === 'opaque') c.put(e.request, r.clone()).catch(() => {}); return r; })
         .catch(() => hit);
       if (hit) { e.waitUntil(net.then(() => {}, () => {})); return hit; }
       return net;
@@ -94,7 +98,7 @@ self.addEventListener('fetch', e => {
       caches.open(CACHE).then(async c => {
         try {
           const r = await fetch(e.request);
-          if (r.ok) c.put(e.request, r.clone());
+          if (r.ok) c.put(e.request, r.clone()).catch(() => {});
           return r;
         } catch (err) {
           return (await c.match(e.request, { ignoreSearch: true })) || c.match('.');

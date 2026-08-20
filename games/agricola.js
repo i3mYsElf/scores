@@ -37,7 +37,9 @@ function score(d){
           total: cultures + elevage + ferme + cartes + mendicite};
 }
 
-const api = {blank, score, tier, SEUILS};
+const maxPlayers = () => 5;
+
+const api = {blank, score, tier, SEUILS, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

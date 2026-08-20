@@ -3,10 +3,22 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch: # redéployer (ou re-stamper) sans commit vide
+
+# le job deploy re-déclare les siennes (pages/id-token) ; test reste en lecture seule
+permissions:
+  contents: read
+
+# pushes rapprochés : on annule les runs redondants d'une PR, jamais un run de main
+# (la sérialisation des déploiements Pages a son propre groupe dans le job deploy)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -16,17 +28,14 @@ jobs:
       - name: Dépendances de test
         run: npm ci
       - name: Vérification syntaxe
-        run: |
-          for f in sw.js sw-client.js theme.js common.js games/*.js lib/*.js; do
-            node --check "$f"
-          done
+        run: git ls-files '*.js' | xargs -L1 node --check
       - name: Lint
-        run: npx eslint .
+        run: npm run lint
       - name: Tests
-        run: node --test
+        run: npm test
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: test
     # deux pushes rapprochés : les déploiements Pages se suivent au lieu de
     # se chevaucher (sans annuler celui en cours, le dernier gagne)
@@ -34,6 +43,7 @@ jobs:
       group: pages
       cancel-in-progress: false
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
@@ -53,11 +63,12 @@ jobs:
         run: |
           mkdir _site
           rsync -a \
-            --include='/*.html' --include='/*.css' --include='/*.js' \
+            --include='/*.html' --include='/common.css' \
+            --include='/common.js' --include='/sw.js' --include='/sw-client.js' --include='/theme.js' \
             --include='/manifest.json' \
             --include='/lib/***' --include='/games/***' --include='/icons/***' \
             --exclude='*' ./ _site/
-      - name: Vérifier le site assemblé (précache complet, rien de privé)
+      - name: Vérifier le site assemblé (précache complet, arborescence attendue)
         run: |
           node -e "
             const fs = require('fs');
@@ -65,14 +76,20 @@ jobs:
               .match(/PRECACHE = \[([^\]]*)\]/s)[1]
               .matchAll(/'([^']+)'/g)].map(m => m[1]);
             const missing = pre.filter(f => !fs.existsSync('_site/' + (f === '.' ? 'index.html' : f)));
-            const leaked = ['tests', 'package.json', 'package-lock.json', 'node_modules',
-              '.github', '.git', '.gitignore', 'README.md', 'CLAUDE.md', 'eslint.config.mjs']
-              .filter(f => fs.existsSync('_site/' + f));
-            if (missing.length || leaked.length) {
-              console.error('précache manquant :', missing, '— fichiers privés publiés :', leaked);
+            // allowlist stricte : tout fichier de _site qui ne matche aucune forme
+            // attendue fait échouer le déploiement (l'inverse d'une denylist figée)
+            const roots = new Set(['common.css', 'common.js', 'sw.js', 'sw-client.js', 'theme.js', 'manifest.json']);
+            const ok = f => /^[a-z0-9]+\.html$/.test(f)
+              || roots.has(f) || /^lib\/[a-z]+\.js$/.test(f) || /^games\/[a-z0-9]+\.js$/.test(f) || /^icons\//.test(f);
+            const files = fs.readdirSync('_site', {recursive: true})
+              .map(f => String(f).replace(/\\\\/g, '/'))
+              .filter(f => fs.statSync('_site/' + f).isFile());
+            const unexpected = files.filter(f => !ok(f));
+            if (missing.length || unexpected.length) {
+              console.error('précache manquant :', missing, '— fichiers inattendus publiés :', unexpected);
               process.exit(1);
             }
-            console.log(pre.length + ' entrées du précache présentes, rien de privé dans _site');
+            console.log(pre.length + ' entrées du précache présentes, ' + files.length + ' fichiers publiés, tous attendus');
           "
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
@@ -80,3 +97,14 @@ jobs:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@v5
+      - name: Vérifier la version servie en production
+        run: |
+          for i in 1 2 3 4 5 6; do
+            served=$(curl -fsS "${{ steps.deployment.outputs.page_url }}sw.js" | grep -o "const VERSION = '[^']*'" || true)
+            if [ "$served" = "const VERSION = '${GITHUB_SHA::7}'" ]; then
+              echo "OK : la prod sert $served"; exit 0
+            fi
+            echo "tentative $i : la prod sert encore « $served » — nouvel essai dans 15s"
+            sleep 15
+          done
+          echo "La prod ne sert toujours pas le SHA attendu (${GITHUB_SHA::7})"; exit 1

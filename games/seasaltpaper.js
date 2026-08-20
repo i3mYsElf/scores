@@ -8,6 +8,13 @@ const POULPES     = [0, 0, 3, 6, 9, 12];    // 5 max
 const PINGOUINS   = [0, 1, 3, 5];           // 3 max
 const MARINS      = [0, 0, 5];              // 2 max
 
+/* Composition du paquet (plafonds des steppers), dérivée des paliers */
+const MAX_CARTES = {
+  coquillages: COQUILLAGES.length - 1, poulpes: POULPES.length - 1,
+  pingouins: PINGOUINS.length - 1, marins: MARINS.length - 1
+};
+const MAX_SIRENES = 4; // 4 sirènes = victoire immédiate, il n'y en a pas plus
+
 /* Objectif de fin de partie selon le nombre de joueurs (règle officielle) :
    la partie s'achève à la fin de la manche où un joueur l'atteint. */
 const OBJECTIFS = {2: 40, 3: 35, 4: 30};
@@ -33,7 +40,7 @@ function score(d){
                     + palier(PINGOUINS, d.pingouins) + palier(MARINS, d.marins);
   const mult = (d.phare ? n(d.bateaux) : 0) + (d.banc ? n(d.poissons) : 0)
              + (d.colonie ? 2*n(d.pingouins) : 0) + (d.capitaine ? 3*n(d.marins) : 0);
-  const sirenes = d.sirenes.slice(0, 4).reduce((a, v) => a + n(v), 0);
+  const sirenes = d.sirenes.slice(0, MAX_SIRENES).reduce((a, v) => a + n(v), 0);
   const pts = duos + collections + mult + sirenes;
   const bonus = n(d.bonus);
   const manche = d.fin === 'perdu' ? bonus : d.fin === 'gagne' ? pts + bonus : pts;
@@ -49,7 +56,15 @@ const fixup = d => {
   if(!['stop','gagne','perdu'].includes(d.fin)) d.fin = 'stop';
 };
 
-const api = {blank, score, objectif, fixup};
+/* Valide la manche en cours : son score rejoint le cumul, la feuille repart vierge */
+function validerManche(d){
+  const manches = d.manches.concat(score(d).manche);
+  Object.assign(d, blank(), {manches});
+}
+
+const maxPlayers = () => 4;
+
+const api = {blank, score, objectif, fixup, validerManche, maxPlayers, MAX_CARTES, MAX_SIRENES};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

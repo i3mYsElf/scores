@@ -23,25 +23,24 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">Sea Salt &amp; Paper</h1>
     <p class="subtitle">Feuille de score — manches cumulées</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="lib/manches.js"></script>
 <script src="games/seasaltpaper.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score, objectif, fixup} = GameLogic;
+const {blank, score, objectif, fixup, validerManche, maxPlayers, MAX_CARTES, MAX_SIRENES} = GameLogic;
 // la liste des manches validées et le bandeau de fin de partie sont partagés
-// avec Skyjo dans lib/manches.js
-const {manchesRankExtra, manchesDraw, manchesClick, manchesInput, manchesFin} = GameManches;
-
-/* Nombre de cartes de chaque collection dans le paquet (plafond des steppers) */
-const MAX_CARTES = {coquillages: 6, poulpes: 5, pingouins: 3, marins: 2,
-                    phare: 1, banc: 1, colonie: 1, capitaine: 1};
+// avec Skyjo dans lib/manches.js (ici manches positives seulement)
+const {manchesRankExtra, manchesFin} = GameManches;
+const {manchesDraw, manchesClick, manchesInput} = GameManches.manchesFor(false);
 
 const MULTIS = [
   ['phare', 'Phare'], ['banc', 'Banc de poissons'],
@@ -52,18 +51,18 @@ function drawSirenes(d){
   document.getElementById('sireneList').innerHTML = d.sirenes.map((s,i)=>`
     <div class="row">
       <div class="lab">Sirène ${i+1}<small>cartes de sa couleur majoritaire</small></div>
-      <input class="num" data-sir="${i}" type="number" min="0" inputmode="numeric" value="${s}" style="width:64px" aria-label="cartes de la couleur de la sirène ${i+1}">
+      <input class="num num-m" data-sir="${i}" type="number" min="0" inputmode="numeric" value="${+s||0}" aria-label="cartes de la couleur de la sirène ${i+1}">
       <button class="kill" data-delsir="${i}" aria-label="Retirer la sirène ${i+1}">×</button>
     </div>`).join('')
-    + (d.sirenes.length >= 4
-      ? '<p class="hint" style="color:var(--accent);font-weight:600">4 sirènes : victoire immédiate !</p>'
+    + (d.sirenes.length >= MAX_SIRENES
+      ? `<p class="hint" style="color:var(--accent);font-weight:600">${MAX_SIRENES} sirènes : victoire immédiate !</p>`
       : '<button class="ghost" id="addSir">+ Ajouter une sirène</button>');
 }
 
 initSheet({
   slug: 'seasaltpaper',
   startPlayers: 2,
-  maxPlayers: () => 4,
+  maxPlayers,
   blank, score, fixup,
   sums: s => ({prec: s.precedentes, duos: s.duos, collections: s.collections,
                mult: s.mult, sirenes: s.sirenes, manche: s.manche}),
@@ -153,14 +152,13 @@ initSheet({
     const fin = e.target.closest('[data-fin]');
     if(fin){ d.fin = fin.dataset.fin; ctx.redraw(); return true; }
     if(e.target.id === 'addSir'){
-      if(d.sirenes.length < 4){ d.sirenes.push(0); drawSirenes(d); ctx.refresh(); }
+      if(d.sirenes.length < MAX_SIRENES){ d.sirenes.push(0); drawSirenes(d); ctx.refresh(); }
       return true;
     }
     const delSir = e.target.closest('[data-delsir]');
     if(delSir){ d.sirenes.splice(+delSir.dataset.delsir, 1); drawSirenes(d); ctx.refresh(); return true; }
     if(e.target.id === 'valManche'){
-      const manches = d.manches.concat(score(d).manche);
-      Object.assign(d, blank(), {manches});
+      validerManche(d);
       ctx.redraw(); return true;
     }
     return false;

@@ -9,8 +9,12 @@ const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)',
    littéral sinon — le même littéral que vérifie tests/consistency.test.js. */
 const HISTORY_KEY = (typeof GameRegistry !== 'undefined' && GameRegistry.HISTORY_KEY) || 'scores-history-v1';
 
-const esc = s => String(s).replace(/[&<>"']/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* esc/sq : lib/html.js (chargé avant ce fichier par toutes les pages de jeu),
+   réexposés en fonctions globales — les pages les consomment dans leurs
+   template strings (une déclaration function traverse le harnais jsdom,
+   contrairement à un const de premier niveau) */
+function esc(s){ return GameHtml.esc(s); }
+function sq(color){ return GameHtml.sq(color); }
 
 /* accès par chemin pointé : 'arbre.0' ou 'pieces' — un seul niveau,
    la partie après le point est forcément un index de tableau (pas de 'a.b.c') */
@@ -20,42 +24,62 @@ function set(o,p,v){ const [a,b] = p.split('.'); if(b===undefined) o[a]=v; else 
 /* Écriture localStorage impossible (quota plein, navigation privée Safari,
    stockage bloqué…) : l'UI continue de fonctionner mais rien ne survivrait à un
    rechargement — l'utilisateur doit le savoir. Une seule bannière par session. */
-let storageWarned = false;
-function storageWarn(){
-  if(storageWarned) return;
-  storageWarned = true;
-  document.body.insertAdjacentHTML('beforeend',
-    '<div class="storage-warn" role="alert">Sauvegarde impossible — les scores seront perdus en quittant la page.</div>');
+/* conteneur commun des bannières (partagé avec sw-client.js, même id) :
+   elles s'empilent au lieu de se recouvrir */
+function bannerHost(){
+  let b = document.getElementById('banners');
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'banners'; b.className = 'banners';
+    document.body.appendChild(b);
+  }
+  return b;
 }
 
-function sq(color){
-  return `<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${color};margin-right:7px"></span>`;
+let storageWarned = false;
+function storageWarn(msg){
+  if(storageWarned) return;
+  storageWarned = true;
+  bannerHost().insertAdjacentHTML('beforeend',
+    `<div class="storage-warn" role="alert"><span>${msg || 'Sauvegarde impossible — les scores seront perdus en quittant la page.'}</span>
+     <button class="bclose" type="button" aria-label="Fermer">×</button></div>`);
+  const warn = bannerHost().querySelector('.storage-warn');
+  warn.querySelector('.bclose').addEventListener('click', ()=> warn.remove());
 }
 
 function rowStep(path, lab, sub, icon){
+  // aria-label contextualisé : vingt « plus »/« moins » identiques ne se distinguent pas au lecteur d'écran
   return `<div class="row">
     ${icon?`<div class="icon">${icon}</div>`:''}
     <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
     <div class="step">
-      <button data-step="${path}" data-by="-1" aria-label="moins">−</button>
+      <button data-step="${path}" data-by="-1" aria-label="moins — ${lab}">−</button>
       <span class="val" data-val="${path}">0</span>
-      <button data-step="${path}" data-by="1" aria-label="plus">+</button>
+      <button data-step="${path}" data-by="1" aria-label="plus — ${lab}">+</button>
     </div></div>`;
 }
 
 function rowNum(d, path, lab, sub, signed){
   return `<div class="row">
     <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
-    <input class="num" data-num="${path}" type="number" ${signed?'':'min="0" inputmode="numeric"'} value="${get(d,path)}">
+    <input class="num" data-num="${path}" type="number" ${signed?'':'min="0" inputmode="numeric"'} value="${+get(d,path)||0}" aria-label="${lab}">
   </div>`;
 }
 
 /* config : {
      slug (identité du jeu dans le registre — la clé localStorage
        <slug>-score-v1 en découle via gameKey),
-     startPlayers, maxPlayers: ()=>N, blank,
-     score(d, players) -> {..., total} — players permet les calculs
-       inter-joueurs (majorités) ; la plupart des jeux l'ignorent
+     startPlayers, blank,
+     maxPlayers: (exts)=>N — celui de games/<jeu>.js (peut dépendre des extensions)
+     score(d, opts) -> {..., total} — signature commune à tous les jeux :
+       opts = {players, exts}, players pour les calculs inter-joueurs
+       (majorités, doublement), exts l'état des extensions ; la plupart
+       des jeux ignorent opts
+     exts: {defauts, labels, migrate(s, exts)?} — extensions du jeu   (optionnel)
+       le moteur possède l'état (ctx.exts), sa persistance (clé exts de la
+       sauvegarde), les libellés archivés et le clic sur les boutons
+       [data-ext] ; la page rend ctx.extSeg() dans drawSheet ; migrate
+       détecte une extension dans une sauvegarde d'avant le champ exts
      drawSheet(d, ctx) -> html du corps de feuille
      sums(s) -> {cléDataSum: valeur}                       (optionnel)
      afterDraw(d, ctx), afterRefresh(d, s, ctx)            (optionnels)
@@ -131,16 +155,22 @@ function injectChrome(slug){
 }
 
 function initSheet(cfg){
-  /* slug fourni par la page, clé localStorage dérivée du registre — key reste
-     accepté (anciennes configs) mais slug est la forme canonique */
-  const slug = cfg.slug || (cfg.key || '').replace('-score-v1', '');
-  const key = cfg.key || (typeof GameRegistry !== 'undefined'
-    ? GameRegistry.gameKey(slug) : slug + '-score-v1');
+  const slug = cfg.slug;
+  const key = typeof GameRegistry !== 'undefined'
+    ? GameRegistry.gameKey(slug) : slug + '-score-v1';
   injectChrome(slug);
   const reg = (typeof GameRegistry !== 'undefined')
     && GameRegistry.GAMES.find(g => g.slug === slug);
   const gameName = (reg && reg.name) || slug;
-  const maxP = cfg.maxPlayers || (()=>4);
+  /* extensions (hook cfg.exts) : état possédé par le moteur, persistance et
+     clic compris — la page ne fournit que le rendu (ctx.extSeg) */
+  let exts = cfg.exts ? {...cfg.exts.defauts} : undefined;
+  const extLabels = () => cfg.exts
+    ? Object.keys(cfg.exts.labels).filter(k => exts[k]).map(k => cfg.exts.labels[k])
+    : (cfg.extLabels ? cfg.extLabels() : []);
+  const maxP = () => (cfg.maxPlayers || (()=>4))(exts);
+  /* le score d'une feuille, signature commune score(d, {players, exts}) */
+  const sc = d => cfg.score(d, {players, exts});
   /* c : couleur du joueur (index dans COLORS) — attachée au joueur, pas à sa
      position, pour survivre au réordonnancement. Sans c explicite : première
      couleur libre. */
@@ -156,6 +186,12 @@ function initSheet(cfg){
   const ctx = {
     get d(){ return players[cur].d; },
     get players(){ return players; },
+    get exts(){ return exts; },
+    /* segment des boutons d'extensions, rendu par la page dans drawSheet */
+    extSeg(){
+      return `<div class="seg">${Object.entries(cfg.exts.labels).map(([k, lab]) =>
+        `<button data-ext="${k}" data-config aria-pressed="${!!exts[k]}">${lab}</button>`).join('')}</div>`;
+    },
     refresh, redraw: drawSheet,
     trimToMax(){
       if(players.length > maxP()){ players = players.slice(0, maxP()); cur = Math.min(cur, players.length-1); }
@@ -171,15 +207,18 @@ function initSheet(cfg){
      l'état complet du moment : joueurs, extensions, joueur courant, drapeau
      de partie commencée (annuler la toute première saisie rend la feuille
      « non commencée » : rien à archiver, pas d'aperçu « Partie en cours »). */
-  let undoStack = [], lastInputTarget = null;
+  const undoStack = [];
+  let lastInputTarget = null;
   function snap(){
     lastInputTarget = null;
-    undoStack.push(JSON.stringify({players, cur, started, ...(cfg.extraState ? cfg.extraState() : {})}));
+    undoStack.push(JSON.stringify({players, cur, started,
+      ...(cfg.exts ? {exts} : {}), ...(cfg.extraState ? cfg.extraState() : {})}));
     if(undoStack.length > 30) undoStack.shift();
   }
   function undo(){
     if(!undoStack.length) return;
     const s = JSON.parse(undoStack.pop());
+    if(cfg.exts) exts = {...cfg.exts.defauts, ...(s.exts || {})};
     if(cfg.restoreExtra) cfg.restoreExtra(s);
     players = s.players;
     started = !!s.started;
@@ -200,21 +239,34 @@ function initSheet(cfg){
   function save(){
     try{
       localStorage.setItem(key, JSON.stringify({
-        players, cur, started, totals: players.map(p=>cfg.score(p.d, players).total),
-        ts: Date.now(), // dernière utilisation — l'accueil ordonne le menu avec
+        players, cur, started, totals: players.map(p=>sc(p.d).total),
+        ...(cfg.exts ? {exts} : {}),
+        /* dernière vraie interaction — l'accueil ordonne le menu avec : ouvrir
+           une feuille sans rien saisir ne la fait pas remonter (ni ne décale la
+           date d'archive d'une partie rouverte juste pour être terminée) */
+        ts: touched ? Date.now() : (loadedTs || 0),
         ...(cfg.extraState ? cfg.extraState() : {})
       }));
     }catch(e){ storageWarn(); }
   }
   function load(){
+    let raw = null;
     try{
-      const s = JSON.parse(localStorage.getItem(key));
-      if(!s || !Array.isArray(s.players) || !s.players.length) return;
+      raw = localStorage.getItem(key);
+      if(raw === null) return;
+      const s = JSON.parse(raw);
+      if(!s || !Array.isArray(s.players) || !s.players.length) throw new Error('format inattendu');
       loadedTs = +s.ts || 0; // avant le premier save(), qui écrase ts
+      if(cfg.exts){
+        exts = {...cfg.exts.defauts, ...(s.exts || {})};
+        // sauvegarde d'avant les extensions : laisser le jeu les détecter
+        if(!s.exts && cfg.exts.migrate) cfg.exts.migrate(s, exts);
+      }
       if(cfg.restoreExtra) cfg.restoreExtra(s);
       players = s.players.slice(0, maxP()).map((p,i)=>({
         nom: p.nom || 'Joueur '+(i+1),
-        d: {...cfg.blank(), ...p.d},
+        // clés manquantes et tableaux abîmés réparés (lib/sheet.js), puis fixup du jeu
+        d: GameSheet.normalizeD(cfg.blank(), p.d),
         // anciennes sauvegardes sans couleur : par position, comme avant
         c: Number.isInteger(p.c) && p.c >= 0 && p.c < COLORS.length ? p.c : i
       }));
@@ -223,10 +275,15 @@ function initSheet(cfg){
       if(s.started !== undefined) started = !!s.started;
       else{
         // ancienne sauvegarde sans le flag : partie commencée si un total dévie de la feuille vierge
-        const base = cfg.score(cfg.blank(), players).total;
+        const base = sc(cfg.blank()).total;
         started = Array.isArray(s.totals) ? s.totals.some(t => t !== base) : true;
       }
-    }catch(e){}
+    }catch(e){
+      /* sauvegarde illisible : la mettre de côté avant que le premier save()
+         ne l'écrase, et prévenir plutôt que d'écraser en silence */
+      try{ if(raw !== null) localStorage.setItem(key + '-corrupt', raw); }catch(e2){}
+      storageWarn('Sauvegarde illisible — la feuille repart de zéro (copie conservée).');
+    }
   }
 
   /* ---------- rendu ---------- */
@@ -237,8 +294,13 @@ function initSheet(cfg){
   }
 
   function refresh(){
-    const d = players[cur].d, s = cfg.score(d, players);
+    const d = players[cur].d, s = sc(d);
     document.querySelectorAll('[data-val]').forEach(el=>{ el.textContent = get(d, el.dataset.val); });
+    /* resynchroniser les champs libres avec la valeur stockée (un négatif tapé
+       dans un champ non signé est borné à 0) — jamais celui en cours de frappe */
+    document.querySelectorAll('input[data-num]').forEach(el=>{
+      if(el !== document.activeElement) el.value = +get(d, el.dataset.num) || 0;
+    });
     const sums = cfg.sums ? cfg.sums(s) : {};
     document.querySelectorAll('[data-sum]').forEach(el=>{
       if(sums[el.dataset.sum] !== undefined) el.textContent = sums[el.dataset.sum] + ' pts';
@@ -255,13 +317,23 @@ function initSheet(cfg){
 
   function drawTabs(){
     const t = document.getElementById('tabs');
-    t.innerHTML = players.map((p,i)=>`
-      <button class="tab" role="tab" data-tab="${i}" aria-selected="${i===cur}" aria-controls="sheetBody" style="color:${i===cur?'var(--bg)':COLORS[p.c]}">
+    /* le rôle tablist ne doit contenir que des tabs : le bouton « + » vit à côté,
+       display:contents laisse les onglets participer au flex de #tabs.
+       tabindex glissant : seul l'onglet courant est dans l'ordre de tabulation,
+       les flèches circulent (listener plus bas). */
+    t.innerHTML = `<div role="tablist" style="display:contents">`
+      + players.map((p,i)=>`
+      <button class="tab" role="tab" id="tab-${i}" data-tab="${i}" aria-selected="${i===cur}" aria-controls="sheetBody" tabindex="${i===cur?0:-1}" style="color:${i===cur?'var(--bg)':COLORS[p.c]}">
         <span class="dot" style="color:${COLORS[p.c]}"></span>${esc(p.nom)}
-        <span class="pts">${cfg.score(p.d, players).total}</span>
+        <span class="pts">${sc(p.d).total}</span>
       </button>`).join('')
+      + `</div>`
       + (players.length < maxP() ? `<button class="tab add" id="addP" title="Ajouter un joueur">+</button>` : '');
-    document.getElementById('pname').value = players[cur].nom;
+    document.getElementById('sheetBody').setAttribute('aria-labelledby', 'tab-' + cur);
+    /* ne jamais réécrire le champ pendant que l'utilisateur y tape : vider le
+       champ le remplirait aussitôt du nom par défaut, caret déplacé en fin */
+    const pname = document.getElementById('pname');
+    if(document.activeElement !== pname) pname.value = players[cur].nom;
     document.getElementById('swatch').style.background = COLORS[players[cur].c];
     document.getElementById('kill').hidden = players.length < 2;
     const mvL = document.getElementById('mvL'), mvR = document.getElementById('mvR');
@@ -286,30 +358,26 @@ function initSheet(cfg){
   /* Écran maintenu allumé tant qu'une partie est en cours (flag started).
      L'OS libère le lock quand l'app passe en arrière-plan : on le redemande
      au retour via visibilitychange. */
-  let wakeLock = null;
+  let wakeLock = null, wakeLockPending = false;
   async function syncWakeLock(){
-    if(!('wakeLock' in navigator)) return;
+    if(!('wakeLock' in navigator) || wakeLockPending) return;
     try{
       if(started && !wakeLock && document.visibilityState === 'visible'){
+        wakeLockPending = true; // un seul request en vol (refresh à chaque frappe) : pas de second verrou qui fuirait
         wakeLock = await navigator.wakeLock.request('screen');
         wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
       } else if(!started && wakeLock){ wakeLock.release(); wakeLock = null; }
     }catch(e){}
+    wakeLockPending = false;
   }
   document.addEventListener('visibilitychange', syncWakeLock);
 
-  /* Classement « competition ranking » (1,1,3) : total puis départage du jeu ;
-     deux voisins que le comparateur ne sépare pas partagent la même position —
-     l'ordre des onglets ne fabrique jamais un vainqueur. lowWins inverse le
-     sens (le plus petit total gagne). */
-  const rankCmp = (a,b)=> (cfg.lowWins ? a.s.total - b.s.total : b.s.total - a.s.total)
-    || (cfg.tiebreak ? cfg.tiebreak(a,b) : 0);
-  function positions(list){
-    const pos = [];
-    for(let i = 0; i < list.length; i++)
-      pos[i] = i > 0 && rankCmp(list[i-1], list[i]) === 0 ? pos[i-1] : i + 1;
-    return pos;
-  }
+  /* Le classement (lib/sheet.js, competition ranking 1,1,3) — l'unique
+     constructeur, consommé par l'archive, le panneau et le texte partagé :
+     trois vues du même tri, jamais trois tris. */
+  const ranked = () => GameSheet.ranked(
+    players.map(p => ({nom: p.nom, c: p.c, d: p.d, s: sc(p.d)})),
+    {lowWins: cfg.lowWins, tiebreak: cfg.tiebreak});
 
   /* Archive la partie dans l'historique global (clé scores-history-v1, lue par
      history.html) : classement figé au moment du reset, si des scores ont été saisis.
@@ -318,70 +386,44 @@ function initSheet(cfg){
   function archive(){
     if(!started) return;
     try{
-      /* Chaque joueur archive aussi sa ventilation, figée en paires
-         [libellé, valeur] prêtes à afficher (mêmes libellés que le classement) :
-         l'historique ne sait pas re-calculer un barème. Position figée de même
-         (le départage n'est pas recalculable), mais seulement quand elle dévie
-         du rang (ex æquo). Champs additifs — les anciennes entrées sans
-         parts/extra/pos restent valides. */
-      const sorted = players.map(p=>{
-        const s = cfg.score(p.d, players);
-        return {nom:p.nom, total:s.total, d:p.d, s};
-      }).sort(rankCmp);
-      const pos = positions(sorted);
-      const list = sorted.map((p,i)=>{
-        const entry = {nom:p.nom, total:p.total};
-        if(pos[i] !== i + 1) entry.pos = pos[i];
-        const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]);
-        if(parts.length) entry.parts = parts;
-        const extra = cfg.rankExtra ? cfg.rankExtra(p.d, ctx) : '';
-        if(extra) entry.extra = extra;
-        return entry;
+      const entry = GameSheet.archiveEntry(ranked(), {
+        slug, t: touched ? Date.now() : (loadedTs || Date.now()),
+        exts: extLabels(),
+        rankParts: cfg.rankParts,
+        rankExtra: d => cfg.rankExtra ? cfg.rankExtra(d, ctx) : ''
       });
-      /* Extensions actives, libellés fournis par la page (hook extLabels,
-         même source que la persistance) — sans eux, les scores archivés ne
-         se comparent pas entre eux. */
-      const exts = cfg.extLabels ? cfg.extLabels() : [];
       const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-      h.unshift({g: slug, t: touched ? Date.now() : (loadedTs || Date.now()), players: list,
-                 ...(exts.length ? {exts} : {})});
+      h.unshift(entry);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 200)));
       fillNameSuggestions();
     }catch(e){ storageWarn(); }
   }
 
   function showRank(){
-    const list = players.map(p=>({...p, s:cfg.score(p.d, players), c:COLORS[p.c]}))
-      .sort(rankCmp);
-    const pos = positions(list);
-    document.getElementById('rankList').innerHTML = list.map((p,i)=>{
-      const parts = cfg.rankParts(p.s, p.d).filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ')
+    document.getElementById('rankList').innerHTML = ranked().map(it=>{
+      const parts = cfg.rankParts(it.s, it.d).filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ')
                     || 'Aucun point saisi';
-      const extra = cfg.rankExtra ? cfg.rankExtra(p.d, ctx) : '';
-      return `<div class="rank ${pos[i]===1?'win':''}">
-        <span class="pos">${pos[i]}</span>
-        <span class="nm" style="color:${p.c}">${esc(p.nom)}<small>${parts}${extra}</small></span>
-        <span class="pt">${p.s.total}</span></div>`;
+      const extra = cfg.rankExtra ? cfg.rankExtra(it.d, ctx) : '';
+      return `<div class="rank ${it.pos===1?'win':''}">
+        <span class="pos">${it.pos}</span>
+        <span class="nm" style="color:${COLORS[it.c]}">${esc(it.nom)}<small>${parts}${extra}</small></span>
+        <span class="pt">${it.s.total}</span></div>`;
     }).join('');
     document.getElementById('rankSheet').classList.add('open');
+    document.documentElement.classList.add('no-scroll'); // pas de scroll du fond derrière le panneau
     // partage : seulement si des scores ont été saisis et qu'un canal existe
     document.getElementById('shareRank').hidden =
       !started || !(navigator.share || navigator.clipboard);
     document.getElementById('closeRank').focus(); // le dialog prend le focus à l'ouverture
   }
 
-  /* Texte du classement pour partage (le groupe de la soirée) : jeu, extensions
-     actives, date, puis une ligne par joueur — mêmes positions partagées que le
-     panneau, 🏆 pour chaque vainqueur. En solo, pas de position. */
+  /* Texte du classement pour partage (le groupe de la soirée) — même tri que
+     le panneau (lib/sheet.js). */
   function shareText(){
-    const list = players.map(p=>({nom:p.nom, d:p.d, s:cfg.score(p.d, players)})).sort(rankCmp);
-    const pos = positions(list);
-    const exts = cfg.extLabels ? cfg.extLabels() : [];
-    return gameName + (exts.length ? ' (' + exts.join(', ') + ')' : '')
-      + ' — ' + new Date().toLocaleDateString('fr-FR') + '\n'
-      + list.map((p,i) =>
-          (list.length > 1 ? (pos[i] === 1 ? '🏆 ' : pos[i] + '. ') : '')
-          + p.nom + ' — ' + p.s.total + ' pts').join('\n');
+    return GameSheet.shareText(ranked(), {
+      gameName, exts: extLabels(),
+      date: new Date().toLocaleDateString('fr-FR')
+    });
   }
 
   /* Partage natif si disponible, copie dans le presse-papier sinon (le bouton
@@ -405,6 +447,7 @@ function initSheet(cfg){
 
   function closeRank(){
     document.getElementById('rankSheet').classList.remove('open');
+    document.documentElement.classList.remove('no-scroll');
     document.getElementById('openRank').focus(); // rendre le focus au bouton qui a ouvert
   }
 
@@ -415,7 +458,8 @@ function initSheet(cfg){
     if(!sheet.classList.contains('open')) return;
     if(e.key === 'Escape'){ closeRank(); return; }
     if(e.key === 'Tab'){
-      const f = sheet.querySelectorAll('button');
+      // un bouton caché (#shareRank sans canal de partage) casserait le piège
+      const f = [...sheet.querySelectorAll('button')].filter(b => !b.hidden);
       const first = f[0], last = f[f.length - 1];
       if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
       else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
@@ -451,7 +495,10 @@ function initSheet(cfg){
   }
   document.addEventListener('pointerdown', e=>{
     const st = e.target.closest && e.target.closest('[data-step]');
-    if(!st) return;
+    // second doigt ou bouton secondaire : inerte (undefined = événement synthétique, accepté)
+    if(!st || e.isPrimary === false || e.button > 0) return;
+    stopHold(); // jamais deux timers en vol (pointerup perdu, pointeurs mêlés) : l'interval fuirait
+    if(gestureSnapped && !holdFired) undoStack.pop(); // geste précédent avorté sans clic : son snapshot est inutile
     snap(); gestureSnapped = true; // l'appui entier (clic ou répétition longue) = un cran d'annulation
     holdFired = false;
     holdTimer = setTimeout(()=>{
@@ -461,7 +508,13 @@ function initSheet(cfg){
     }, 400);
   });
   document.addEventListener('pointerup', stopHold);
-  document.addEventListener('pointercancel', stopHold);
+  document.addEventListener('pointercancel', ()=>{
+    stopHold();
+    /* geste avorté (scroll, doigt glissé) : aucun clic ne suivra — retirer le
+       snapshot, sauf si la répétition longue a déjà saisi des crans */
+    if(gestureSnapped && !holdFired) undoStack.pop();
+    gestureSnapped = false; holdFired = false;
+  });
 
   document.addEventListener('click', e=>{
     /* snap toujours avant de poser started : le snapshot doit capturer l'état
@@ -469,7 +522,17 @@ function initSheet(cfg){
     const sb = e.target.closest && e.target.closest('#sheetBody button');
     if(sb && sb.dataset.step === undefined){ // les steppers sont snapshotés au pointerdown
       snap();
-      started = touched = true;
+      /* data-config (extensions, face du plateau…) : de la configuration, pas
+         une saisie — ne marque pas la partie comme commencée */
+      if(sb.dataset.config === undefined) started = touched = true;
+    }
+    if(cfg.exts){
+      const ext = e.target.closest && e.target.closest('[data-ext]');
+      if(ext){
+        exts[ext.dataset.ext] = !exts[ext.dataset.ext];
+        ctx.trimToMax(); // le plafond de joueurs peut dépendre des extensions
+        drawSheet(); return;
+      }
     }
     if(cfg.onClick && cfg.onClick(e, ctx)) return;
     const st = e.target.closest('[data-step]');
@@ -499,13 +562,21 @@ function initSheet(cfg){
       drawSheet(); return;
     }
     const tab = e.target.closest('[data-tab]');
-    if(tab){ cur = +tab.dataset.tab; drawSheet(); return; }
+    if(tab){
+      // drawTabs reconstruit les onglets : re-focaliser celui qui vient d'être
+      // activé au clavier, sinon le focus retombe sur <body>
+      const hadFocus = document.activeElement && document.activeElement.closest
+        && document.activeElement.closest('#tabs');
+      cur = +tab.dataset.tab; drawSheet();
+      if(hadFocus) document.querySelector(`#tabs [data-tab="${cur}"]`).focus();
+      return;
+    }
     if(e.target.id === 'addP'){ players.push(mk('Joueur '+(players.length+1))); cur = players.length-1; drawSheet(); return; }
     if(e.target.id === 'kill'){
       const p = players[cur];
       // même heuristique que le legacy started : la feuille dévie-t-elle de la vierge ?
       // (limite assumée : un joueur revenu exactement au total vierge n'est pas détecté)
-      const dirty = cfg.score(p.d, players).total !== cfg.score(cfg.blank(), players).total;
+      const dirty = sc(p.d).total !== sc(cfg.blank()).total;
       if(dirty && !confirm(`Retirer ${p.nom} ? Ses scores seront perdus.`)) return;
       players.splice(cur,1); cur = 0; drawSheet(); return;
     }
@@ -537,7 +608,7 @@ function initSheet(cfg){
     }
     if(cfg.onInput && cfg.onInput(e, ctx)) return;
     const d = players[cur].d;
-    if(e.target.id === 'pname'){ players[cur].nom = e.target.value || 'Joueur '+(cur+1); refresh(); return; }
+    if(e.target.id === 'pname'){ players[cur].nom = e.target.value; refresh(); return; }
     if(e.target.dataset.num !== undefined){
       const p = e.target.dataset.num, v = +e.target.value || 0;
       set(d, p, (cfg.signed && cfg.signed.has(p)) ? v : Math.max(0, v));
@@ -545,12 +616,31 @@ function initSheet(cfg){
     }
   });
 
+  /* Au blur (événement change) : redonner son nom par défaut à un joueur laissé
+     sans nom (le vider est permis pendant la frappe), et resynchroniser un champ
+     numérique avec la valeur stockée. */
+  document.addEventListener('change', e=>{
+    if(e.target.id === 'pname'){
+      if(!e.target.value.trim()) players[cur].nom = 'Joueur '+(cur+1);
+      e.target.value = players[cur].nom;
+      refresh(); return;
+    }
+    if(e.target.dataset && e.target.dataset.num !== undefined) refresh();
+  });
+
   /* Un autre onglet a modifié la sauvegarde de ce jeu (l'événement storage ne
      se déclenche jamais dans l'onglet qui écrit) : recharger son état plutôt
-     que de l'écraser au prochain refresh. */
+     que de l'écraser au prochain refresh. Une suppression (import, autre onglet)
+     repart d'une feuille vierge au lieu de ressusciter l'état en mémoire. */
   window.addEventListener('storage', e => {
     if(e.key !== key) return;
     undoStack.length = 0;
+    if(e.newValue === null){
+      if(cfg.exts) exts = {...cfg.exts.defauts};
+      players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1), i));
+      cur = 0; started = false; touched = false; loadedTs = 0;
+      drawSheet(); return;
+    }
     load(); drawSheet();
   });
 

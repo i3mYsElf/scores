@@ -55,9 +55,22 @@ test('la version du SW committée reste "dev" (stampée au déploiement)', () =>
     "sw.js doit garder VERSION = 'dev' — le SHA est injecté par la CI au déploiement");
 });
 
-test('les fichiers communs sont précachés', () => {
-  for (const f of ['.', 'common.css', 'common.js', 'sw-client.js', 'theme.js', 'manifest.json', 'lib/registry.js', 'lib/backup.js', 'lib/stats.js', 'history.html']) {
-    assert.ok(precache.includes(f), `${f} absent du PRECACHE`);
+/* Dérivé des pages réelles : tout script, CSS ou icône référencé par une page
+   (et les icônes du manifest) doit être précaché — la liste de sw.js ne peut
+   pas prendre de retard sur un nouveau lib/ ou une nouvelle page. */
+test('tout asset référencé par les pages est précaché', () => {
+  const pages = ['index.html', 'history.html', ...GAMES.map(g => gamePage(g.slug))];
+  // l'accueil est précaché sous « . » (c'est aussi le secours des navigations offline)
+  const assets = new Set(['.', ...pages.filter(p => p !== 'index.html')]);
+  for (const f of pages) {
+    for (const [, u] of read(f).matchAll(/(?:src|href)="([^"]+)"/g)) {
+      if (/^https?:\/\//.test(u) || u === './') continue; // externes (polices) et lien accueil
+      assets.add(u);
+    }
+  }
+  for (const i of JSON.parse(read('manifest.json')).icons || []) assets.add(i.src);
+  for (const a of assets) {
+    assert.ok(precache.includes(a), `${a} référencé par une page mais absent du PRECACHE de sw.js`);
   }
 });
 
@@ -108,6 +121,18 @@ test('thème : les deux blocs de tokens sombres de common.css sont identiques', 
     .map(m => m[1].replace(/\s+/g, ' ').trim());
   assert.equal(blocks.length, 2, 'blocs de tokens sombres introuvables');
   assert.equal(blocks[0], blocks[1], 'les tokens sombres système et data-theme="dark" divergent');
+});
+
+/* La doc a déjà dérivé (jeu manquant, lib absente) : le README doit mentionner
+   chaque page de jeu et chaque module de lib/. */
+test('le README mentionne chaque jeu du registre et chaque module de lib/', () => {
+  const readme = read('README.md');
+  for (const {slug} of GAMES) {
+    assert.ok(readme.includes(gamePage(slug)), `README.md ne mentionne pas ${gamePage(slug)}`);
+  }
+  for (const f of fs.readdirSync(path.join(ROOT, 'lib'))) {
+    assert.ok(readme.includes(`lib/${f}`), `README.md ne mentionne pas lib/${f}`);
+  }
 });
 
 test('la clé d\'historique du registre est celle qu\'écrit common.js', () => {

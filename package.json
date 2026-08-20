@@ -2,14 +2,19 @@
   "name": "scores",
   "private": true,
   "description": "Feuilles de score de jeux de société — PWA statique sans build (jsdom uniquement pour les tests)",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node --test",
     "lint": "eslint .",
+    "check": "npm run lint && npm test",
     "serve": "npx serve ."
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.1",
+    "eslint-plugin-html": "^8.1.4",
     "globals": "^17.11.0",
     "jsdom": "^26.0.0"
   }

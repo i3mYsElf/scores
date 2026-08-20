@@ -43,7 +43,7 @@
   .tool.theme{right:54px}
 </style>
 
-<div class="wrap">
+<div class="wrap" id="gameList">
   <header>
     <h1 class="title">Scores</h1>
     <p class="subtitle">Feuilles de score de jeux de société</p>
@@ -209,7 +209,7 @@ const {GAMES, gameKey, gamePage} = GameRegistry;
    Idempotent : re-rendu quand un autre onglet modifie une sauvegarde. */
 function renderPreviews(){
   const parse = k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } };
-  const wrap = document.querySelector('.wrap');
+  const wrap = document.getElementById('gameList'); // la page a deux .wrap : viser celui du menu
   wrap.querySelectorAll('a.game').forEach(el => el.remove());
   GAMES
     .map(g => {

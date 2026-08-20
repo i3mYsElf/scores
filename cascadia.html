@@ -23,32 +23,24 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">Cascadia</h1>
     <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="games/cascadia.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score: rawScore, habitatBonuses} = GameLogic;
-
-/* Les bonus dépendent de tous les joueurs : on les recalcule à chaque score.
-   d comparé par identité — le moteur score aussi des feuilles hors joueurs
-   (blank(), pour détecter une feuille vierge) : sans joueur correspondant,
-   pas de bonus de majorité. */
-function score(d, players){
-  const i = players ? players.findIndex(p=>p.d===d) : -1;
-  if(i < 0) return rawScore(d);
-  return rawScore(d, habitatBonuses(players.map(p=>p.d))[i]);
-}
+const {blank, score, maxPlayers} = GameLogic;
 
 initSheet({
   slug: 'cascadia',
   startPlayers: 2,
-  maxPlayers: () => 4,
+  maxPlayers,
   blank, score,
   sums: s => ({faune:s.faune, habitats:s.habitats+s.bonus, nature:s.nature}),
   rankParts: s => [

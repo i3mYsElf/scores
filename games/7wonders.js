@@ -21,8 +21,9 @@ function bestScience(a,b,c,j){
   return best;
 }
 
-function score(d, exts){
-  exts = exts || {};
+/* opts = {exts} : convention commune à tous les jeux (voir common.js) */
+function score(d, opts){
+  const exts = (opts && opts.exts) || {};
   const militaire = -d.def + d.v1 + 3*d.v2 + 5*d.v3;
   const tresor = Math.floor(d.pieces/3);
   const science = bestScience(d.compas, d.roue, d.tablette, d.jokers);
@@ -37,7 +38,9 @@ function score(d, exts){
                  +leaders+cities+armada+edifice};
 }
 
-const api = {blank, score, bestScience};
+const maxPlayers = exts => exts && exts.cities ? 8 : 7; // Cities ajoute un 8e joueur
+
+const api = {blank, score, bestScience, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

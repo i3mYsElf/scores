@@ -18,8 +18,10 @@ function score(d){
           total: domaines + batiments + quetes + tresor};
 }
 
+const maxPlayers = () => 4;
+
 /* Le départage (plus grand domaine) est partagé avec Kingdomino : lib/domino.js */
-const api = {blank, score};
+const api = {blank, score, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

@@ -13,8 +13,9 @@ function fixup(d){
   if(Array.isArray(d.animaux)) d.animaux = d.animaux.reduce((a,b)=>a+(+b||0),0);
 }
 
-function score(d, exts){
-  exts = exts || {};
+/* opts = {exts} : convention commune à tous les jeux (voir common.js) */
+function score(d, opts){
+  const exts = (opts && opts.exts) || {};
   const arbre = d.arbre[0]*1 + d.arbre[1]*3 + d.arbre[2]*7;
   const mont  = d.mont[0]*1  + d.mont[1]*3  + d.mont[2]*7;
   const champs = d.champs*5, batiments = d.batiments*5;
@@ -27,7 +28,9 @@ function score(d, exts){
           total: arbre+mont+champs+batiments+eau+animaux+esprit};
 }
 
-const api = {blank, score, fixup};
+const maxPlayers = () => 4;
+
+const api = {blank, score, fixup, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

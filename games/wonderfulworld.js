@@ -18,7 +18,9 @@ function score(d){
 /* relecture d'anciennes sauvegardes : toujours au moins une ligne de multiplicateur */
 const fixup = d => { if(!Array.isArray(d.mults) || !d.mults.length) d.mults = [{v:0,n:0}]; };
 
-const api = {blank, score, fixup};
+const maxPlayers = () => 5;
+
+const api = {blank, score, fixup, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

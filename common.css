@@ -145,7 +145,8 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
 }
 .step button:active{opacity:.72}
 .step button:disabled{opacity:.3}
-.step .val{width:34px;text-align:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+/* min-width : un total à 3 chiffres (Terraforming Mars, Skyjo) ne déborde pas */
+.step .val{min-width:34px;text-align:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
 
 .seg{display:flex;gap:6px;margin:2px 0 10px}
 .seg button{
@@ -160,6 +161,11 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
   text-align:center;font-variant-numeric:tabular-nums;
 }
 .num:focus{outline:2px solid var(--accent);outline-offset:-1px}
+/* variantes étroites des listes (domaines, multiplicateurs, manches, sirènes) */
+.num-s{width:58px}
+.num-m{width:64px}
+/* total d'une ligne de liste, aligné à droite */
+.rowtot{flex:1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .ghost{
   width:100%;margin:4px 0 10px;padding:11px;border-radius:9px;
   border:1px dashed var(--line);background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
@@ -190,10 +196,13 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
 }
 
 /* ---------- classement ---------- */
+/* fond verrouillé tant que le panneau est ouvert (classe posée par common.js) */
+html.no-scroll,html.no-scroll body{overflow:hidden}
 .sheet{position:fixed;inset:0;z-index:10;background:var(--overlay);display:none}
 .sheet.open{display:block}
 .sheet .panel{
-  position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;
+  position:absolute;left:0;right:0;bottom:0;overflow:auto;
+  max-height:88vh;max-height:88dvh; /* dvh : suit la barre d'URL mobile, vh en repli */
   background:var(--bg);border-top:1px solid var(--line);border-radius:22px 22px 0 0;
   padding:20px 16px calc(24px + env(safe-area-inset-bottom));
 }
@@ -220,13 +229,18 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
 :is(.tab,.seg button)::after{content:'';position:absolute;inset:-5px 0}
 
 /* ---------- bannières système ---------- */
-/* sauvegarde impossible (common.js) et nouvelle version disponible (sw-client.js) */
-.storage-warn,.sw-update{
+/* sauvegarde impossible (common.js) et nouvelle version disponible (sw-client.js) :
+   empilées dans un conteneur commun — jamais superposées si les deux surviennent */
+.banners{
   position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:60;
+  display:flex;flex-direction:column;gap:8px;
+}
+.storage-warn,.sw-update{
   padding:11px 14px;border-radius:var(--r);font-size:13.5px;font-weight:500;text-align:center;
   box-shadow:0 6px 18px rgba(0,0,0,.28);
 }
-.storage-warn{background:var(--danger);color:#fff}
+.storage-warn{background:var(--danger);color:#fff;display:flex;gap:12px;align-items:center;justify-content:center}
+.storage-warn .bclose{border:none;background:transparent;color:inherit;font-size:17px;line-height:1;padding:0 4px;cursor:pointer}
 .sw-update{background:var(--card-2);color:var(--ctl-ink);display:flex;gap:12px;align-items:center;justify-content:center}
 .sw-update button{
   border:none;border-radius:8px;padding:7px 13px;background:var(--accent);color:var(--go-ink);

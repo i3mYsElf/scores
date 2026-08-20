@@ -1,7 +1,7 @@
 {
   "name": "Scores — feuilles de score",
   "short_name": "Scores",
-  "description": "Feuilles de score de jeux de société (Harmonies, …)",
+  "description": "Feuilles de score de jeux de société — hors-ligne, multi-joueurs, historique des parties",
   "lang": "fr",
   "id": "./",
   "start_url": ".",

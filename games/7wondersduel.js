@@ -3,6 +3,7 @@
    politique avec Agora) termine la partie sans décompte. */
 (function(){
 const TEMPLES = [0, 5, 12, 21]; // Panthéon : PV pour 0, 1, 2 ou 3 Grands Temples
+const ZONES = [0, 2, 5, 10];    // points de la zone du pion Conflit (militaire)
 
 const blank = () => ({
   civils:0, science:0, commerce:0, guildes:0, // PV imprimés sur les cartes
@@ -13,7 +14,9 @@ const blank = () => ({
   senat:0                                     // Agora : PV des chambres du Sénat contrôlées
 });
 
-function score(d, exts = {}){
+/* opts = {exts} : convention commune à tous les jeux (voir common.js) */
+function score(d, opts){
+  const exts = (opts && opts.exts) || {};
   const civils = +d.civils||0, science = +d.science||0,
         commerce = +d.commerce||0, guildes = +d.guildes||0,
         merveilles = +d.merveilles||0, progres = +d.progres||0;
@@ -28,7 +31,9 @@ function score(d, exts = {}){
                + tresor + militaire + pantheon + agora};
 }
 
-const api = {blank, score, TEMPLES};
+const maxPlayers = () => 2;
+
+const api = {blank, score, maxPlayers, TEMPLES, ZONES};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

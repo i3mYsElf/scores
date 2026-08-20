@@ -46,9 +46,13 @@ function habitatBonuses(allD){
   return bonuses;
 }
 
-/* bonuses : {habitat: bonus} pour CE joueur (déjà calculé via habitatBonuses) */
-function score(d, bonuses){
-  bonuses = bonuses || {};
+/* opts = {players} : d est retrouvé par identité parmi les joueurs pour ses
+   bonus de majorité — une feuille hors joueurs (blank() du moteur, pour
+   détecter une feuille vierge) est scorée sans bonus. */
+function score(d, opts){
+  const players = (opts && opts.players) || [];
+  const i = players.findIndex(p => p && p.d === d);
+  const bonuses = i >= 0 ? habitatBonuses(players.map(p => p.d))[i] : {};
   const faune = WILDLIFE.reduce((a,k)=>a+(+d[k]||0), 0);
   const habitats = HABITATS.reduce((a,k)=>a+(+d[k]||0), 0);
   const bonus = HABITATS.reduce((a,k)=>a+(bonuses[k]||0), 0);
@@ -56,7 +60,9 @@ function score(d, bonuses){
   return {faune, habitats, bonus, nature, total: faune+habitats+bonus+nature};
 }
 
-const api = {blank, score, habitatBonuses, WILDLIFE, HABITATS};
+const maxPlayers = () => 4;
+
+const api = {blank, score, habitatBonuses, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

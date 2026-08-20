@@ -10,9 +10,10 @@ const blank = () => ({
    des variantes classiques (qui existent parmi les 17 tuiles Défi de la boîte) ;
    les couronnes couvertes par les géants ne se comptent pas — c'est au comptage
    visuel des couronnes, pas au barème. */
-function score(d, exts){
+function score(d, opts){
+  const exts = (opts && opts.exts) || {};
   const domaines = d.domaines.reduce((a,m)=>a + (+m.c||0)*(+m.k||0), 0);
-  const geants = !!(exts && exts.geants);
+  const geants = !!exts.geants;
   const bonus = geants ? 0 : (d.harmonie ? 5 : 0) + (d.milieu ? 10 : 0);
   const defis = geants ? (d.defis || []).reduce((a,v)=>a + (+v||0), 0) : 0;
   return {domaines, bonus, defis, total: domaines + bonus + defis};
@@ -24,8 +25,10 @@ const fixup = d => {
   if(!Array.isArray(d.defis) || d.defis.length !== 2) d.defis = [0,0];
 };
 
+const maxPlayers = exts => exts && exts.geants ? 5 : 4; // Age of Giants ajoute un 5e joueur
+
 /* Le départage (plus grand domaine) est partagé avec Queendomino : lib/domino.js */
-const api = {blank, score, fixup};
+const api = {blank, score, fixup, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

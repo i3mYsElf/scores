@@ -23,20 +23,19 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">Harmonies</h1>
     <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="games/harmonies.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score: rawScore, fixup} = GameLogic;
-
-let exts = {esprits: false};
-const score = d => rawScore(d, exts);
+const {blank, score, fixup, maxPlayers} = GameLogic;
 
 const TOK = {
   marron:['#9A6B45','#7A5133'], vert:['#6E9C55','#4F7439'], gris:['#93A0A8','#6E7B83'],
@@ -67,16 +66,17 @@ function drawEau(d){
 initSheet({
   slug: 'harmonies',
   startPlayers: 2,
-  maxPlayers: () => 4,
+  maxPlayers,
   blank, score, fixup,
   stepMin: p => p === 'iles' ? 1 : 0,
-  extraState: () => ({exts}),
-  extLabels: () => exts.esprits ? ['Esprits de la nature'] : [],
-  restoreExtra(s){
-    exts = {esprits: false, ...(s.exts || {})};
+  exts: {
+    defauts: {esprits: false},
+    labels: {esprits: 'Esprits de la nature'},
     // sauvegardes d'avant l'extension : des points d'esprit saisis -> elle était jouée
-    if(!s.exts && Array.isArray(s.players) && s.players.some(p => p && p.d && +p.d.esprit))
-      exts.esprits = true;
+    migrate(s, exts){
+      if(Array.isArray(s.players) && s.players.some(p => p && p.d && +p.d.esprit))
+        exts.esprits = true;
+    }
   },
   sums: s => ({arbre:s.arbre, mont:s.mont, cb:s.champs+s.batiments, eau:s.eau, animaux:s.animaux+s.esprit}),
   rankParts: s => [
@@ -84,7 +84,7 @@ initSheet({
     ['Bâtiments',s.batiments],['Eau',s.eau],['Animaux',s.animaux],['Esprits',s.esprit]
   ],
 
-  drawSheet(d){
+  drawSheet(d, ctx){
     return `
   <div class="card">
     <h2>Arbres <span class="sum" data-sum="arbre">0</span></h2>
@@ -112,8 +112,8 @@ initSheet({
   <div class="card">
     <h2>Eau <span class="sum" data-sum="eau">0</span></h2>
     <div class="seg">
-      <button data-face="A" aria-pressed="${d.face==='A'}">Face A · Rivière</button>
-      <button data-face="B" aria-pressed="${d.face==='B'}">Face B · Îles</button>
+      <button data-face="A" data-config aria-pressed="${d.face==='A'}">Face A · Rivière</button>
+      <button data-face="B" data-config aria-pressed="${d.face==='B'}">Face B · Îles</button>
     </div>
     <div id="eauBody"></div>
   </div>
@@ -122,26 +122,19 @@ initSheet({
     <h2>Cartes animaux <span class="sum" data-sum="animaux">0</span></h2>
     <p class="hint">Additionnez les points inscrits sur vos cartes animaux et saisissez le total.</p>
     ${rowNum(d,'animaux','Points des animaux','total de vos cartes')}
-    ${exts.esprits ? rowNum(d,'esprit','Esprits de la nature','total de vos cartes Esprit') : ''}
+    ${ctx.exts.esprits ? rowNum(d,'esprit','Esprits de la nature','total de vos cartes Esprit') : ''}
   </div>
 
   <div class="card">
     <h2>Extension</h2>
     <p class="hint">Esprits de la nature : ajoute la ligne des points d'Esprit au décompte (commun à tous les joueurs).</p>
-    <div class="seg">
-      <button data-ext="esprits" aria-pressed="${exts.esprits}">Esprits de la nature</button>
-    </div>
+    ${ctx.extSeg()}
   </div>`;
   },
   afterDraw(d){ drawEau(d); },
 
   onClick(e, ctx){
     const d = ctx.d;
-    const ext = e.target.closest('[data-ext]');
-    if(ext){
-      exts[ext.dataset.ext] = !exts[ext.dataset.ext];
-      ctx.redraw(); return true;
-    }
     const face = e.target.closest('[data-face]');
     if(face){
       d.face = face.dataset.face;

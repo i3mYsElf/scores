@@ -23,30 +23,29 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">7 Wonders Duel</h1>
     <p class="subtitle">Feuille de score — victoire civile</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="games/7wondersduel.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score: rawScore} = GameLogic;
-const EXTS = [['pantheon','Panthéon'], ['agora','Agora']];
-let exts = {pantheon:false, agora:false};
-const score = d => rawScore(d, exts);
-const ZONES = [0, 2, 5, 10];
+const {blank, score, maxPlayers, TEMPLES, ZONES} = GameLogic;
 
 initSheet({
   slug: '7wondersduel',
   startPlayers: 2,
-  maxPlayers: () => 2,
+  maxPlayers,
   blank, score,
-  extraState: () => ({exts}),
-  restoreExtra: s => { exts = {...exts, ...(s.exts||{})}; },
-  extLabels: () => EXTS.filter(([k]) => exts[k]).map(([,lab]) => lab),
+  exts: {
+    defauts: {pantheon:false, agora:false},
+    labels: {pantheon:'Panthéon', agora:'Agora'}
+  },
   sums: s => ({
     batiments: s.civils+s.science+s.commerce+s.guildes,
     ville: s.merveilles+s.progres, tresor: s.tresor, militaire: s.militaire,
@@ -60,14 +59,13 @@ initSheet({
   rankExtra: d => d.civils ? ` · ${d.civils} pts civils` : '',
   tiebreak: (a,b) => (+b.d.civils||0) - (+a.d.civils||0),
 
-  drawSheet(d){
+  drawSheet(d, ctx){
+    const exts = ctx.exts;
     return `
   <div class="card">
     <h2>Extensions</h2>
     <p class="hint">Activez celles utilisées dans cette partie (commun aux deux joueurs). En cas de suprématie militaire, scientifique ou politique, la partie s'arrête sans décompte.</p>
-    <div class="seg">
-      ${EXTS.map(([k,lab])=>`<button data-ext="${k}" aria-pressed="${exts[k]}">${lab}</button>`).join('')}
-    </div>
+    ${ctx.extSeg()}
   </div>
 
   <div class="card">
@@ -115,11 +113,6 @@ initSheet({
 
   onClick(e, ctx){
     const d = ctx.d;
-    const ext = e.target.closest('[data-ext]');
-    if(ext){
-      exts[ext.dataset.ext] = !exts[ext.dataset.ext];
-      ctx.redraw(); return true;
-    }
     const zone = e.target.closest('[data-zone]');
     if(zone){
       d.milZone = +zone.dataset.zone;
@@ -128,7 +121,7 @@ initSheet({
     }
     return false;
   },
-  /* plafonne les Grands Temples à 3 (appui long compris) */
-  stepMax: p => p === 'temples' ? 3 : undefined
+  /* plafonne les Grands Temples au max du barème (appui long compris) */
+  stepMax: p => p === 'temples' ? TEMPLES.length - 1 : undefined
 });
 </script>

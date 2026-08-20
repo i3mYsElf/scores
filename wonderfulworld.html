@@ -23,25 +23,27 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">It's a Wonderful World</h1>
     <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="games/wonderfulworld.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score, fixup} = GameLogic;
+const {blank, score, fixup, maxPlayers} = GameLogic;
 
 function drawMults(d){
   document.getElementById('multList').innerHTML = d.mults.map((m,i)=>`
     <div class="row">
-      <input class="num" data-mv="${i}" type="number" min="0" inputmode="numeric" value="${m.v}" style="width:58px" aria-label="PV par élément">
+      <input class="num num-s" data-mv="${i}" type="number" min="0" inputmode="numeric" value="${+m.v||0}" aria-label="PV par élément">
       <span style="color:var(--muted);font-size:13px">PV ×</span>
-      <input class="num" data-mn="${i}" type="number" min="0" inputmode="numeric" value="${m.n}" style="width:58px" aria-label="nombre d'éléments">
-      <span class="val" data-mtot="${i}" style="flex:1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">0</span>
+      <input class="num num-s" data-mn="${i}" type="number" min="0" inputmode="numeric" value="${+m.n||0}" aria-label="nombre d'éléments">
+      <span class="val rowtot" data-mtot="${i}">0</span>
       <button class="kill" data-delmult="${i}" aria-label="Supprimer ce multiplicateur">×</button>
     </div>`).join('');
 }
@@ -49,7 +51,7 @@ function drawMults(d){
 initSheet({
   slug: 'wonderfulworld',
   startPlayers: 2,
-  maxPlayers: () => 5,
+  maxPlayers,
   blank, score, fixup,
   sums: s => ({cartes:s.fixes+s.mults, persos:s.financiers+s.generaux}),
   rankParts: s => [

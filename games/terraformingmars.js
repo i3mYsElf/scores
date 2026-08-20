@@ -12,7 +12,9 @@ const blank = () => ({
   mc:0                      // mégacrédits restants — départage uniquement
 });
 
-function score(d, nPlayers){
+/* opts = {players} : à 2 joueurs, la 2e place des récompenses ne compte pas */
+function score(d, opts){
+  const nPlayers = ((opts && opts.players) || []).length;
   const nt = +d.tr || 0;
   const objectifs = 5*d.objectifs;
   const recompenses = 5*d.prem + (nPlayers === 2 ? 0 : 2*d.sec);
@@ -22,7 +24,9 @@ function score(d, nPlayers){
           total: nt + objectifs + recompenses + plateau + cartes};
 }
 
-const api = {blank, score};
+const maxPlayers = () => 5;
+
+const api = {blank, score, maxPlayers};
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.GameLogic = api;
 })();

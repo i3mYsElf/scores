@@ -23,26 +23,29 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">Skyjo</h1>
     <p class="subtitle">Feuille de score — le plus petit total gagne</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="lib/manches.js"></script>
 <script src="games/skyjo.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score, fixup, FIN_PARTIE} = GameLogic;
+const {blank, score, fixup, setFini, validerManches, maxPlayers, FIN_PARTIE} = GameLogic;
 // la liste des manches validées et le bandeau de fin de partie sont partagés
 // avec Sea Salt & Paper dans lib/manches.js (ici signed : manches négatives)
-const {manchesRankExtra, manchesDraw, manchesClick, manchesInput, manchesFin} = GameManches;
+const {manchesRankExtra, manchesFin} = GameManches;
+const {manchesDraw, manchesClick, manchesInput} = GameManches.manchesFor(true);
 
 initSheet({
   slug: 'skyjo',
   startPlayers: 2,
-  maxPlayers: () => 8,
+  maxPlayers,
   blank, score, fixup,
   lowWins: true, // le plus petit total gagne — pas de départage officiel (ex æquo)
   signed: new Set(['manche']), // les cartes vont de −2 à 12 : une manche peut être négative
@@ -51,7 +54,7 @@ initSheet({
     ['Manches précédentes', s.precedentes], ['Manche en cours', s.manche]
   ],
   rankExtra: (d, ctx) => manchesRankExtra(d)
-    + (score(d, ctx.players).doublee ? ' · manche doublée' : ''),
+    + (score(d, {players: ctx.players}).doublee ? ' · manche doublée' : ''),
 
   drawSheet(d){
     return `
@@ -73,7 +76,7 @@ initSheet({
     <button class="ghost" id="valManche">Valider la manche (tous les joueurs)</button>
   </div>`;
   },
-  afterDraw(d){ manchesDraw(d, true); },
+  afterDraw(d){ manchesDraw(d); },
 
   /* Doublement du joueur courant et bandeau de fin de partie : seul le cumul
      des manches validées déclenche la fin, la manche en cours n'y compte pas. */
@@ -90,25 +93,20 @@ initSheet({
   },
 
   onClick(e, ctx){
-    if(manchesClick(e, ctx, true)) return true;
+    if(manchesClick(e, ctx)) return true;
     const d = ctx.d;
     const fin = e.target.closest('[data-fini]');
     if(fin){
       // un seul « fermeur » par manche : activer ici désactive les autres onglets
-      const on = !d.fini;
-      ctx.players.forEach(p => { p.d.fini = 0; });
-      d.fini = on ? 1 : 0;
+      setFini(ctx.players, d, !d.fini);
       ctx.redraw(); return true;
     }
     if(e.target.id === 'valManche'){
-      /* valide la manche de TOUS les joueurs d'un coup (le doublement compare
-         les manches en cours : figer l'un avant l'autre fausserait le calcul) */
-      const vals = ctx.players.map(p => score(p.d, ctx.players).manche);
-      ctx.players.forEach((p, i) => { p.d.manches.push(vals[i]); p.d.manche = 0; p.d.fini = 0; });
+      validerManches(ctx.players);
       ctx.redraw(); return true;
     }
     return false;
   },
-  onInput: (e, ctx) => manchesInput(e, ctx, true) // négatifs permis
+  onInput: manchesInput
 });
 </script>

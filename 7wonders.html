@@ -23,32 +23,30 @@
     <a class="back" href="./">← Jeux</a>
     <h1 class="title">7 Wonders</h1>
     <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tabs" id="tabs"></div>
   </header>
 
   <div id="sheetBody"></div>
 </div>
 
 <script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
 <script src="games/7wonders.js"></script>
 <script src="common.js"></script>
 <script>
-const {blank, score: rawScore} = GameLogic;
-const EXTS = [
-  ['leaders','Leaders'], ['cities','Cities'], ['armada','Armada'], ['edifice','Édifice']
-];
-let exts = {leaders:false, cities:false, armada:false, edifice:false};
-const score = d => rawScore(d, exts);
+const {blank, score, maxPlayers} = GameLogic;
 
 initSheet({
   slug: '7wonders',
   startPlayers: 3,
-  maxPlayers: () => exts.cities ? 8 : 7,
+  maxPlayers,
   blank, score,
   signed: new Set(['naval','edifice']),
-  extraState: () => ({exts}),
-  restoreExtra: s => { exts = {...exts, ...(s.exts||{})}; },
-  extLabels: () => EXTS.filter(([k]) => exts[k]).map(([,lab]) => lab),
+  exts: {
+    defauts: {leaders:false, cities:false, armada:false, edifice:false},
+    labels: {leaders:'Leaders', cities:'Cities', armada:'Armada', edifice:'Édifice'}
+  },
   sums: s => ({
     militaire:s.militaire, tresor:s.tresor,
     cartes:s.merveille+s.civils+s.commerce+s.guildes, science:s.science,
@@ -63,14 +61,13 @@ initSheet({
   rankExtra: d => d.pieces ? ` · ${d.pieces} pièce${d.pieces > 1 ? 's' : ''}` : '',
   tiebreak: (a,b) => b.d.pieces - a.d.pieces,
 
-  drawSheet(d){
+  drawSheet(d, ctx){
+    const exts = ctx.exts;
     return `
   <div class="card">
     <h2>Extensions</h2>
     <p class="hint">Activez celles utilisées dans cette partie (commun à tous les joueurs).</p>
-    <div class="seg">
-      ${EXTS.map(([k,lab])=>`<button data-ext="${k}" aria-pressed="${exts[k]}">${lab}</button>`).join('')}
-    </div>
+    ${ctx.extSeg()}
   </div>
 
   <div class="card">
@@ -132,16 +129,6 @@ initSheet({
     <h2>${sq('var(--marron)')}Édifice <span class="sum" data-sum="edifice">0</span></h2>
     ${rowNum(d,'edifice','Édifices','récompenses, ou pénalités en négatif',true)}
   </div>` : ''}`;
-  },
-
-  onClick(e, ctx){
-    const ext = e.target.closest('[data-ext]');
-    if(ext){
-      exts[ext.dataset.ext] = !exts[ext.dataset.ext];
-      ctx.trimToMax();
-      ctx.redraw(); return true;
-    }
-    return false;
   }
 });
 </script>
