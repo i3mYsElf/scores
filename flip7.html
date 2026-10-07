@@ -37,52 +37,30 @@
 <script>
 const { blank, score, addNumber, addBonus, endRound, maxPlayers, fixup } = GameLogic;
 
-function drawCurrentCards(d) {
-  const hasNumbers = d.numbers.length > 0;
-  const hasBonuses = d.bonuses.length > 0;
-  
-  let html = '';
-  
-  if (hasNumbers || hasBonuses) {
-    html += '<div class="seg">';
-    if (hasNumbers) {
-      html += `<span class="lab">Numéros : ${d.numbers.join(', ')}</span>`;
-    }
-    if (hasBonuses) {
-      html += `<span class="lab">Bonus : ${d.bonuses.map(b => b === 'x2' ? '×2' : '+'+b).join(', ')}</span>`;
-    }
-    html += '</div>';
-  }
-  
-  if (!hasNumbers && !hasBonuses) {
-    html += '<p class="hint">Aucune carte cette manche</p>';
-  }
-  
-  if (d.hasFlipped) {
-    html += '<p class="hint" style="color:var(--vert);font-weight:600">✓ FLIP 7 ! +15 pts</p>';
-  }
-  if (d.isOut) {
-    html += '<p class="hint" style="color:var(--danger);font-weight:600">✗ SAUTÉ ! 0 pt cette manche</p>';
-  }
-  
-  return html;
-}
-
+/* --- Rend une carte Numéro avec état pressed --- */
 function drawNumberButtons(d) {
   const allNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   return allNumbers.map(n => {
-    const disabled = d.numbers.includes(n) || d.isOut;
-    return `<button class="ctl" data-number="${n}" ${disabled ? 'disabled' : ''}>${n}</button>`;
+    const pressed = d.numbers.includes(n);
+    const disabled = d.isOut && !pressed;
+    return `<button class="ctl" data-number="${n}" aria-pressed="${pressed}" ${disabled ? 'disabled' : ''}>${n}</button>`;
   }).join('');
 }
 
+/* --- Rend une carte Bonus avec état pressed --- */
 function drawBonusButtons(d) {
   const allBonuses = ['+2', '+4', '+6', '+8', '+10', 'x2'];
   return allBonuses.map(b => {
-    const disabled = d.bonuses.includes(b) || d.isOut;
+    const pressed = d.bonuses.includes(b);
+    const disabled = d.isOut && !pressed;
     const label = b === 'x2' ? '×2' : b;
-    return `<button class="ctl" data-bonus="${b}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+    return `<button class="ctl" data-bonus="${b}" aria-pressed="${pressed}" ${disabled ? 'disabled' : ''}>${label}</button>`;
   }).join('');
+}
+
+/* --- Compteur de numéros uniques pour Flip 7 --- */
+function getUniqueCount(d) {
+  return new Set(d.numbers.filter(n => n > 0)).size;
 }
 
 initSheet({
@@ -93,16 +71,18 @@ initSheet({
   score,
   fixup,
 
+  /* --- Rendu --- */
   drawSheet(d, ctx) {
+    const uniqueCount = getUniqueCount(d);
     
     return `
   <div class="card">
     <h2>${sq('var(--rouge)')}Cartes Numéro <span class="sum" data-sum="roundTotal">0</span></h2>
-    <p class="hint">Piochez des cartes Numéro (0-12). Recevez un doublon → vous <b>sautez</b> (perd la manche) !</p>
+    <p class="hint">Piochez des cartes Numéro (0-12). Recevez un doublon → vous <b>sautez</b> !</p>
+    <p class="hint">Flip 7 : <b>${uniqueCount}/7</b> numéros uniques</p>
     <div class="seg">
       ${drawNumberButtons(d)}
     </div>
-    ${drawCurrentCards(d)}
   </div>
 
   <div class="card">
@@ -135,6 +115,8 @@ initSheet({
       <div class="lab"><b>Total manche</b></div>
       <div class="val"><b class="sum" data-sum="roundTotal">0</b> pts</div>
     </div>
+    ${d.hasFlipped ? '<p class="hint" style="color:var(--accent);font-weight:700">✓ FLIP 7 ! +15 pts</p>' : ''}
+    ${d.isOut ? '<p class="hint" style="color:var(--danger);font-weight:700">✗ SAUTÉ ! 0 pt cette manche</p>' : ''}
   </div>
 
   <div class="card">
@@ -149,6 +131,7 @@ initSheet({
   `;
   },
 
+  /* --- Sommes pour l'UI --- */
   sums(s) {
     return {
       roundTotal: s.roundTotal,
@@ -156,6 +139,7 @@ initSheet({
     };
   },
 
+  /* --- Classement --- */
   rankParts(s) {
     return [
       ['Manche en cours', s.roundTotal],
@@ -163,6 +147,7 @@ initSheet({
     ];
   },
 
+  /* --- Après le rendu : masquer/afficher les lignes conditionnelles --- */
   afterDraw(d, ctx) {
     const s = score(d);
     const doubledRow = document.querySelector('[data-shown-if="doubled"]');
@@ -175,23 +160,26 @@ initSheet({
     }
   },
 
+  /* --- Gestion des clics --- */
   onClick(e, ctx) {
     const d = ctx.d;
     
+    /* --- Ajout d'une carte Numéro --- */
     const numBtn = e.target.closest('[data-number]');
     if (numBtn) {
       const value = parseInt(numBtn.dataset.number);
       const result = addNumber(d, value);
+      ctx.refresh();
+      
       if (result === false) {
-        ctx.refresh();
+        // Sauté !
       } else if (result === 'flip7') {
-        ctx.refresh();
-      } else {
-        ctx.refresh();
+        // Flip 7 réalisé
       }
       return true;
     }
     
+    /* --- Ajout d'une carte Bonus --- */
     const bonusBtn = e.target.closest('[data-bonus]');
     if (bonusBtn) {
       addBonus(d, bonusBtn.dataset.bonus);
@@ -199,6 +187,7 @@ initSheet({
       return true;
     }
     
+    /* --- Valider la manche --- */
     if (e.target.id === 'endRoundBtn') {
       endRound(d);
       ctx.refresh();
