@@ -34,7 +34,7 @@ test('accueil : menu ordonné par dernière utilisation, Historique en dernier',
   const hrefs = [...w.document.querySelectorAll('a.game')].map(a => a.getAttribute('href'));
   assert.deepEqual(hrefs, ['cascadia.html', 'agricola.html', // par ts décroissant
     'harmonies.html', '7wonders.html', 'wonderfulworld.html', 'terraformingmars.html', 'seasaltpaper.html',
-    'kingdomino.html', 'queendomino.html', '7wondersduel.html', 'skyjo.html']); // jamais ouverts : ordre du registre
+    'kingdomino.html', 'queendomino.html', '7wondersduel.html', 'flip7.html', 'skyjo.html']); // jamais ouverts : ordre du registre
   assert.ok(w.document.querySelector('a.tool[href="history.html"]')); // l'Historique vit dans le header
 });
 

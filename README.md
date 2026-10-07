@@ -18,6 +18,7 @@ kingdomino.html    feuille de score Kingdomino (domaines cases × couronnes, ext
 queendomino.html   feuille de score Queendomino (domaines + bâtiments + pièces)
 7wondersduel.html  feuille de score 7 Wonders Duel (base + Panthéon + Agora activables)
 skyjo.html      feuille de score Skyjo (manches cumulées, doublement calculé, le plus petit total gagne)
+flip7.html       feuille de score Flip 7 (push your luck, 7 numéros différents = +15 pts)
 games/          logique de score pure par jeu (blank/score/maxPlayers), sans DOM — testable en Node (rien d'autre que des jeux)
 lib/registry.js registre central des jeux (slug, nom, sous-titre, règles, lowWins) — source de vérité de la liste
 lib/html.js     helpers HTML partagés (esc, sq) — chargé par toutes les pages

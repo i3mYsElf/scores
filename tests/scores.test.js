@@ -12,6 +12,7 @@ const kingdomino = require('../games/kingdomino.js');
 const queendomino = require('../games/queendomino.js');
 const swd = require('../games/7wondersduel.js');
 const skyjo = require('../games/skyjo.js');
+const flip7 = require('../games/flip7.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -406,6 +407,132 @@ test('Skyjo : fixup répare une sauvegarde abîmée, idempotent', () => {
   assert.equal(d.fini, 1);
 });
 
+/* ---------- Flip 7 ---------- */
+test('Flip 7 : feuille vide = 0', () => {
+  const d = flip7.blank();
+  assert.equal(flip7.score(d).total, 0);
+});
+
+test('Flip 7 : cartes Numéro simples', () => {
+  const d = flip7.blank();
+  d.numbers = [12, 10, 8];
+  const s = flip7.score(d);
+  assert.equal(s.numbers, 30);
+  assert.equal(s.roundTotal, 30);
+  assert.equal(s.total, 30);
+});
+
+test('Flip 7 : carte 0 ne rapporte pas de points', () => {
+  const d = flip7.blank();
+  d.numbers = [12, 0, 10];
+  const s = flip7.score(d);
+  assert.equal(s.numbers, 22); // 12 + 0 + 10
+  assert.equal(s.roundTotal, 22);
+});
+
+test('Flip 7 : bonus x2 double les cartes Numéro', () => {
+  const d = flip7.blank();
+  d.numbers = [10, 5];
+  d.bonuses = ['x2'];
+  const s = flip7.score(d);
+  assert.equal(s.numbers, 15);
+  assert.equal(s.doubled, 15);
+  assert.equal(s.roundTotal, 30); // 15 × 2
+});
+
+test('Flip 7 : bonus numérique (+10)', () => {
+  const d = flip7.blank();
+  d.numbers = [10, 5];
+  d.bonuses = ['+10'];
+  const s = flip7.score(d);
+  assert.equal(s.bonuses, 10);
+  assert.equal(s.roundTotal, 25); // 15 + 10
+});
+
+test('Flip 7 : bonus x2 + bonus numérique', () => {
+  const d = flip7.blank();
+  d.numbers = [10, 5];
+  d.bonuses = ['x2', '+10'];
+  const s = flip7.score(d);
+  assert.equal(s.numbers, 15);
+  assert.equal(s.doubled, 15);
+  assert.equal(s.bonuses, 10);
+  assert.equal(s.roundTotal, 40); // (15×2) + 10
+});
+
+test('Flip 7 : Flip 7 (7 numéros uniques) = +15 pts', () => {
+  const d = flip7.blank();
+  d.numbers = [1, 2, 3, 4, 5, 6, 7];
+  const s = flip7.score(d);
+  assert.equal(s.flip7, 15);
+  assert.equal(s.roundTotal, 28 + 15); // 1+2+3+4+5+6+7 = 28
+});
+
+test('Flip 7 : Flip 7 avec plus de 7 cartes (mais seulement 7 uniques)', () => {
+  const d = flip7.blank();
+  d.numbers = [1, 2, 3, 4, 5, 6, 7, 1, 2]; // 7 uniques + doublons
+  d.hasFlipped = true; // Simulé par la logique du jeu
+  const s = flip7.score(d);
+  assert.equal(s.flip7, 15);
+});
+
+test('Flip 7 : sauté (doublon) = 0 pt pour la manche', () => {
+  const d = flip7.blank();
+  d.numbers = [12, 10];
+  d.isOut = true; // Doublon reçu
+  const s = flip7.score(d);
+  assert.equal(s.roundTotal, 0);
+  assert.equal(s.total, 0);
+});
+
+test('Flip 7 : cumul des manches', () => {
+  const d = flip7.blank();
+  d.numbers = [10, 5];
+  d.total = 50; // Manche précédente
+  const s = flip7.score(d);
+  assert.equal(s.roundTotal, 15);
+  assert.equal(s.total, 65); // 50 + 15
+});
+
+test('Flip 7 : addNumber détecte un doublon', () => {
+  const d = flip7.blank();
+  assert.equal(flip7.addNumber(d, 10), true);
+  assert.equal(flip7.addNumber(d, 10), false); // Doublon
+  assert.equal(d.isOut, true);
+});
+
+test('Flip 7 : addNumber détecte Flip 7', () => {
+  const d = flip7.blank();
+  // Ajouter 7 numéros uniques
+  for (let i = 1; i <= 7; i++) {
+    flip7.addNumber(d, i);
+  }
+  assert.equal(d.hasFlipped, true);
+});
+
+test('Flip 7 : endRound réinitialise et ajoute au total', () => {
+  const d = flip7.blank();
+  d.numbers = [12, 10];
+  d.total = 50;
+  const roundScore = flip7.endRound(d);
+  assert.equal(roundScore, 22);
+  assert.equal(d.total, 72);
+  assert.equal(d.numbers.length, 0);
+  assert.equal(d.isOut, false);
+  assert.equal(d.hasFlipped, false);
+});
+
+test('Flip 7 : addBonus ignore si déjà sauté', () => {
+  const d = flip7.blank();
+  d.isOut = true;
+  flip7.addBonus(d, '+10');
+  assert.equal(d.bonuses.length, 0);
+});
+
+test('Flip 7 : maxPlayers = 7', () => {
+  assert.equal(flip7.maxPlayers(), 7);
+});
+
 /* ---------- maxPlayers (plafond de joueurs, extensions comprises) ---------- */
 test('maxPlayers : chaque jeu borne ses joueurs, extensions comprises', () => {
   assert.equal(wonders.maxPlayers({}), 7);
@@ -414,6 +541,7 @@ test('maxPlayers : chaque jeu borne ses joueurs, extensions comprises', () => {
   assert.equal(kingdomino.maxPlayers({geants: true}), 5);
   assert.equal(swd.maxPlayers(), 2);
   assert.equal(skyjo.maxPlayers(), 8);
-  for (const g of [harmonies, iaww, agricola, cascadia, tm, ssp, queendomino])
+  assert.equal(flip7.maxPlayers(), 7);
+  for (const g of [harmonies, iaww, agricola, cascadia, tm, ssp, queendomino, flip7])
     assert.ok(g.maxPlayers() >= 2);
 });

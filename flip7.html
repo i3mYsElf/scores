@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flip 7 — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin>
+<link rel="stylesheet" href="common.css">
+<script src="theme.js"></script>
+<script src="sw-client.js" defer></script>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Flip 7</h1>
+    <p class="subtitle">Push your luck · 7 numéros différents = +15 pts</p>
+    <div class="tabs" id="tabs"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
+<script src="games/flip7.js"></script>
+<script src="common.js"></script>
+<script>
+const { blank, score, addNumber, addBonus, endRound, maxPlayers, fixup } = GameLogic;
+
+/* ---------- Rendu ---------- */
+
+function drawNumberGrid(d) {
+  const allNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const hasInHand = (n) => d.numbers.includes(n);
+  const isOut = d.isOut;
+  
+  return allNumbers.map(n => {
+    const disabled = hasInHand(n) || isOut;
+    const label = n === 0 ? '0' : n;
+    return `<button class="num-btn" data-number="${n}" ${disabled ? 'disabled' : ''}>`
+      + `<span>${label}</span></button>`;
+  }).join('');
+}
+
+function drawBonusGrid(d) {
+  const allBonuses = ['+2', '+4', '+6', '+8', '+10', 'x2'];
+  const hasBonus = (b) => d.bonuses.includes(b);
+  const isOut = d.isOut;
+  
+  return allBonuses.map(b => {
+    const disabled = hasBonus(b) || isOut;
+    const label = b === 'x2' ? '×2' : '+ ' + b;
+    return `<button class="bonus-btn" data-bonus="${b}" ${disabled ? 'disabled' : ''}>`
+      + `<span>${label}</span></button>`;
+  }).join('');
+}
+
+function drawCurrentCards(d) {
+  const hasNumbers = d.numbers.length > 0;
+  const hasBonuses = d.bonuses.length > 0;
+  
+  let html = '';
+  
+  if (hasNumbers) {
+    html += `<div class="current-group">`;
+    html += `<span class="group-label">Numéros :</span>`;
+    html += `<span class="group-values">${d.numbers.join(', ')}</span>`;
+    html += `</div>`;
+  }
+  
+  if (hasBonuses) {
+    html += `<div class="current-group">`;
+    html += `<span class="group-label">Bonus :</span>`;
+    html += `<span class="group-values">${d.bonuses.map(b => b === 'x2' ? '×2' : '+'+b).join(', ')}</span>`;
+    html += `</div>`;
+  }
+  
+  if (!hasNumbers && !hasBonuses) {
+    html += `<div class="current-group hint">Aucune carte cette manche</div>`;
+  }
+  
+  // Badges d'état
+  if (d.hasFlipped) {
+    html += `<div class="status-badge flip7">✓ FLIP 7 !</div>`;
+  }
+  if (d.isOut) {
+    html += `<div class="status-badge saut">✗ SAUTÉ !</div>`;
+  }
+  
+  return html;
+}
+
+function drawSheet(d, ctx) {
+  const s = score(d);
+  
+  return `
+  <div class="card">
+    <h2>${sq('var(--rouge)')}Cartes Numéro (0-12)</h2>
+    <p class="hint">Recevez un doublon → vous SAUTEZ ! (perd la manche)</p>
+    <div class="number-grid">
+      ${drawNumberGrid(d)}
+    </div>
+    <div class="current-cards">
+      ${drawCurrentCards(d)}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Cartes Bonus</h2>
+    <p class="hint">×2 double uniquement les cartes Numéro (pas les Bonus, pas le Flip 7)</p>
+    <div class="bonus-grid">
+      ${drawBonusGrid(d)}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--vert)')}Score de la manche</h2>
+    <div class="round-scores">
+      <div class="score-row">
+        <span>Numéros :</span>
+        <span class="val" data-val="numbers">${s.numbers}</span>
+        ${s.doubled > 0 ? `<span> × 2 = <b class="val" data-val="doubled">${s.doubled}</b></span>` : ''}
+      </div>
+      <div class="score-row">
+        <span>Cartes Bonus :</span>
+        <span class="val" data-val="bonuses">${s.bonuses}</span>
+      </div>
+      ${s.flip7 > 0 ? `<div class="score-row flip7-row">
+        <span>Flip 7 :</span>
+        <span>+ <b class="val" data-val="flip7">${s.flip7}</b></span>
+      </div>` : ''}
+      <div class="score-row total-row">
+        <span><b>Total manche :</b></span>
+        <span><b class="sum" data-sum="roundTotal">${s.roundTotal}</b> pts</span>
+      </div>
+    </div>
+    <p class="hint">${d.isOut ? 'Vous avez sauté → 0 pt cette manche' : ''}</p>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--or)')}Score total</h2>
+    <div class="total-score">
+      <span><b class="val" data-val="total">${s.total}</b> / 200 pts</span>
+    </div>
+    <p class="hint">Atteignez 200 points pour gagner la partie !</p>
+    <button id="endRoundBtn" class="action-btn">Valider la manche</button>
+  </div>
+  `;
+}
+
+/* ---------- Logique de la feuille ---------- */
+
+initSheet({
+  slug: 'flip7',
+  startPlayers: 2,
+  maxPlayers,
+  blank,
+  score,
+  fixup,
+
+  /* --- Rendu --- */
+  drawSheet,
+
+  /* --- Sommes pour l'UI --- */
+  sums(s) {
+    return {
+      roundTotal: s.roundTotal,
+      total: s.total
+    };
+  },
+
+  /* --- Classement --- */
+  rankParts(s) {
+    return [
+      ['Manche en cours', s.roundTotal],
+      ['Total', s.total]
+    ];
+  },
+
+  /* --- Gestion des clics --- */
+  onClick(e, ctx) {
+    const d = ctx.d;
+    
+    /* --- Ajout d'une carte Numéro --- */
+    const numBtn = e.target.closest('[data-number]');
+    if (numBtn) {
+      const value = parseInt(numBtn.dataset.number);
+      const result = addNumber(d, value);
+      
+      if (result === false) {
+        // Sauté !
+        ctx.refresh();
+      } else if (result === 'flip7') {
+        // Flip 7 réalisé → la manche se termine automatiquement
+        // On pourrait valider auto, mais on laisse le joueur le faire
+        ctx.refresh();
+      } else {
+        ctx.refresh();
+      }
+      return true;
+    }
+    
+    /* --- Ajout d'une carte Bonus --- */
+    const bonusBtn = e.target.closest('[data-bonus]');
+    if (bonusBtn) {
+      addBonus(d, bonusBtn.dataset.bonus);
+      ctx.refresh();
+      return true;
+    }
+    
+    /* --- Valider la manche --- */
+    if (e.target.id === 'endRoundBtn') {
+      endRound(d);
+      ctx.refresh();
+      return true;
+    }
+    
+    return false;
+  },
+
+  /* --- Styles spécifiques --- */
+  afterDraw(d, ctx) {
+    // Ajouter des styles pour les badges et les grilles
+    const style = document.createElement('style');
+    style.textContent = `
+      .number-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        margin: 8px 0;
+      }
+      .bonus-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin: 8px 0;
+      }
+      .num-btn, .bonus-btn {
+        padding: 8px 4px;
+        border: 2px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--fg);
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .num-btn:not(:disabled):hover, .bonus-btn:not(:disabled):hover {
+        background: var(--accent-bg);
+        border-color: var(--accent);
+      }
+      .num-btn:disabled, .bonus-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .current-cards {
+        margin-top: 8px;
+        font-size: 14px;
+      }
+      .current-group {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin: 4px 0;
+      }
+      .group-label {
+        color: var(--muted);
+      }
+      .group-values {
+        font-weight: 600;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-left: 8px;
+      }
+      .status-badge.flip7 {
+        background: #28a745;
+        color: white;
+      }
+      .status-badge.saut {
+        background: #dc3545;
+        color: white;
+      }
+      .round-scores {
+        font-size: 15px;
+      }
+      .score-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px dotted var(--border);
+      }
+      .score-row.total-row {
+        border-bottom: none;
+        font-size: 18px;
+        padding-top: 8px;
+        margin-top: 4px;
+        border-top: 2px solid var(--border);
+      }
+      .action-btn {
+        width: 100%;
+        padding: 12px;
+        margin-top: 12px;
+        border: none;
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--accent-fg);
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .action-btn:hover {
+        opacity: 0.9;
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+});
+</script>
