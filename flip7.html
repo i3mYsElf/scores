@@ -32,35 +32,44 @@
 <script src="lib/registry.js"></script>
 <script src="lib/html.js"></script>
 <script src="lib/sheet.js"></script>
+<script src="lib/manches.js"></script>
 <script src="games/flip7.js"></script>
 <script src="common.js"></script>
 <script>
-const { blank, score, addNumber, addBonus, endRound, maxPlayers, fixup } = GameLogic;
+const { blank, score, toggleNumber, receiveDuplicate, toggleBonus, setSecondChance, endRound, maxPlayers, fixup, FIN_PARTIE } = GameLogic;
+// la liste des manches validées et le bandeau de fin de partie sont partagés
+// avec Skyjo et Sea Salt & Paper dans lib/manches.js
+const { manchesRankExtra, manchesFin } = GameManches;
+const { manchesDraw, manchesClick, manchesInput } = GameManches.manchesFor(false);
 
-/* --- Rend une carte Numéro avec état pressed --- */
+// message éphémère « doublon défaussé par la Seconde Chance » (état de page,
+// jamais persisté) : sans lui, un doublon sauvé ne se voit pas — la carte
+// ne s'allume pas et le joueur ne saute pas
+let scSavedFlash = false;
+
 function drawNumberButtons(d) {
   const allNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   return allNumbers.map(n => {
     const pressed = d.numbers.includes(n);
-    const disabled = d.isOut && !pressed;
+    const locked = d.isOut || d.hasFlipped; // manche finie : plus de carte
+    const disabled = locked && !pressed;
     return `<button class="ctl" data-number="${n}" aria-pressed="${pressed}" ${disabled ? 'disabled' : ''}>${n}</button>`;
   }).join('');
 }
 
-/* --- Rend une carte Bonus avec état pressed --- */
 function drawBonusButtons(d) {
   const allBonuses = ['+2', '+4', '+6', '+8', '+10', 'x2'];
   return allBonuses.map(b => {
     const pressed = d.bonuses.includes(b);
-    const disabled = d.isOut && !pressed;
+    const locked = d.isOut || d.hasFlipped; // manche finie : plus de carte
+    const disabled = locked && !pressed;
     const label = b === 'x2' ? '×2' : b;
     return `<button class="ctl" data-bonus="${b}" aria-pressed="${pressed}" ${disabled ? 'disabled' : ''}>${label}</button>`;
   }).join('');
 }
 
-/* --- Compteur de numéros uniques pour Flip 7 --- */
 function getUniqueCount(d) {
-  return new Set(d.numbers.filter(n => n > 0)).size;
+  return new Set(d.numbers).size; // le 0 compte pour le Flip 7
 }
 
 initSheet({
@@ -71,18 +80,26 @@ initSheet({
   score,
   fixup,
 
-  /* --- Rendu --- */
   drawSheet(d, ctx) {
     const uniqueCount = getUniqueCount(d);
-    
+
     return `
   <div class="card">
-    <h2>${sq('var(--rouge)')}Cartes Numéro <span class="sum" data-sum="roundTotal">0</span></h2>
-    <p class="hint">Piochez des cartes Numéro (0-12). Recevez un doublon → vous <b>sautez</b> !</p>
-    <p class="hint">Flip 7 : <b>${uniqueCount}/7</b> numéros uniques</p>
+    <h2>${sq('var(--rouge)')}Cartes Numéro</h2>
+    <p class="hint">Touchez chaque carte Numéro reçue (0-12) ; re-touchez pour corriger un misclic.</p>
+    <p class="hint">Flip 7 : <b>${uniqueCount}/7</b> numéros différents (le 0 compte)</p>
     <div class="seg">
       ${drawNumberButtons(d)}
     </div>
+    <div class="seg">
+      <button class="ctl" data-sc aria-pressed="${d.secondChance}" ${(d.isOut || d.hasFlipped) ? 'disabled' : ''}>Seconde chance</button>
+      <button class="ctl" data-dup ${(d.isOut || d.hasFlipped) ? 'disabled' : ''}>Doublon reçu</button>
+    </div>
+    <p class="hint" ${scSavedFlash ? 'style="color:var(--accent);font-weight:700"' : ''}>${scSavedFlash
+      ? '✓ Doublon défaussé par la Seconde chance !'
+      : (d.secondChance
+        ? 'Seconde chance en main : le prochain doublon sera défaussé, pas de saut.'
+        : 'Recevez de la pioche une carte déjà posée → touchez « Doublon reçu » : sans Seconde chance, vous sautez.')}</p>
   </div>
 
   <div class="card">
@@ -94,107 +111,139 @@ initSheet({
   </div>
 
   <div class="card">
-    <h2>${sq('var(--vert)')}Score de la manche</h2>
+    <h2>${sq('var(--vert)')}Score de la manche <span class="sum" data-sum="roundTotal">0</span></h2>
     <div class="row">
       <div class="lab">Numéros</div>
-      <div class="val" data-val="numbers">0</div>
+      <div class="val" id="valNumbers">0</div>
     </div>
-    <div class="row" hidden data-shown-if="doubled">
+    <div class="row" hidden id="rowDoubled">
       <div class="lab">dont ×2</div>
-      <div class="val" data-val="doubled">0</div>
+      <div class="val" id="valDoubled">0</div>
     </div>
     <div class="row">
       <div class="lab">Cartes Bonus</div>
-      <div class="val" data-val="bonuses">0</div>
+      <div class="val" id="valBonuses">0</div>
     </div>
-    <div class="row" hidden data-shown-if="flip7">
+    <div class="row" hidden id="rowFlip7">
       <div class="lab">Flip 7</div>
-      <div class="val" data-val="flip7">0</div>
+      <div class="val" id="valFlip7">0</div>
     </div>
     <div class="row">
       <div class="lab"><b>Total manche</b></div>
-      <div class="val"><b class="sum" data-sum="roundTotal">0</b> pts</div>
+      <div class="val"><b class="val" id="valRound">0</b> pts</div>
     </div>
-    ${d.hasFlipped ? '<p class="hint" style="color:var(--accent);font-weight:700">✓ FLIP 7 ! +15 pts</p>' : ''}
+    ${d.hasFlipped ? '<p class="hint" style="color:var(--accent);font-weight:700">✓ FLIP 7 ! +15 pts — la manche s\'arrête pour tous</p>' : ''}
     ${d.isOut ? '<p class="hint" style="color:var(--danger);font-weight:700">✗ SAUTÉ ! 0 pt cette manche</p>' : ''}
   </div>
 
   <div class="card">
-    <h2>${sq('var(--jaune)')}Score total</h2>
+    <h2>${sq('var(--jaune)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
+    <p class="hint">Le premier à atteindre <b>${FIN_PARTIE} points</b> au cumul gagne la partie.</p>
+    <div id="mancheList"></div>
+    <p class="hint" id="finPartie" hidden style="color:var(--accent);font-weight:600"></p>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--gris)')}Score total</h2>
     <div class="row">
       <div class="lab"><b>Total cumulé</b></div>
-      <div class="val"><b class="val" data-val="total">0</b> / 200 pts</div>
+      <div class="val"><b class="val" id="cumulTot">0</b> / ${FIN_PARTIE} pts</div>
     </div>
-    <p class="hint">Atteignez 200 points pour gagner la partie !</p>
     <button class="ghost" id="endRoundBtn">Valider la manche</button>
   </div>
   `;
   },
 
-  /* --- Sommes pour l'UI --- */
   sums(s) {
     return {
       roundTotal: s.roundTotal,
-      total: s.total
+      prec: s.precedentes
     };
   },
 
-  /* --- Classement --- */
   rankParts(s) {
     return [
-      ['Manche en cours', s.roundTotal],
-      ['Total', s.total]
+      ['Manches précédentes', s.precedentes],
+      ['Manche en cours', s.roundTotal]
     ];
   },
 
-  /* --- Après le rendu : masquer/afficher les lignes conditionnelles --- */
+  rankExtra: (d) => manchesRankExtra(d),
+
   afterDraw(d, ctx) {
-    const s = score(d);
-    const doubledRow = document.querySelector('[data-shown-if="doubled"]');
-    if (doubledRow) {
-      doubledRow.hidden = s.doubled === 0;
-    }
-    const flip7Row = document.querySelector('[data-shown-if="flip7"]');
-    if (flip7Row) {
-      flip7Row.hidden = s.flip7 === 0;
-    }
+    manchesDraw(d);
   },
 
-  /* --- Gestion des clics --- */
+  afterRefresh(d, s, ctx) {
+    // ventilation de la manche (ids : data-val lit l'état brut d, pas le score)
+    const txt = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    };
+    const hide = (id, h) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = h;
+    };
+    txt('valNumbers', s.numbers);
+    txt('valDoubled', s.doubled);
+    hide('rowDoubled', s.doubled === 0);
+    txt('valBonuses', s.bonuses);
+    txt('valFlip7', s.flip7);
+    hide('rowFlip7', s.flip7 === 0);
+    txt('valRound', s.roundTotal);
+    txt('cumulTot', s.total);
+    /* bandeau de fin de partie : seules les manches validées comptent,
+       jamais la manche en cours */
+    manchesFin('finPartie', ctx.players,
+      p => score(p.d).precedentes >= FIN_PARTIE,
+      noms => `${noms.join(', ')} a atteint ${FIN_PARTIE} points — fin de la partie !`);
+  },
+
   onClick(e, ctx) {
+    if (manchesClick(e, ctx)) return true;
     const d = ctx.d;
-    
-    /* --- Ajout d'une carte Numéro --- */
+
     const numBtn = e.target.closest('[data-number]');
     if (numBtn) {
-      const value = parseInt(numBtn.dataset.number);
-      const result = addNumber(d, value);
-      ctx.refresh();
-      
-      if (result === false) {
-        // Sauté !
-      } else if (result === 'flip7') {
-        // Flip 7 réalisé
-      }
+      toggleNumber(d, parseInt(numBtn.dataset.number, 10));
+      scSavedFlash = false;
+      ctx.redraw();
       return true;
     }
-    
-    /* --- Ajout d'une carte Bonus --- */
+
     const bonusBtn = e.target.closest('[data-bonus]');
     if (bonusBtn) {
-      addBonus(d, bonusBtn.dataset.bonus);
-      ctx.refresh();
+      toggleBonus(d, bonusBtn.dataset.bonus);
+      scSavedFlash = false;
+      ctx.redraw();
       return true;
     }
-    
-    /* --- Valider la manche --- */
+
+    const dupBtn = e.target.closest('[data-dup]');
+    if (dupBtn) {
+      const res = receiveDuplicate(d);
+      scSavedFlash = (res === 'saved');
+      ctx.redraw();
+      return true;
+    }
+
+    if (e.target.closest('[data-sc]')) {
+      setSecondChance(d, !d.secondChance);
+      scSavedFlash = false;
+      ctx.redraw();
+      return true;
+    }
+
     if (e.target.id === 'endRoundBtn') {
       endRound(d);
-      ctx.refresh();
+      scSavedFlash = false;
+      ctx.redraw();
       return true;
     }
-    
+
     return false;
-  }
+  },
+
+  onInput: manchesInput
 });
 </script>

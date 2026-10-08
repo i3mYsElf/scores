@@ -488,45 +488,154 @@ test('Flip 7 : sauté (doublon) = 0 pt pour la manche', () => {
 test('Flip 7 : cumul des manches', () => {
   const d = flip7.blank();
   d.numbers = [10, 5];
-  d.total = 50; // Manche précédente
+  d.manches = [50]; // Manche précédente
   const s = flip7.score(d);
   assert.equal(s.roundTotal, 15);
+  assert.equal(s.precedentes, 50);
   assert.equal(s.total, 65); // 50 + 15
 });
 
-test('Flip 7 : addNumber détecte un doublon', () => {
+test('Flip 7 : le 0 compte pour le Flip 7 (règle officielle)', () => {
   const d = flip7.blank();
-  assert.equal(flip7.addNumber(d, 10), true);
-  assert.equal(flip7.addNumber(d, 10), false); // Doublon
+  d.numbers = [0, 1, 2, 3, 4, 5, 6]; // 7 numéros différents, 0 compris
+  const s = flip7.score(d);
+  assert.equal(s.flip7, 15);
+  assert.equal(s.numbers, 21); // 1+2+3+4+5+6, le 0 ne rapporte rien
+  assert.equal(s.roundTotal, 21 + 15);
+});
+
+test('Flip 7 : re-cliquer une carte posée la retire, sans jamais sauter', () => {
+  const d = flip7.blank();
+  assert.equal(flip7.toggleNumber(d, 10), true);
+  assert.equal(d.numbers.length, 1);
+  assert.equal(flip7.toggleNumber(d, 10), 'removed'); // correction, pas de saut
+  assert.deepEqual(d.numbers, []);
+  assert.equal(d.isOut, false);
+  assert.equal(flip7.toggleNumber(d, 10), true); // re-posable ensuite
+});
+
+test('Flip 7 : receiveDuplicate sans Seconde Chance fait sauter', () => {
+  const d = flip7.blank();
+  flip7.toggleNumber(d, 10);
+  assert.equal(flip7.receiveDuplicate(d), false);
+  assert.equal(d.isOut, true);
+  assert.equal(flip7.score(d).roundTotal, 0);
+  assert.equal(flip7.receiveDuplicate(d), false); // déjà sauté : no-op
+});
+
+test('Flip 7 : Seconde Chance défausse un doublon reçu sans sauter', () => {
+  const d = flip7.blank();
+  flip7.setSecondChance(d, true);
+  flip7.toggleNumber(d, 10);
+  assert.equal(flip7.receiveDuplicate(d), 'saved'); // Doublon défaussé, pas de saut
+  assert.equal(d.isOut, false);
+  assert.equal(d.secondChance, false); // la carte est consommée
+  assert.deepEqual(d.numbers, [10]); // la rangée est intacte
+  assert.equal(flip7.toggleNumber(d, 7), true); // la manche continue normalement
+  assert.equal(flip7.receiveDuplicate(d), false); // nouveau doublon sans carte : saut
   assert.equal(d.isOut, true);
 });
 
-test('Flip 7 : addNumber détecte Flip 7', () => {
+test('Flip 7 : receiveDuplicate ignoré après un Flip 7', () => {
+  const d = flip7.blank();
+  flip7.setSecondChance(d, true);
+  for (let i = 0; i <= 6; i++) flip7.toggleNumber(d, i); // le 7e unique déclenche le Flip 7
+  assert.equal(d.hasFlipped, true);
+  assert.equal(flip7.receiveDuplicate(d), false); // no-op : la manche est finie
+  assert.equal(d.isOut, false);
+  assert.equal(d.secondChance, true); // la carte n'est pas consommée
+});
+
+test('Flip 7 : la Seconde Chance est défaussée en fin de manche, même inutilisée', () => {
+  const d = flip7.blank();
+  flip7.setSecondChance(d, true);
+  d.numbers = [12];
+  flip7.endRound(d);
+  assert.equal(d.secondChance, false);
+  assert.equal(flip7.toggleNumber(d, 12), true); // manche nouvelle : 12 re-posable
+});
+
+test('Flip 7 : toggleNumber détecte Flip 7', () => {
   const d = flip7.blank();
   // Ajouter 7 numéros uniques
   for (let i = 1; i <= 7; i++) {
-    flip7.addNumber(d, i);
+    flip7.toggleNumber(d, i);
   }
   assert.equal(d.hasFlipped, true);
 });
 
-test('Flip 7 : endRound réinitialise et ajoute au total', () => {
+test('Flip 7 : toggleNumber détecte Flip 7 avec le 0', () => {
+  const d = flip7.blank();
+  flip7.toggleNumber(d, 0);
+  for (let i = 1; i <= 5; i++) {
+    assert.equal(flip7.toggleNumber(d, i), true);
+  }
+  assert.equal(flip7.toggleNumber(d, 6), 'flip7'); // 0+1+…+6 : 7 numéros différents
+  assert.equal(d.hasFlipped, true);
+});
+
+test('Flip 7 : après le Flip 7, plus aucune carte Numéro ni Bonus', () => {
+  const d = flip7.blank();
+  for (let i = 0; i <= 6; i++) flip7.toggleNumber(d, i); // le 7e unique déclenche le Flip 7
+  assert.equal(d.hasFlipped, true);
+  assert.equal(flip7.toggleNumber(d, 9), false); // refusé : la manche est finie
+  assert.equal(flip7.toggleNumber(d, 3), false); // même retirer est interdit
+  assert.equal(d.numbers.length, 7);
+  flip7.toggleBonus(d, '+10'); // refusée aussi : la manche s'arrête immédiatement
+  assert.equal(d.bonuses.length, 0);
+  flip7.setSecondChance(d, true); // idem
+  assert.equal(d.secondChance, false);
+  assert.equal(flip7.score(d).roundTotal, 21 + 15); // 0+1+…+6 + bonus Flip 7
+});
+
+test('Flip 7 : toggleBonus pose et retire une carte Bonus', () => {
+  const d = flip7.blank();
+  flip7.toggleBonus(d, '+10');
+  flip7.toggleBonus(d, 'x2');
+  assert.equal(flip7.score(d).bonuses, 10);
+  flip7.toggleBonus(d, '+10'); // re-clic : retrait
+  assert.equal(flip7.score(d).bonuses, 0);
+  assert.deepEqual(d.bonuses, ['x2']);
+});
+
+test('Flip 7 : endRound pousse la manche validée et réinitialise', () => {
   const d = flip7.blank();
   d.numbers = [12, 10];
-  d.total = 50;
+  d.manches = [50];
   const roundScore = flip7.endRound(d);
   assert.equal(roundScore, 22);
-  assert.equal(d.total, 72);
+  assert.deepEqual(d.manches, [50, 22]);
+  assert.equal(flip7.score(d).total, 72);
   assert.equal(d.numbers.length, 0);
   assert.equal(d.isOut, false);
   assert.equal(d.hasFlipped, false);
 });
 
-test('Flip 7 : addBonus ignore si déjà sauté', () => {
+test('Flip 7 : toggleBonus ignore si déjà sauté', () => {
   const d = flip7.blank();
   d.isOut = true;
-  flip7.addBonus(d, '+10');
+  flip7.toggleBonus(d, '+10');
   assert.equal(d.bonuses.length, 0);
+});
+
+test('Flip 7 : fixup migre un ancien total en manche unique', () => {
+  const d = {total: 50, numbers: [12, 10], bonuses: [], isOut: false, hasFlipped: false};
+  flip7.fixup(d);
+  assert.deepEqual(d.manches, [50]);
+  assert.equal('total' in d, false); // le champ obsolète disparaît
+  assert.equal(flip7.score(d).total, 72); // 50 + 12 + 10
+  flip7.fixup(d); // idempotent
+  assert.deepEqual(d.manches, [50]);
+});
+
+test('Flip 7 : fixup répare une liste de manches abîmée', () => {
+  const d = {manches: [30, 'x', -5], numbers: [], bonuses: []};
+  flip7.fixup(d);
+  assert.deepEqual(d.manches, [30, 0, 0]);
+});
+
+test('Flip 7 : FIN_PARTIE = 200', () => {
+  assert.equal(flip7.FIN_PARTIE, 200);
 });
 
 test('Flip 7 : maxPlayers = 7', () => {

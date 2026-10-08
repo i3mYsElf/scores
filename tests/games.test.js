@@ -411,3 +411,83 @@ test('harmonies : sauvegarde d\'avant l\'extension avec esprits saisis -> auto-a
   const w2 = loadPage('harmonies.html', {'harmonies-score-v1': save2});
   assert.equal(w2.document.querySelector('[data-ext="esprits"]').getAttribute('aria-pressed'), 'false');
 });
+
+/* ---------- Flip 7 ---------- */
+test('flip7 : re-cliquer une carte posée la retire (correction, jamais de saut)', () => {
+  const w = loadPage('flip7.html');
+  click(w, '[data-number="12"]');
+  click(w, '[data-number="10"]');
+  assert.equal(grand(w), '22');
+  click(w, '[data-number="12"]'); // re-clic de correction : retrait, pas de saut
+  assert.equal(grand(w), '10');
+  assert.ok(!w.document.getElementById('sheetBody').textContent.includes('SAUTÉ'));
+  click(w, '[data-bonus="+4"]');
+  assert.equal(grand(w), '14');
+  click(w, '[data-bonus="+4"]'); // les cartes Bonus se retirent aussi
+  assert.equal(grand(w), '10');
+});
+
+test('flip7 : doublon reçu — sauvé par la Seconde Chance, puis sauté', () => {
+  const w = loadPage('flip7.html');
+  click(w, '[data-number="12"]');
+  click(w, '[data-number="10"]');
+  assert.equal(grand(w), '22');
+  assert.equal(w.document.getElementById('valNumbers').textContent, '22');
+  // carte Seconde Chance en main : le doublon reçu est défaussé, pas de saut
+  click(w, '[data-sc]');
+  click(w, '[data-dup]');
+  assert.equal(grand(w), '22'); // pas de saut, la rangée est intacte
+  assert.ok(w.document.getElementById('sheetBody').textContent.includes('Doublon défaussé'));
+  assert.equal(w.document.querySelector('[data-sc]').getAttribute('aria-pressed'), 'false'); // consommée
+  // un deuxième doublon reçu sans carte : saut, 0 point pour la manche
+  click(w, '[data-dup]');
+  assert.ok(w.document.getElementById('sheetBody').textContent.includes('SAUTÉ'));
+  click(w, '#endRoundBtn');
+  assert.equal(grand(w), '0');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('flip7-score-v1')).players[0].d.manches, [0]);
+});
+
+test('flip7 : validation de manche, puis édition de la liste', () => {
+  const w = loadPage('flip7.html');
+  click(w, '[data-number="0"]');
+  for (let i = 1; i <= 6; i++) click(w, `[data-number="${i}"]`);
+  // 0+1+…+6 : 7 numéros différents (le 0 compte), Flip 7 déclenché
+  assert.ok(w.document.getElementById('sheetBody').textContent.includes('FLIP 7'));
+  assert.equal(grand(w), '36'); // 1+2+…+6 (le 0 vaut 0) + 15
+  // la manche s'arrête : plus aucune carte cliquable
+  assert.ok(w.document.querySelector('[data-number="9"]').disabled);
+  assert.ok(w.document.querySelector('[data-bonus="+2"]').disabled);
+  assert.ok(w.document.querySelector('[data-sc]').disabled);
+  click(w, '#endRoundBtn');
+  const saved = JSON.parse(w.localStorage.getItem('flip7-score-v1'));
+  assert.deepEqual(saved.players[0].d.manches, [36]);
+  assert.equal(saved.players[0].d.numbers.length, 0);
+  // la manche validée est corrigible dans la liste
+  type(w, '[data-manche="0"]', '30');
+  assert.equal(grand(w), '30');
+});
+
+test('flip7 : bandeau de fin de partie quand un cumul atteint 200', () => {
+  const save = JSON.stringify({players: [
+    {nom: 'Manu', d: {manches: [120, 85]}},
+    {nom: 'Léa',  d: {manches: [40, 30]}}], cur: 0, started: true, totals: [205, 70]});
+  const w = loadPage('flip7.html', {'flip7-score-v1': save});
+  const el = w.document.getElementById('finPartie');
+  assert.ok(!el.hidden);
+  assert.match(el.textContent, /Manu.*200/);
+  // corriger une manche sous le seuil fait disparaître le bandeau
+  type(w, '[data-manche="1"]', '60');
+  assert.ok(el.hidden);
+  assert.equal(grand(w), '180');
+});
+
+test('flip7 : ancienne sauvegarde au total cumulé -> migrée, rien n\'est perdu', () => {
+  const save = JSON.stringify({players: [{nom: 'Manu', d: {total: 50, numbers: [12, 10], bonuses: [], isOut: false, hasFlipped: false}}],
+    cur: 0, started: true, totals: [72]});
+  const w = loadPage('flip7.html', {'flip7-score-v1': save});
+  assert.equal(grand(w), '72'); // 50 + 12 + 10
+  const saved = JSON.parse(w.localStorage.getItem('flip7-score-v1'));
+  assert.deepEqual(saved.players[0].d.manches, [50]);
+  assert.equal('total' in saved.players[0].d, false);
+  assert.equal(w.document.querySelector('[data-manche="0"]').value, '50');
+});
