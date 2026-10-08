@@ -491,3 +491,38 @@ test('flip7 : ancienne sauvegarde au total cumulé -> migrée, rien n\'est perdu
   assert.equal('total' in saved.players[0].d, false);
   assert.equal(w.document.querySelector('[data-manche="0"]').value, '50');
 });
+
+/* ---------- Odin ---------- */
+test('odin : cartes restantes en pénalité, validation pour tous, classement inversé', () => {
+  const w = loadPage('odin.html');
+  for (let i = 0; i < 3; i++) click(w, '[data-step="manche"][data-by="1"]');
+  assert.equal(grand(w), '3');
+  click(w, '[data-tab="1"]');
+  for (let i = 0; i < 5; i++) click(w, '[data-step="manche"][data-by="1"]');
+  assert.equal(grand(w), '5');
+  click(w, '#valManche'); // la manche physique est commune : tous les onglets d'un coup
+  const saved = JSON.parse(w.localStorage.getItem('odin-score-v1'));
+  assert.deepEqual(saved.players[0].d.manches, [3]);
+  assert.deepEqual(saved.players[1].d.manches, [5]);
+  assert.equal(saved.players[0].d.manche, 0);
+  assert.ok(w.document.getElementById('finPartie').hidden);
+  // lowWins : le plus petit total gagne
+  click(w, '#openRank');
+  assert.ok(w.document.querySelector('#rankList .rank.win .nm').textContent.startsWith('Joueur 1'));
+});
+
+test('odin : bandeau de fin de partie à 15 points de pénalité', () => {
+  const save = JSON.stringify({players: [
+    {nom: 'Manu', d: {manches: [8, 7]}},
+    {nom: 'Léa',  d: {manches: [4, 3]}}], cur: 0, started: true, totals: [15, 7]});
+  const w = loadPage('odin.html', {'odin-score-v1': save});
+  const el = w.document.getElementById('finPartie');
+  assert.ok(!el.hidden);
+  assert.match(el.textContent, /Manu.*15/);
+  // la manche en cours ne compte jamais : 14 validés + 1 en main = pas de bandeau
+  const save2 = JSON.stringify({players: [
+    {nom: 'Manu', d: {manches: [14], manche: 1}}], cur: 0, started: true, totals: [15]});
+  const w2 = loadPage('odin.html', {'odin-score-v1': save2});
+  assert.ok(w2.document.getElementById('finPartie').hidden);
+  assert.equal(grand(w2), '15'); // le total affiché comprend la manche en cours
+});

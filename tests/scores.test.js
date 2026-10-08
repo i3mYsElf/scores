@@ -13,6 +13,7 @@ const queendomino = require('../games/queendomino.js');
 const swd = require('../games/7wondersduel.js');
 const skyjo = require('../games/skyjo.js');
 const flip7 = require('../games/flip7.js');
+const odin = require('../games/odin.js');
 
 /* ---------- Harmonies ---------- */
 test('Harmonies : arbres et montagnes (1/3/7)', () => {
@@ -642,6 +643,50 @@ test('Flip 7 : maxPlayers = 7', () => {
   assert.equal(flip7.maxPlayers(), 7);
 });
 
+/* ---------- Odin ---------- */
+test('Odin : feuille vide = 0', () => {
+  const d = odin.blank();
+  assert.equal(odin.score(d).total, 0);
+});
+
+test('Odin : 1 point de pénalité par carte restant en main', () => {
+  const d = odin.blank();
+  d.manche = 4; // 4 cartes restantes
+  const s = odin.score(d);
+  assert.equal(s.manche, 4);
+  assert.equal(s.total, 4);
+});
+
+test('Odin : cumul des manches de pénalité', () => {
+  const d = odin.blank();
+  d.manches = [2, 0, 5];
+  d.manche = 3;
+  const s = odin.score(d);
+  assert.equal(s.precedentes, 7);
+  assert.equal(s.total, 10);
+});
+
+test('Odin : validerManches pousse les pénalités et remet à zéro', () => {
+  const players = [{d: {manches: [], manche: 6}}, {d: {manches: [], manche: 0}}];
+  odin.validerManches(players);
+  assert.deepEqual(players[0].d.manches, [6]);
+  assert.deepEqual(players[1].d.manches, [0]);
+  assert.equal(players[0].d.manche, 0);
+  assert.equal(odin.score(players[0].d).total, 6);
+});
+
+test('Odin : fixup répare une sauvegarde abîmée (jamais de négatif)', () => {
+  const d = {manches: [3, 'x', -2], manche: -5};
+  odin.fixup(d);
+  assert.deepEqual(d.manches, [3, 0, 0]);
+  assert.equal(d.manche, 0);
+});
+
+test('Odin : FIN_PARTIE = 15, maxPlayers = 6', () => {
+  assert.equal(odin.FIN_PARTIE, 15);
+  assert.equal(odin.maxPlayers(), 6);
+});
+
 /* ---------- maxPlayers (plafond de joueurs, extensions comprises) ---------- */
 test('maxPlayers : chaque jeu borne ses joueurs, extensions comprises', () => {
   assert.equal(wonders.maxPlayers({}), 7);
@@ -651,6 +696,7 @@ test('maxPlayers : chaque jeu borne ses joueurs, extensions comprises', () => {
   assert.equal(swd.maxPlayers(), 2);
   assert.equal(skyjo.maxPlayers(), 8);
   assert.equal(flip7.maxPlayers(), 7);
-  for (const g of [harmonies, iaww, agricola, cascadia, tm, ssp, queendomino, flip7])
+  assert.equal(odin.maxPlayers(), 6);
+  for (const g of [harmonies, iaww, agricola, cascadia, tm, ssp, queendomino, flip7, odin])
     assert.ok(g.maxPlayers() >= 2);
 });

@@ -28,6 +28,7 @@
     { "name": "Flip 7", "url": "flip7.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "7 Wonders Duel", "url": "7wondersduel.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Skyjo", "url": "skyjo.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Odin", "url": "odin.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Historique", "url": "history.html", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

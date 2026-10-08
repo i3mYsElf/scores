@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Odin — feuille de score</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F4F1">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin>
+<link rel="stylesheet" href="common.css">
+<script src="theme.js"></script>
+<script src="sw-client.js" defer></script>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="./">← Jeux</a>
+    <h1 class="title">Odin</h1>
+    <p class="subtitle">Défausse · 1 pt de pénalité par carte restante</p>
+    <div class="tabs" id="tabs"></div>
+  </header>
+
+  <div id="sheetBody"></div>
+</div>
+
+<script src="lib/registry.js"></script>
+<script src="lib/html.js"></script>
+<script src="lib/sheet.js"></script>
+<script src="lib/manches.js"></script>
+<script src="games/odin.js"></script>
+<script src="common.js"></script>
+<script>
+const {blank, score, fixup, validerManches, maxPlayers, FIN_PARTIE} = GameLogic;
+// la liste des manches validées et le bandeau de fin de partie sont partagés
+// avec Skyjo et Sea Salt & Paper dans lib/manches.js (ici : points de
+// pénalité, jamais négatifs)
+const {manchesRankExtra, manchesFin} = GameManches;
+const {manchesDraw, manchesClick, manchesInput} = GameManches.manchesFor(false);
+
+initSheet({
+  slug: 'odin',
+  startPlayers: 2,
+  maxPlayers,
+  blank, score, fixup,
+  lowWins: true, // le plus petit total gagne — pas de départage officiel (ex æquo)
+  sums: s => ({prec: s.precedentes, manche: s.manche}),
+  rankParts: s => [
+    ['Manches précédentes', s.precedentes], ['Manche en cours', s.manche]
+  ],
+  rankExtra: (d) => manchesRankExtra(d),
+
+  drawSheet(d){
+    return `
+  <div class="card">
+    <h2>${sq('var(--gris)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
+    <p class="hint">La partie s'achève à la fin de la manche où un joueur atteint <b>${FIN_PARTIE} points de pénalité</b> — le plus petit total gagne.</p>
+    <div id="mancheList"></div>
+    <p class="hint" id="finPartie" hidden style="color:var(--accent);font-weight:600"></p>
+  </div>
+
+  <div class="card">
+    <h2>${sq('var(--bleu)')}Manche en cours <span class="sum" data-sum="manche">0</span></h2>
+    ${rowStep('manche', 'Cartes restant en main', '1 point de pénalité chacune')}
+    <p class="hint">Le premier à se défausser de toutes ses cartes termine la manche : chaque joueur marque autant de points de pénalité que de cartes qu'il lui reste.</p>
+    <button class="ghost" id="valManche">Valider la manche (tous les joueurs)</button>
+  </div>`;
+  },
+  afterDraw(d){ manchesDraw(d); },
+
+  /* bandeau de fin de partie : seules les manches validées comptent,
+     la manche en cours jamais */
+  afterRefresh(d, s, ctx){
+    manchesFin('finPartie', ctx.players,
+      p => score(p.d).precedentes >= FIN_PARTIE,
+      noms => `${noms.join(', ')} a atteint ${FIN_PARTIE} points de pénalité — la partie se termine, le plus petit total gagne !`);
+  },
+
+  onClick(e, ctx){
+    if(manchesClick(e, ctx)) return true;
+    if(e.target.id === 'valManche'){
+      validerManches(ctx.players);
+      ctx.redraw(); return true;
+    }
+    return false;
+  },
+  onInput: manchesInput
+});
+</script>
