@@ -161,7 +161,7 @@ test('terraforming mars : NT de départ et 2e place selon le nombre de joueurs',
   assert.ok(w.document.querySelector('[data-step="sec"]'));
   click(w, '[data-step="sec"][data-by="1"]');
   assert.equal(grand(w), '22'); // 20 + 2
-  click(w, '#kill'); // retour à 2 joueurs
+  click(w, '#kill'); click(w, '#confirmOk'); // retour à 2 joueurs
   assert.equal(w.document.querySelector('[data-step="sec"]'), null);
 });
 
@@ -375,7 +375,7 @@ test('skyjo : archive et partage classent au plus petit total', () => {
   click(w, '#openRank'); click(w, '#shareRank');
   assert.deepEqual(shared.text.split('\n').slice(1),
     ['🏆 Joueur 2 — 5 pts', '2. Joueur 1 — 12 pts']);
-  click(w, '#resetAll'); // confirm stubbé à true
+  click(w, '#resetAll'); click(w, '#confirmOk');
   const h = JSON.parse(w.localStorage.getItem('scores-history-v1'));
   assert.deepEqual(h[0].players.map(p => [p.nom, p.total]), [['Joueur 2', 5], ['Joueur 1', 12]]);
 });
@@ -388,7 +388,7 @@ test('harmonies : extension Esprits de la nature — ligne conditionnelle, point
   type(w, '[data-num="esprit"]', '4');
   assert.equal(grand(w), '4');
   assert.ok(JSON.parse(w.localStorage.getItem('harmonies-score-v1')).exts.esprits); // persisté
-  click(w, '#openRank'); click(w, '#resetAll');
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   assert.deepEqual(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].exts,
     ['Esprits de la nature']);
   // désactivée : la ligne disparaît et ses points ne comptent plus
@@ -475,6 +475,8 @@ test('flip7 : bandeau de fin de partie quand un cumul atteint 200', () => {
   const el = w.document.getElementById('finPartie');
   assert.ok(!el.hidden);
   assert.match(el.textContent, /Manu.*200/);
+  // le bandeau, recréé à chaque redraw, est aussi annoncé via la région persistante
+  assert.match(w.document.getElementById('a11yStatus').textContent, /200/);
   // corriger une manche sous le seuil fait disparaître le bandeau
   type(w, '[data-manche="1"]', '60');
   assert.ok(el.hidden);
@@ -490,6 +492,27 @@ test('flip7 : ancienne sauvegarde au total cumulé -> migrée, rien n\'est perdu
   assert.deepEqual(saved.players[0].d.manches, [50]);
   assert.equal('total' in saved.players[0].d, false);
   assert.equal(w.document.querySelector('[data-manche="0"]').value, '50');
+});
+
+test('flip7 : le focus clavier survit au redraw (cartes, bonus)', () => {
+  const w = loadPage('flip7.html');
+  const btn = w.document.querySelector('[data-number="3"]');
+  btn.focus();
+  click(w, '[data-number="3"]');
+  const again = w.document.querySelector('[data-number="3"]');
+  assert.notEqual(again, btn); // la feuille a bien été redessinée
+  assert.equal(w.document.activeElement, again); // le focus est resté sur la carte
+});
+
+test('flip7 : états critiques annoncés au lecteur d\'écran (région persistante)', () => {
+  const w = loadPage('flip7.html');
+  click(w, '[data-dup]'); // pas de Seconde chance en main : sauté
+  const st = w.document.getElementById('a11yStatus');
+  assert.equal(st.getAttribute('role'), 'status');
+  assert.match(st.textContent, /Sauté/);
+  // la région vit hors de #sheetBody : elle survit au redraw suivant
+  click(w, '#endRoundBtn');
+  assert.match(st.textContent, /Manche validée : 0 point/);
 });
 
 /* ---------- Odin ---------- */

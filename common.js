@@ -47,6 +47,23 @@ function storageWarn(msg){
   warn.querySelector('.bclose').addEventListener('click', ()=> warn.remove());
 }
 
+/* Annonce lecteur d'écran (role="status", exposer via ctx.announce) : les
+   messages d'état des pages (Sauté, Flip 7, fin de partie…) sont recréés à
+   chaque redraw et une région live recréée n'est jamais annoncée — celle-ci
+   vit hors de #sheetBody et persiste. Écrire deux fois le même texte ne
+   mute rien, donc ne ré-annonce pas. */
+function announce(msg){
+  let el = document.getElementById('a11yStatus');
+  if(!el){
+    el = document.createElement('p');
+    el.id = 'a11yStatus';
+    el.className = 'sr-only';
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+}
+
 function rowStep(path, lab, sub, icon){
   // aria-label contextualisé : vingt « plus »/« moins » identiques ne se distinguent pas au lecteur d'écran
   return `<div class="row">
@@ -151,6 +168,14 @@ function injectChrome(slug){
       <button class="reset" id="resetPlayers">Réinitialiser joueurs et scores</button>
       <p class="hint" style="text-align:center;margin-top:6px">La partie en cours est archivée dans l'historique.</p>
     </div></div>
+  </div>
+  <div class="sheet" id="confirmSheet">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle"><div class="in">
+      <h2 class="title" id="confirmTitle" style="font-size:24px;margin-bottom:14px"></h2>
+      <p class="hint" id="confirmMsg" style="font-size:15px;margin:0 0 18px"></p>
+      <button class="go-danger" id="confirmOk" type="button"></button>
+      <button class="close" id="confirmCancel" type="button">Annuler</button>
+    </div></div>
   </div>`);
 }
 
@@ -192,7 +217,7 @@ function initSheet(cfg){
       return `<div class="seg">${Object.entries(cfg.exts.labels).map(([k, lab]) =>
         `<button data-ext="${k}" data-config aria-pressed="${!!exts[k]}">${lab}</button>`).join('')}</div>`;
     },
-    refresh, redraw: drawSheet,
+    refresh, redraw: drawSheet, announce,
     trimToMax(){
       if(players.length > maxP()){ players = players.slice(0, maxP()); cur = Math.min(cur, players.length-1); }
     }
@@ -225,6 +250,35 @@ function initSheet(cfg){
     cur = Math.min(+s.cur || 0, players.length - 1);
     lastInputTarget = null;
     drawSheet();
+  }
+
+  /* ---------- confirmation ---------- */
+  /* confirm() natif remplacé par une feuille maison (même langage visuel que
+     le classement) : Escape et fond annulent, le focus ouvre sur Annuler (le
+     choix sûr — Enter ne détruit rien), il est rendu à l'appelant à la fermeture
+     et l'action ne s'exécute que depuis le bouton de confirmation. Message en
+     textContent : le nom du joueur n'a rien à échapper. */
+  let confirmAction = null, confirmOpener = null;
+  function askConfirm(title, msg, ok, action){
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmOk').textContent = ok;
+    confirmAction = action;
+    confirmOpener = document.activeElement;
+    document.getElementById('confirmSheet').classList.add('open');
+    document.documentElement.classList.add('no-scroll'); // fige aussi le classement dessous
+    document.getElementById('confirmCancel').focus();
+  }
+  function closeConfirm(run){
+    const a = run ? confirmAction : null;
+    confirmAction = null;
+    document.getElementById('confirmSheet').classList.remove('open');
+    /* le fond reste verrouillé si le classement est encore ouvert dessous */
+    if(!document.getElementById('rankSheet').classList.contains('open'))
+      document.documentElement.classList.remove('no-scroll');
+    const op = confirmOpener; confirmOpener = null;
+    if(op && op.isConnected && !op.hidden) op.focus(); // l'action peut avoir retiré le bouton
+    if(a) a();
   }
 
   /* ---------- persistance ---------- */
@@ -288,8 +342,24 @@ function initSheet(cfg){
 
   /* ---------- rendu ---------- */
   function drawSheet(){
-    document.getElementById('sheetBody').innerHTML = cfg.drawSheet(players[cur].d, ctx);
+    const body = document.getElementById('sheetBody');
+    /* clavier : le redraw remplace l'innerHTML — sans restitution, le focus
+       retomberait sur <body> après chaque action (carte de Flip 7, extension,
+       ligne de manche…). Cibler le contrôle actif par son id, sinon par ses
+       attributs data-, et re-focaliser son équivalent redessiné. */
+    const act = document.activeElement;
+    let refocus = null;
+    if(act && act !== body && body.contains(act)){
+      if(act.id) refocus = '#' + act.id;
+      else refocus = Object.entries(act.dataset).map(([k, v]) =>
+        `[data-${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}="${String(v).replace(/["\\]/g, '\\$&')}"]`).join('');
+    }
+    body.innerHTML = cfg.drawSheet(players[cur].d, ctx);
     if(cfg.afterDraw) cfg.afterDraw(players[cur].d, ctx);
+    if(refocus){
+      const el = body.querySelector(refocus);
+      if(el) el.focus(); // disparu ou désormais disabled : le focus reste sur <body>
+    }
     refresh();
   }
 
@@ -452,8 +522,20 @@ function initSheet(cfg){
   }
 
   /* Clavier : Escape ferme le classement, Tab reste dans le dialog tant qu'il
-     est ouvert (piège de focus léger sur ses boutons). */
+     est ouvert (piège de focus léger sur ses boutons). La feuille de
+     confirmation, qui peut recouvrir le classement, est traitée en priorité. */
   document.addEventListener('keydown', e=>{
+    const cs = document.getElementById('confirmSheet');
+    if(cs.classList.contains('open')){
+      if(e.key === 'Escape'){ closeConfirm(false); return; }
+      if(e.key === 'Tab'){
+        const f = [...cs.querySelectorAll('button')];
+        const first = f[0], last = f[f.length - 1];
+        if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+        else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+      }
+      return;
+    }
     const sheet = document.getElementById('rankSheet');
     if(!sheet.classList.contains('open')) return;
     if(e.key === 'Escape'){ closeRank(); return; }
@@ -577,26 +659,40 @@ function initSheet(cfg){
       // même heuristique que le legacy started : la feuille dévie-t-elle de la vierge ?
       // (limite assumée : un joueur revenu exactement au total vierge n'est pas détecté)
       const dirty = sc(p.d).total !== sc(cfg.blank()).total;
-      if(dirty && !confirm(`Retirer ${p.nom} ? Ses scores seront perdus.`)) return;
-      players.splice(cur,1); cur = 0; drawSheet(); return;
+      const remove = () => { players.splice(cur,1); cur = 0; drawSheet(); };
+      if(dirty) askConfirm(`Retirer ${p.nom} ?`, 'Ses scores seront perdus.', 'Retirer', remove);
+      else remove();
+      return;
     }
     if(e.target.id === 'openRank'){ showRank(); return; }
     if(e.target.id === 'shareRank'){ shareRank(); return; }
     if(e.target.id === 'closeRank' || e.target.id === 'rankSheet'){ closeRank(); return; }
     if(e.target.id === 'resetAll'){
-      if(started && !confirm('Terminer la partie ? Elle sera archivée dans l\'historique et les scores remis à zéro.')) return;
-      archive();
-      undoStack.length = 0; // nouvelle partie : rien à annuler
-      players = players.map(p=>mk(p.nom, p.c)); cur = 0; started = false; // noms et couleurs conservés
-      closeRank(); drawSheet(); return;
+      const go = () => {
+        archive();
+        undoStack.length = 0; // nouvelle partie : rien à annuler
+        players = players.map(p=>mk(p.nom, p.c)); cur = 0; started = false; // noms et couleurs conservés
+        closeRank(); drawSheet();
+      };
+      if(started) askConfirm('Terminer la partie ?',
+        'Elle sera archivée dans l\'historique et les scores remis à zéro.', 'Terminer la partie', go);
+      else go();
+      return;
     }
     if(e.target.id === 'resetPlayers'){
-      if(started && !confirm('Réinitialiser les joueurs et les scores ? La partie en cours sera archivée dans l\'historique.')) return;
-      archive();
-      undoStack.length = 0; // nouvelle partie : rien à annuler
-      players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1), i)); cur = 0; started = false;
-      closeRank(); drawSheet(); return;
+      const go = () => {
+        archive();
+        undoStack.length = 0; // nouvelle partie : rien à annuler
+        players = Array.from({length: cfg.startPlayers || 2}, (_,i)=>mk('Joueur '+(i+1), i)); cur = 0; started = false;
+        closeRank(); drawSheet();
+      };
+      if(started) askConfirm('Réinitialiser joueurs et scores ?',
+        'La partie en cours sera archivée dans l\'historique.', 'Réinitialiser', go);
+      else go();
+      return;
     }
+    if(e.target.id === 'confirmOk'){ closeConfirm(true); return; }
+    if(e.target.id === 'confirmCancel' || e.target.id === 'confirmSheet'){ closeConfirm(false); return; }
   });
 
   document.addEventListener('input', e=>{

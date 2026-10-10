@@ -35,7 +35,9 @@ const n = v => +v || 0;
    - Si le joueur a sauté (isOut), le score de la manche = 0.
    - Le ×2 ne double que les cartes Numéro (pas les Bonus, pas le Flip 7).
    - Le 0 est une carte Numéro : il ne rapporte pas de point mais compte
-     parmi les 7 numéros différents du Flip 7. */
+     parmi les 7 numéros différents du Flip 7.
+   - uniques : nombre de numéros DIFFÉRENTS posés (0 compris) — le compteur
+     « x/7 » de la page le consomme, la règle ne vit qu'ici. */
 function score(d) {
   const numbersSum = d.numbers.reduce((a, v) => a + n(v), 0);
   const hasDouble = d.bonuses.includes('x2');
@@ -57,6 +59,7 @@ function score(d) {
 
   return {
     numbers: numbersSum,
+    uniques: uniqueNumbers.size, // numéros différents posés — le compteur du Flip 7
     doubled: hasDouble ? numbersSum : 0,
     bonuses: bonusSum,
     flip7: flip7Bonus,

@@ -46,7 +46,7 @@ export default [
     files: ['common.js'],
     rules: {
       'no-unused-vars': ['error', {args: 'none', caughtErrors: 'none',
-        varsIgnorePattern: '^(esc|sq|rowStep|rowNum|get|set|initSheet)$'}],
+        varsIgnorePattern: '^(esc|sq|rowStep|rowNum|get|set|initSheet|announce)$'}],
     },
   },
   {

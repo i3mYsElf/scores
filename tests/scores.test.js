@@ -419,8 +419,17 @@ test('Flip 7 : cartes Numéro simples', () => {
   d.numbers = [12, 10, 8];
   const s = flip7.score(d);
   assert.equal(s.numbers, 30);
+  assert.equal(s.uniques, 3);
   assert.equal(s.roundTotal, 30);
   assert.equal(s.total, 30);
+});
+
+test('Flip 7 : uniques — doublons posés non comptés', () => {
+  const d = flip7.blank();
+  d.numbers = [3, 3, 5];
+  const s = flip7.score(d);
+  assert.equal(s.numbers, 11);
+  assert.equal(s.uniques, 2);
 });
 
 test('Flip 7 : carte 0 ne rapporte pas de points', () => {
@@ -475,6 +484,7 @@ test('Flip 7 : Flip 7 avec plus de 7 cartes (mais seulement 7 uniques)', () => {
   d.hasFlipped = true; // Simulé par la logique du jeu
   const s = flip7.score(d);
   assert.equal(s.flip7, 15);
+  assert.equal(s.uniques, 7);
 });
 
 test('Flip 7 : sauté (doublon) = 0 pt pour la manche', () => {

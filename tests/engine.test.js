@@ -57,11 +57,11 @@ test('Nouvelle partie garde les joueurs, Réinitialiser les remet à zéro', () 
   click(w, '#addP');
   type(w, '#pname', 'Manu');
   click(w, '[data-step="champs"][data-by="1"]');
-  click(w, '#openRank'); click(w, '#resetAll');
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   assert.equal(grand(w), '0');                                        // scores remis à zéro
   assert.equal(w.document.querySelectorAll('[data-tab]').length, 3); // joueurs conservés
   assert.ok(w.document.getElementById('tabs').textContent.includes('Manu')); // noms conservés
-  click(w, '#openRank'); click(w, '#resetPlayers');
+  click(w, '#openRank'); click(w, '#resetPlayers'); click(w, '#confirmOk');
   assert.equal(w.document.querySelectorAll('[data-tab]').length, 2); // retour à 2 joueurs
   assert.ok(!w.document.getElementById('tabs').textContent.includes('Manu')); // noms par défaut
 });
@@ -69,12 +69,15 @@ test('Nouvelle partie garde les joueurs, Réinitialiser les remet à zéro', () 
 test('terminer la partie demande confirmation quand des scores sont saisis', () => {
   const w = loadPage('harmonies.html');
   click(w, '[data-step="champs"][data-by="1"]');
-  w.confirm = () => false;
   click(w, '#openRank'); click(w, '#resetAll');
-  assert.equal(grand(w), '5'); // refus : rien ne bouge, rien n'est archivé
+  const cs = w.document.getElementById('confirmSheet');
+  assert.ok(cs.classList.contains('open')); // la feuille de confirmation s'ouvre
+  assert.match(w.document.getElementById('confirmTitle').textContent, /Terminer la partie/);
+  click(w, '#confirmCancel'); // refus : rien ne bouge, rien n'est archivé
+  assert.ok(!cs.classList.contains('open'));
+  assert.equal(grand(w), '5');
   assert.equal(w.localStorage.getItem('scores-history-v1'), null);
-  w.confirm = () => true;
-  click(w, '#resetAll');
+  click(w, '#resetAll'); click(w, '#confirmOk'); // accepté
   assert.equal(grand(w), '0');
   assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1')).length, 1);
 });
@@ -114,7 +117,7 @@ test('annulation : un toggle d\'extension (état hors feuille) est annulable', (
 test('annulation : la pile est vidée quand la partie se termine', () => {
   const w = loadPage('harmonies.html');
   click(w, '[data-step="champs"][data-by="1"]');
-  click(w, '#openRank'); click(w, '#resetAll'); // confirm stubbé à true
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   assert.ok(w.document.getElementById('undoBtn').hidden);
 });
 
@@ -176,7 +179,7 @@ test('partage : ex æquo tous vainqueurs, solo sans position', () => {
   assert.deepEqual(shared.text.split('\n').slice(1),
     ['🏆 Joueur 1 — 5 pts', '🏆 Joueur 2 — 5 pts']);
   click(w, '#closeRank');
-  click(w, '#kill'); // confirm stubbé à true — reste un seul joueur
+  click(w, '#kill'); click(w, '#confirmOk'); // joueur avec des scores : confirmé — reste un seul joueur
   click(w, '#openRank'); click(w, '#shareRank');
   assert.deepEqual(shared.text.split('\n').slice(1), ['Joueur 1 — 5 pts']);
 });
@@ -213,6 +216,29 @@ test('accessibilité : classement en dialog, focus géré, Escape ferme', () => 
   w.document.dispatchEvent(new w.KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
   assert.ok(!w.document.getElementById('rankSheet').classList.contains('open'));
   assert.equal(w.document.activeElement, w.document.getElementById('openRank')); // focus rendu à l'ouvreur
+});
+
+test('accessibilité : feuille de confirmation — dialog, focus sûr, Escape, piège Tab', () => {
+  const w = loadPage('harmonies.html');
+  click(w, '[data-step="champs"][data-by="1"]');
+  click(w, '#openRank');
+  w.document.getElementById('resetAll').focus(); // comme un vrai clic : le bouton a le focus
+  click(w, '#resetAll');
+  const cs = w.document.getElementById('confirmSheet');
+  const dlg = cs.querySelector('[role="dialog"]');
+  assert.equal(dlg.getAttribute('aria-modal'), 'true');
+  assert.equal(dlg.getAttribute('aria-labelledby'), 'confirmTitle');
+  // défaut sûr : le focus ouvre sur Annuler, Enter ne détruit rien
+  assert.equal(w.document.activeElement, w.document.getElementById('confirmCancel'));
+  assert.ok(w.document.documentElement.classList.contains('no-scroll')); // fond figé (classement dessous)
+  // piège de focus : Tab depuis le dernier bouton boucle sur le premier
+  w.document.dispatchEvent(new w.KeyboardEvent('keydown', {key: 'Tab', bubbles: true}));
+  assert.equal(w.document.activeElement, w.document.getElementById('confirmOk'));
+  w.document.dispatchEvent(new w.KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+  assert.ok(!cs.classList.contains('open'));
+  assert.ok(w.document.getElementById('rankSheet').classList.contains('open')); // le classement est intact dessous
+  assert.ok(w.document.documentElement.classList.contains('no-scroll')); // toujours figé pour lui
+  assert.equal(w.document.activeElement, w.document.getElementById('resetAll')); // focus rendu à l'appelant
 });
 
 test('accessibilité : total en aria-live, tablist branché sur le tabpanel', () => {
@@ -356,7 +382,7 @@ test('le flag started ne s\'active qu\'à une vraie saisie de score', () => {
   click(w, '[data-step="objectifs"][data-by="1"]');
   saved = JSON.parse(w.localStorage.getItem('terraformingmars-score-v1'));
   assert.equal(saved.started, true);
-  click(w, '#openRank'); click(w, '#resetAll'); // nouvelle partie -> flag remis à zéro
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk'); // nouvelle partie -> flag remis à zéro
   saved = JSON.parse(w.localStorage.getItem('terraformingmars-score-v1'));
   assert.equal(saved.started, false);
 });
@@ -501,7 +527,7 @@ test('reset : la partie est archivée dans scores-history-v1, classée', () => {
   click(w, '[data-tab="1"]');
   click(w, '[data-step="champs"][data-by="1"]');
   click(w, '[data-step="champs"][data-by="1"]');   // Joueur 2 : 10 pts
-  click(w, '#openRank'); click(w, '#resetAll');
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   const h = JSON.parse(w.localStorage.getItem('scores-history-v1'));
   assert.equal(h.length, 1);
   assert.equal(h[0].g, 'harmonies');
@@ -521,19 +547,19 @@ test('partie « oubliée » terminée plus tard : archivée à la date de la sau
   const save = JSON.stringify({players: [{nom: 'Manu', d: {champs: 2}}], cur: 0, started: true, totals: [10], ts: 12345});
   // rouverte juste pour terminer : aucune saisie -> datée du ts sauvegardé
   const w = loadPage('harmonies.html', {'harmonies-score-v1': save});
-  click(w, '#openRank'); click(w, '#resetAll');
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].t, 12345);
   // même sauvegarde mais une saisie avant le reset -> datée de maintenant
   const w2 = loadPage('harmonies.html', {'harmonies-score-v1': save});
   click(w2, '[data-step="champs"][data-by="1"]');
-  click(w2, '#openRank'); click(w2, '#resetAll');
+  click(w2, '#openRank'); click(w2, '#resetAll'); click(w2, '#confirmOk');
   assert.ok(JSON.parse(w2.localStorage.getItem('scores-history-v1'))[0].t > 12345);
 });
 
 test('archive : la ventilation [libellé, valeur] de chaque joueur est conservée', () => {
   const w = loadPage('harmonies.html');
   click(w, '[data-step="champs"][data-by="1"]');
-  click(w, '#openRank'); click(w, '#resetAll'); // confirm stubbé à true
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   const e = JSON.parse(w.localStorage.getItem('scores-history-v1'))[0];
   assert.ok(Array.isArray(e.players[0].parts), 'parts manquant sur le vainqueur');
   assert.ok(e.players[0].parts.some(x => x[1] === 5)); // le champ saisi vaut 5 pts
@@ -545,14 +571,14 @@ test('archive : extensions actives recopiées en libellés lisibles', () => {
   click(w, '[data-ext="leaders"]');
   click(w, '[data-ext="cities"]');
   type(w, '[data-num="civils"]', '10');
-  click(w, '#openRank'); click(w, '#resetAll');
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   assert.deepEqual(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].exts,
     ['Leaders', 'Cities']);
 
   const w2 = loadPage('kingdomino.html');
   click(w2, '[data-ext="geants"]');
   type(w2, '[data-dc="0"]', '4'); type(w2, '[data-dk="0"]', '2');
-  click(w2, '#openRank'); click(w2, '#resetAll');
+  click(w2, '#openRank'); click(w2, '#resetAll'); click(w2, '#confirmOk');
   assert.deepEqual(JSON.parse(w2.localStorage.getItem('scores-history-v1'))[0].exts,
     ['Age of Giants']);
 });
@@ -562,12 +588,12 @@ test('archive : extension désactivée ou jeu sans extension -> pas de champ ext
   click(w, '[data-ext="geants"]');
   click(w, '[data-ext="geants"]'); // désactivée avant la fin
   type(w, '[data-dc="0"]', '4'); type(w, '[data-dk="0"]', '2');
-  click(w, '#openRank'); click(w, '#resetAll');
+  click(w, '#openRank'); click(w, '#resetAll'); click(w, '#confirmOk');
   assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1'))[0].exts, undefined);
 
   const w2 = loadPage('harmonies.html'); // extension présente mais inactive
   click(w2, '[data-step="champs"][data-by="1"]');
-  click(w2, '#openRank'); click(w2, '#resetAll');
+  click(w2, '#openRank'); click(w2, '#resetAll'); click(w2, '#confirmOk');
   assert.equal(JSON.parse(w2.localStorage.getItem('scores-history-v1'))[0].exts, undefined);
 });
 
@@ -583,7 +609,7 @@ test('ex æquo sans départage : positions partagées au classement et figées �
   assert.deepEqual([...w.document.querySelectorAll('#rankList .pos')].map(e => e.textContent),
     ['1', '1', '3']);
   assert.equal(w.document.querySelectorAll('#rankList .rank.win').length, 2);
-  click(w, '#resetAll');
+  click(w, '#resetAll'); click(w, '#confirmOk');
   const e = JSON.parse(w.localStorage.getItem('scores-history-v1'))[0];
   assert.equal(e.players[0].pos, undefined); // égal au rang : non écrit
   assert.equal(e.players[1].pos, 1);         // ex æquo figé
@@ -613,13 +639,12 @@ test('réinitialiser les joueurs : confirmation requise si la partie est commenc
   const w = loadPage('harmonies.html');
   type(w, '#pname', 'Manu');
   click(w, '[data-step="champs"][data-by="1"]');
-  w.confirm = () => false; // refus
   click(w, '#openRank'); click(w, '#resetPlayers');
+  click(w, '#confirmCancel'); // refus
   assert.equal(grand(w), '5'); // rien n'a bougé
   assert.ok(w.document.getElementById('tabs').textContent.includes('Manu'));
   assert.equal(w.localStorage.getItem('scores-history-v1'), null); // rien archivé
-  w.confirm = () => true; // accepté
-  click(w, '#resetPlayers');
+  click(w, '#resetPlayers'); click(w, '#confirmOk'); // accepté
   assert.equal(grand(w), '0');
   assert.ok(!w.document.getElementById('tabs').textContent.includes('Manu'));
   assert.equal(JSON.parse(w.localStorage.getItem('scores-history-v1')).length, 1);
@@ -627,16 +652,16 @@ test('réinitialiser les joueurs : confirmation requise si la partie est commenc
 
 test('retirer un joueur : confirmation seulement si sa feuille n\'est pas vierge', () => {
   const w = loadPage('harmonies.html');
-  let asked = 0;
-  w.confirm = () => { asked++; return true; };
   click(w, '#kill'); // joueur vierge : retiré sans question
-  assert.equal(asked, 0);
+  assert.ok(!w.document.getElementById('confirmSheet').classList.contains('open'));
   assert.equal(w.document.querySelectorAll('[data-tab]').length, 1);
   click(w, '#addP');
   click(w, '[data-step="champs"][data-by="1"]');
-  w.confirm = () => { asked++; return false; };
-  click(w, '#kill'); // joueur avec des scores, refus : toujours là
-  assert.equal(asked, 1);
+  click(w, '#kill'); // joueur avec des scores : la confirmation s'ouvre
+  assert.ok(w.document.getElementById('confirmSheet').classList.contains('open'));
+  click(w, '#confirmCancel'); // refus : toujours là
   assert.equal(w.document.querySelectorAll('[data-tab]').length, 2);
   assert.equal(grand(w), '5');
+  click(w, '#kill'); click(w, '#confirmOk'); // accepté : retiré
+  assert.equal(w.document.querySelectorAll('[data-tab]').length, 1);
 });

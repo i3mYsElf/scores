@@ -68,10 +68,6 @@ function drawBonusButtons(d) {
   }).join('');
 }
 
-function getUniqueCount(d) {
-  return new Set(d.numbers).size; // le 0 compte pour le Flip 7
-}
-
 initSheet({
   slug: 'flip7',
   startPlayers: 2,
@@ -81,14 +77,14 @@ initSheet({
   fixup,
 
   drawSheet(d, ctx) {
-    const uniqueCount = getUniqueCount(d);
+    const uniqueCount = score(d).uniques; // le calcul vit dans games/flip7.js, pas ici
 
     return `
   <div class="card">
     <h2>${sq('var(--rouge)')}Cartes Numéro</h2>
     <p class="hint">Touchez chaque carte Numéro reçue (0-12) ; re-touchez pour corriger un misclic.</p>
     <p class="hint">Flip 7 : <b>${uniqueCount}/7</b> numéros différents (le 0 compte)</p>
-    <div class="seg">
+    <div class="seg nums">
       ${drawNumberButtons(d)}
     </div>
     <div class="seg">
@@ -105,7 +101,7 @@ initSheet({
   <div class="card">
     <h2>${sq('var(--bleu)')}Cartes Bonus</h2>
     <p class="hint">×2 double uniquement les cartes Numéro (pas les Bonus, pas le Flip 7).</p>
-    <div class="seg">
+    <div class="seg nums">
       ${drawBonusButtons(d)}
     </div>
   </div>
@@ -205,7 +201,8 @@ initSheet({
 
     const numBtn = e.target.closest('[data-number]');
     if (numBtn) {
-      toggleNumber(d, parseInt(numBtn.dataset.number, 10));
+      const res = toggleNumber(d, parseInt(numBtn.dataset.number, 10));
+      if (res === 'flip7') ctx.announce('Flip 7 ! Plus 15 points — la manche s\'arrête pour tous.');
       scSavedFlash = false;
       ctx.redraw();
       return true;
@@ -223,6 +220,9 @@ initSheet({
     if (dupBtn) {
       const res = receiveDuplicate(d);
       scSavedFlash = (res === 'saved');
+      ctx.announce(res === 'saved'
+        ? 'Doublon défaussé par la Seconde chance — pas de saut.'
+        : 'Sauté ! Zéro point pour cette manche.');
       ctx.redraw();
       return true;
     }
@@ -235,7 +235,8 @@ initSheet({
     }
 
     if (e.target.id === 'endRoundBtn') {
-      endRound(d);
+      const pts = endRound(d);
+      ctx.announce(`Manche validée : ${pts} point${pts > 1 ? 's' : ''}.`);
       scSavedFlash = false;
       ctx.redraw();
       return true;
