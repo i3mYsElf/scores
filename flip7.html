@@ -18,16 +18,16 @@
 <script src="theme.js"></script>
 <script src="sw-client.js" defer></script>
 
-<div class="wrap">
-  <header>
-    <a class="back" href="./">← Jeux</a>
-    <h1 class="title">Flip 7</h1>
-    <p class="subtitle">Push your luck · 7 numéros différents = +15 pts</p>
-    <div class="tabs" id="tabs"></div>
-  </header>
+<header>
+  <a class="back" href="./">← Jeux</a>
+  <h1 class="title">Flip 7</h1>
+  <p class="subtitle">Push your luck · 7 numéros différents = +15 pts</p>
+  <div class="tabs" id="tabs"></div>
+</header>
 
+<main class="wrap">
   <div id="sheetBody"></div>
-</div>
+</main>
 
 <script src="lib/registry.js"></script>
 <script src="lib/html.js"></script>
@@ -91,7 +91,7 @@ initSheet({
       <button class="ctl" data-sc aria-pressed="${d.secondChance}" ${(d.isOut || d.hasFlipped) ? 'disabled' : ''}>Seconde chance</button>
       <button class="ctl" data-dup ${(d.isOut || d.hasFlipped) ? 'disabled' : ''}>Doublon reçu</button>
     </div>
-    <p class="hint" ${scSavedFlash ? 'style="color:var(--accent);font-weight:700"' : ''}>${scSavedFlash
+    <p class="hint${scSavedFlash ? ' flash' : ''}">${scSavedFlash
       ? '✓ Doublon défaussé par la Seconde chance !'
       : (d.secondChance
         ? 'Seconde chance en main : le prochain doublon sera défaussé, pas de saut.'
@@ -128,15 +128,15 @@ initSheet({
       <div class="lab"><b>Total manche</b></div>
       <div class="val"><b class="val" id="valRound">0</b> pts</div>
     </div>
-    ${d.hasFlipped ? '<p class="hint" style="color:var(--accent);font-weight:700">✓ FLIP 7 ! +15 pts — la manche s\'arrête pour tous</p>' : ''}
-    ${d.isOut ? '<p class="hint" style="color:var(--danger);font-weight:700">✗ SAUTÉ ! 0 pt cette manche</p>' : ''}
+    ${d.hasFlipped ? '<p class="hint flash">✓ FLIP 7 ! +15 pts — la manche s\'arrête pour tous</p>' : ''}
+    ${d.isOut ? '<p class="hint flash danger">✗ SAUTÉ ! 0 pt cette manche</p>' : ''}
   </div>
 
   <div class="card">
     <h2>${sq('var(--jaune)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
     <p class="hint">Le premier à atteindre <b>${FIN_PARTIE} points</b> au cumul gagne la partie.</p>
     <div id="mancheList"></div>
-    <p class="hint" id="finPartie" hidden style="color:var(--accent);font-weight:600"></p>
+    <p class="hint banner-flash" id="finPartie" hidden></p>
   </div>
 
   <div class="card">

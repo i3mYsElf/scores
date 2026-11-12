@@ -18,16 +18,16 @@
 <script src="theme.js"></script>
 <script src="sw-client.js" defer></script>
 
-<div class="wrap">
-  <header>
-    <a class="back" href="./">← Jeux</a>
-    <h1 class="title">Sea Salt &amp; Paper</h1>
-    <p class="subtitle">Feuille de score — manches cumulées</p>
-    <div class="tabs" id="tabs"></div>
-  </header>
+<header>
+  <a class="back" href="./">← Jeux</a>
+  <h1 class="title">Sea Salt &amp; Paper</h1>
+  <p class="subtitle">Feuille de score — manches cumulées</p>
+  <div class="tabs" id="tabs"></div>
+</header>
 
+<main class="wrap">
   <div id="sheetBody"></div>
-</div>
+</main>
 
 <script src="lib/registry.js"></script>
 <script src="lib/html.js"></script>
@@ -55,7 +55,7 @@ function drawSirenes(d){
       <button class="kill" data-delsir="${i}" aria-label="Retirer la sirène ${i+1}">×</button>
     </div>`).join('')
     + (d.sirenes.length >= MAX_SIRENES
-      ? `<p class="hint" style="color:var(--accent);font-weight:600">${MAX_SIRENES} sirènes : victoire immédiate !</p>`
+      ? `<p class="hint flash">${MAX_SIRENES} sirènes : victoire immédiate !</p>`
       : '<button class="ghost" id="addSir">+ Ajouter une sirène</button>');
 }
 
@@ -82,7 +82,7 @@ initSheet({
     <h2>${sq('var(--gris)')}Manches précédentes <span class="sum" data-sum="prec">0</span></h2>
     <p class="hint">Objectif à ${nb} joueurs : <b>${obj} points</b> (2 j : 40 · 3 j : 35 · 4 j : 30). Comptez la manche en cours ci-dessous, puis « Valider la manche » pour l'ajouter au cumul.</p>
     <div id="mancheList"></div>
-    <p class="hint" id="objAtteint" hidden style="color:var(--accent);font-weight:600"></p>
+    <p class="hint banner-flash" id="objAtteint" hidden></p>
   </div>
 
   <div class="card">

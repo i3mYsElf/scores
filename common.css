@@ -8,11 +8,14 @@
   --ctl-ink:#F4F4F1;         /* texte des contrôles */
   --field:#F4F4F1;           /* fond des champs de saisie */
   --line:rgba(22,22,22,.14);
+  --line-strong:rgba(22,22,22,.30);  /* bordures au survol */
   --text:#161616;
   --muted:#6C6C64;          /* AA sur fond de page et cartes (4,6:1 minimum) */
   --accent:#CC3A06;         /* orange sur fond clair — AA (5,0:1 sur carte) */
   --accent-2:#FF6B2B;        /* orange sur fond sombre (barre de total) */
+  --accent-soft:rgba(204,58,6,.09);  /* fonds teintés orange (bouton primaire doux, bandeaux) */
   --danger:#C43B3B;
+  --danger-soft:rgba(196,59,59,.10);
   --bar-bg:rgba(22,22,22,.96); --bar-ink:#F4F4F1; --bar-muted:#9C9C94;
   --overlay:rgba(20,20,20,.6);
   --go-ink:#FFFFFF;
@@ -25,7 +28,13 @@
      uniquement pastilles (.dot, .swatch, .rdot), le texte reste lisible */
   --p1:#D64545; --p2:#3E7BC0; --p3:#55A05E; --p4:#D9A62E;
   --p5:#9A6BD0; --p6:#D065A2; --p7:#45AFA5; --p8:#B07A4A;
-  --r:12px;
+  /* forme : rayons, ombres, mouvement */
+  --r-sm:9px; --r:14px; --r-lg:20px;
+  --sh-1:0 1px 2px rgba(22,22,22,.04), 0 10px 28px -14px rgba(22,22,22,.20);
+  --sh-2:0 2px 6px rgba(22,22,22,.06), 0 26px 52px -18px rgba(22,22,22,.30);
+  --sh-bar:0 -12px 32px -10px rgba(22,22,22,.28);
+  --ease:cubic-bezier(.22,.68,.32,1);
+  --dur:.18s;
 }
 /* Tokens sombres — le même bloc deux fois : via le thème système (sauf forçage
    clair) et via le forçage manuel data-theme="dark" posé par theme.js.
@@ -38,15 +47,21 @@
     --ctl-ink:#F2F2EE;
     --field:#2C2C29;
     --line:rgba(242,242,238,.13);
+    --line-strong:rgba(242,242,238,.32);
     --text:#F2F2EE;
     --muted:#8F8F87;
     --accent:#FF6B2B;
     --accent-2:#FF6B2B;
+    --accent-soft:rgba(255,107,43,.15);
     --danger:#E05A5A;
+    --danger-soft:rgba(224,90,90,.16);
     --bar-bg:rgba(0,0,0,.92); --bar-ink:#F2F2EE; --bar-muted:#8F8F87;
     --overlay:rgba(0,0,0,.65);
     --go-ink:#141414;
     --noir:#A79CBF;
+    --sh-1:0 1px 2px rgba(0,0,0,.35), 0 10px 28px -14px rgba(0,0,0,.55);
+    --sh-2:0 2px 8px rgba(0,0,0,.42), 0 26px 56px -18px rgba(0,0,0,.65);
+    --sh-bar:0 -12px 34px -10px rgba(0,0,0,.62);
   }
 }
 :root[data-theme="dark"]{
@@ -56,15 +71,21 @@
   --ctl-ink:#F2F2EE;
   --field:#2C2C29;
   --line:rgba(242,242,238,.13);
+  --line-strong:rgba(242,242,238,.32);
   --text:#F2F2EE;
   --muted:#8F8F87;
   --accent:#FF6B2B;
   --accent-2:#FF6B2B;
+  --accent-soft:rgba(255,107,43,.15);
   --danger:#E05A5A;
+  --danger-soft:rgba(224,90,90,.16);
   --bar-bg:rgba(0,0,0,.92); --bar-ink:#F2F2EE; --bar-muted:#8F8F87;
   --overlay:rgba(0,0,0,.65);
   --go-ink:#141414;
   --noir:#A79CBF;
+  --sh-1:0 1px 2px rgba(0,0,0,.35), 0 10px 28px -14px rgba(0,0,0,.55);
+  --sh-2:0 2px 8px rgba(0,0,0,.42), 0 26px 56px -18px rgba(0,0,0,.65);
+  --sh-bar:0 -12px 34px -10px rgba(0,0,0,.62);
 }
 *{box-sizing:border-box}
 /* pas de zoom double-tap sur les contrôles (steppers cliqués vite), pinch-zoom conservé */
@@ -73,151 +94,212 @@ html,body{margin:0;background:var(--bg);color:var(--text)}
 body{
   font-family:"Barlow",system-ui,-apple-system,sans-serif;
   -webkit-font-smoothing:antialiased;
-  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  line-height:1.45;
+  padding-bottom:calc(104px + env(safe-area-inset-bottom));
 }
+::selection{background:var(--accent);color:#fff}
 .wrap{max-width:520px;margin:0 auto;padding:0 16px}
 
-/* ---------- en-tête ---------- */
+/* ---------- en-tête (landmark bannière, centré comme .wrap) ---------- */
 /* padding-top : dégage la barre de statut iOS en PWA standalone (black-translucent) */
-header{padding:calc(22px + env(safe-area-inset-top)) 0 10px}
-.back{display:inline-block;color:var(--muted);font-size:13px;font-weight:600;text-decoration:none;margin-bottom:8px}
+header{max-width:520px;margin:0 auto;padding:calc(24px + env(safe-area-inset-top)) 16px 12px}
+.back{display:inline-block;color:var(--muted);font-size:13.5px;font-weight:600;text-decoration:none;margin-bottom:10px}
+.back:hover{color:var(--text)}
 /* lien règles officielles, en face du « ← Jeux » (injecté par common.js) */
-header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text-decoration:none}
+header .rules{float:right;color:var(--muted);font-size:13.5px;font-weight:600;text-decoration:none}
+header .rules:hover{color:var(--accent)}
 .title{
   font-family:"Anton",sans-serif;
-  font-weight:400;font-size:32px;text-transform:uppercase;letter-spacing:.015em;
-  margin:0;line-height:1;
+  font-weight:400;font-size:clamp(30px,9vw,40px);text-transform:uppercase;letter-spacing:.02em;
+  margin:0;line-height:1.02;
 }
-.subtitle{color:var(--muted);font-size:13px;margin:7px 0 0}
+/* point final orange (accueil) */
+.title .tdot{color:var(--accent)}
+.subtitle{color:var(--muted);font-size:13.5px;margin:8px 0 0}
 
-.tabs{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px;scrollbar-width:none}
+/* ---------- onglets joueurs (pilules) ---------- */
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:16px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .tabs::-webkit-scrollbar{display:none}
 .tab{
   flex:0 0 auto;display:flex;align-items:center;gap:8px;
   background:transparent;border:1px solid var(--line);color:var(--muted);
-  border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;
+  border-radius:999px;padding:9px 15px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;
 }
+.tab:hover{border-color:var(--line-strong);color:var(--text)}
 .tab .dot{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.9}
 .tab .pts{font-variant-numeric:tabular-nums;font-weight:700;color:inherit}
-.tab[aria-selected="true"]{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:600}
-.tab.add{color:var(--muted);padding:8px 15px;font-size:18px;line-height:1}
+.tab[aria-selected="true"]{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:600;box-shadow:var(--sh-1)}
+.tab.add{color:var(--muted);padding:8px 16px;font-size:19px;line-height:1}
+.tab.add:hover{color:var(--accent);border-color:var(--accent)}
 
 /* ---------- nom du joueur ---------- */
-.whois{display:flex;align-items:center;gap:10px;margin:16px 0 4px}
+.whois{display:flex;align-items:center;gap:10px;margin:18px 0 6px}
 /* pastille de couleur : un bouton (tap = couleur libre suivante) */
 .whois .swatch{
-  width:16px;height:16px;border-radius:50%;flex:0 0 auto;
+  width:18px;height:18px;border-radius:50%;flex:0 0 auto;
   border:none;padding:0;cursor:pointer;position:relative;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12), var(--sh-1);
 }
 .whois .swatch::after{content:'';position:absolute;inset:-14px -8px}
 /* avancer/reculer le joueur courant dans l'ordre du tour */
 .whois .mv{
-  flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:8px;
-  color:var(--muted);font-size:13px;line-height:1;padding:8px 9px;cursor:pointer;position:relative;
+  flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:999px;
+  color:var(--muted);line-height:1;padding:9px 11px;cursor:pointer;position:relative;
+  display:grid;place-items:center;
 }
+.whois .mv:hover{border-color:var(--line-strong);color:var(--text)}
 .whois .mv:disabled{opacity:.3}
 .whois .mv::after{content:'';position:absolute;inset:-7px -2px}
 .whois input{
-  flex:1;background:transparent;border:none;border-bottom:1px dashed var(--line);
-  color:var(--text);font-family:"Barlow",sans-serif;font-size:21px;font-weight:700;
-  padding:4px 0;min-width:0;
+  flex:1;min-width:0;background:transparent;border:none;border-bottom:2px dashed var(--line);
+  color:var(--text);font-family:"Barlow",sans-serif;font-size:22px;font-weight:700;
+  padding:5px 0;border-radius:0;
 }
-.whois input:focus{outline:none;border-bottom-color:var(--accent)}
-.kill{background:none;border:none;color:var(--muted);font-size:20px;padding:4px 8px;cursor:pointer}
+.whois input:focus{outline:none;border-bottom-color:var(--accent);border-bottom-style:solid}
+.kill{
+  background:none;border:none;color:var(--muted);font-size:19px;padding:4px;
+  width:34px;height:34px;border-radius:50%;display:grid;place-items:center;cursor:pointer;flex:0 0 auto;
+}
+.kill:hover{color:var(--danger);background:var(--danger-soft)}
 
 /* ---------- cartes de catégorie ---------- */
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 6px;margin:12px 0}
-.card h2{
-  font-weight:700;font-size:15px;margin:0 0 2px;
-  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--sh-1);padding:16px 16px 8px;margin:14px 0;
 }
-.card h2 .sum{font-size:13.5px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
-.hint{color:var(--muted);font-size:12.5px;margin:0 0 8px;line-height:1.45}
+/* titres de cartes en Anton (identité « Le Tableau »), sous-total en Barlow */
+.card h2{
+  font-family:"Anton",sans-serif;font-weight:400;font-size:16.5px;
+  letter-spacing:.035em;text-transform:uppercase;
+  margin:0 0 4px;display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+}
+.card h2 .sum{font-family:"Barlow",sans-serif;font-size:14px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+/* pastille « matière » d'un titre de carte (rendu par sq() de lib/html.js) */
+.sw{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:8px}
+.hint{color:var(--muted);font-size:12.5px;margin:0 0 10px;line-height:1.5}
+.mt-s{margin-top:8px}
 
-.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .row:first-of-type{border-top:none}
-.row .icon{flex:0 0 34px;height:36px}
-.row .lab{flex:1;min-width:0;font-size:14px}
-.row .lab small{display:block;color:var(--muted);font-size:12px}
+.row .icon{flex:0 0 36px;height:38px;display:grid;place-items:center}
+.row .lab{flex:1;min-width:0;font-size:14.5px;font-weight:500}
+.row .lab small{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:1px}
 
-.step{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+/* stepper − / valeur / + */
+.step{display:flex;align-items:center;gap:3px;flex:0 0 auto}
 .step button{
-  width:38px;height:38px;border-radius:9px;border:none;
-  background:var(--card-2);color:var(--ctl-ink);font-size:20px;line-height:1;cursor:pointer;
+  width:40px;height:40px;border-radius:11px;border:none;
+  background:var(--card-2);color:var(--ctl-ink);line-height:1;cursor:pointer;
   display:grid;place-items:center;-webkit-tap-highlight-color:transparent;
   /* appui long (répétition auto) : pas de sélection, de loupe ni de zoom double-tap */
   touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
 }
-.step button:active{opacity:.72}
+.step button:hover{filter:brightness(1.18)}
+.step button:active{transform:scale(.9)}
 .step button:disabled{opacity:.3}
 /* min-width : un total à 3 chiffres (Terraforming Mars, Skyjo) ne déborde pas */
-.step .val{min-width:34px;text-align:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+.step .val{min-width:36px;text-align:center;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
 
-.seg{display:flex;gap:6px;margin:2px 0 10px}
+.seg{display:flex;gap:8px;margin:4px 0 12px;flex-wrap:wrap}
 .seg button{
-  flex:1;padding:9px;border-radius:9px;border:1px solid var(--line);
-  background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+  flex:1;padding:10px;border-radius:11px;border:1px solid var(--line);
+  background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer;
 }
-.seg button[aria-pressed="true"]{background:var(--card-2);color:var(--ctl-ink);border-color:var(--card-2);font-weight:600}
+.seg button:hover{border-color:var(--line-strong);color:var(--text)}
+.seg button[aria-pressed="true"]{background:var(--card-2);color:var(--ctl-ink);border-color:var(--card-2);font-weight:600;box-shadow:var(--sh-1)}
 /* désactivé (fin de manche Flip 7, extensions limites) : visible, pas « mort » */
 .seg button:disabled{opacity:.4}
 /* grille de petits boutons nombreux (Flip 7 : les 13 numéros) — .seg flexible
    convient à 2-4 segments, au-delà la rangée déborde de la carte sur petit
    écran ; la grille passe à la ligne en gardant des cellules égales (44px
    minimum, cible tactile confortable) */
-.seg.nums{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr))}
+.seg.nums{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr))}
 
 .num{
-  width:74px;padding:9px;min-height:44px;border-radius:9px;border:1px solid var(--line);
-  background:var(--field);color:var(--text);font:inherit;font-weight:700;font-size:16px;
-  text-align:center;font-variant-numeric:tabular-nums;
+  width:76px;padding:10px;min-height:46px;border-radius:11px;border:1px solid var(--line);
+  background:var(--field);color:var(--text);font:inherit;font-weight:700;font-size:16.5px;
+  text-align:center;font-variant-numeric:tabular-nums;flex:0 0 auto;
 }
-.num:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.num:hover{border-color:var(--line-strong)}
+.num:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 /* variantes étroites des listes (domaines, multiplicateurs, manches, sirènes) */
-.num-s{width:58px}
-.num-m{width:64px}
+.num-s{width:60px}
+.num-m{width:66px}
 /* total d'une ligne de liste, aligné à droite */
-.rowtot{flex:1;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.rowtot{flex:1;text-align:right;font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+/* séparateur « cases × » / « PV × » des listes à multiplication */
+.mult{flex:0 0 auto;color:var(--muted);font-size:13px;font-weight:600}
+
 .ghost{
-  width:100%;margin:4px 0 10px;padding:11px;border-radius:9px;
-  border:1px dashed var(--line);background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
+  width:100%;margin:6px 0 12px;padding:12px;border-radius:11px;
+  border:1.5px dashed var(--line-strong);background:transparent;color:var(--muted);
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
 }
+.ghost:hover{color:var(--text);border-color:var(--muted)}
+
+/* ---------- alertes en ligne (résultats de manche, fin de partie) ---------- */
+/* texte surligné en orange/rouge (remplace les style="color:var(--accent)…" des pages) */
+.flash{color:var(--accent);font-weight:700}
+.flash.danger{color:var(--danger)}
+/* bandeau plein doux : fin de partie atteinte, objectif atteint */
+.banner-flash{
+  background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13.5px;
+  border-radius:11px;padding:10px 13px;margin:10px 0 6px;
+}
+.banner-flash.danger{background:var(--danger-soft);color:var(--danger)}
+
+/* ---------- état vide ---------- */
+.empty{
+  border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);
+  padding:32px 22px;text-align:center;color:var(--muted);margin:16px 0;
+}
+.empty svg{display:block;margin:0 auto 14px}
+.empty b{
+  display:block;font-family:"Anton",sans-serif;font-weight:400;font-size:18px;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--text);margin-bottom:6px;
+}
+.empty p{margin:0;font-size:13.5px;line-height:1.55}
 
 /* ---------- barre de total ---------- */
 .bar{
   position:fixed;left:0;right:0;bottom:0;z-index:5;
-  background:var(--bar-bg);backdrop-filter:blur(12px);
+  background:var(--bar-bg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(255,255,255,.09);box-shadow:var(--sh-bar);
   padding:12px 16px calc(12px + env(safe-area-inset-bottom));
 }
-.bar .inner{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:14px}
-.bar .tot{flex:1;display:flex;align-items:baseline;gap:10px}
+.bar .inner{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar .tot{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px}
 .bar .tot b{
-  font-family:"Anton",sans-serif;font-weight:400;font-size:36px;
-  color:var(--accent-2);font-variant-numeric:tabular-nums;line-height:1;
+  font-family:"Anton",sans-serif;font-weight:400;font-size:38px;
+  color:var(--accent-2);font-variant-numeric:tabular-nums;line-height:1;flex:0 0 auto;
 }
-.bar .tot span{color:var(--bar-muted);font-size:13px}
+.bar .tot>span{color:var(--bar-muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* nom du joueur courant : un bouton — change de joueur sans atteindre les
    onglets, au pouce, pendant la saisie */
 .bar .tot .who{
-  position:relative;display:inline-flex;align-items:baseline;gap:5px;
+  position:relative;display:inline-flex;align-items:center;gap:4px;min-width:0;
   background:none;border:none;padding:8px 0;cursor:pointer;
   color:var(--bar-ink);font:inherit;font-size:13px;font-weight:600;
 }
-.bar .tot .who span{color:inherit}
-.bar .tot .who .arr{color:var(--bar-muted)}
+.bar .tot .who span{color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .tot .who .arr{color:var(--bar-muted);display:grid;place-items:center;flex:0 0 auto}
 .bar .tot .who::after{content:'';position:absolute;inset:-8px -10px}
 .bar .undo{
-  flex:0 0 auto;width:44px;height:44px;border-radius:50%;padding:0;
+  flex:0 0 auto;width:46px;height:46px;border-radius:50%;padding:0;
   border:1px solid rgba(255,255,255,.22);background:transparent;color:var(--bar-ink);
-  font-size:19px;line-height:1;cursor:pointer;
+  display:grid;place-items:center;line-height:1;cursor:pointer;
 }
-.bar .undo:active{opacity:.7}
+.bar .undo:hover{border-color:rgba(255,255,255,.45)}
+.bar .undo:active{transform:scale(.92)}
 .bar .go{
-  background:var(--accent);color:var(--go-ink);border:none;border-radius:9px;
-  padding:13px 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;
+  flex:0 0 auto;background:var(--accent);color:var(--go-ink);border:none;border-radius:12px;
+  padding:14px 18px;font:inherit;font-weight:700;font-size:14.5px;cursor:pointer;
+  box-shadow:0 6px 16px -6px rgba(0,0,0,.55);
 }
+.bar .go:hover{filter:brightness(1.12)}
+.bar .go:active{transform:scale(.96)}
 
-/* ---------- classement ---------- */
+/* ---------- feuilles (bottom-sheets : classement, confirmation) ---------- */
 /* fond verrouillé tant que le panneau est ouvert (classe posée par common.js) */
 html.no-scroll,html.no-scroll body{overflow:hidden}
 .sheet{position:fixed;inset:0;z-index:10;background:var(--overlay);display:none}
@@ -225,30 +307,64 @@ html.no-scroll,html.no-scroll body{overflow:hidden}
 .sheet .panel{
   position:absolute;left:0;right:0;bottom:0;overflow:auto;
   max-height:88vh;max-height:88dvh; /* dvh : suit la barre d'URL mobile, vh en repli */
-  background:var(--bg);border-top:1px solid var(--line);border-radius:22px 22px 0 0;
-  padding:20px 16px calc(24px + env(safe-area-inset-bottom));
+  background:var(--bg);border-top:1px solid var(--line);border-radius:26px 26px 0 0;
+  box-shadow:var(--sh-2);
+  padding:0 16px calc(28px + env(safe-area-inset-bottom));
 }
-.sheet .panel .in{max-width:520px;margin:0 auto}
-.rank{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
-.rank .pos{font-family:"Anton",sans-serif;font-size:19px;width:24px;color:var(--muted)}
-.rank .nm{flex:1;font-size:16px;font-weight:500}
+/* poignée de la feuille */
+.sheet .panel::before{
+  content:'';display:block;width:44px;height:5px;border-radius:999px;
+  background:var(--line-strong);margin:12px auto 2px;
+}
+.sheet .panel .in{max-width:520px;margin:0 auto;padding-top:10px}
+/* titres et textes des feuilles (classes posées par common.js / lib/confirm.js) */
+.sheet .title{font-size:26px;letter-spacing:.03em;margin:4px 0 16px}
+.sheet .sheetmsg{font-size:15.5px;line-height:1.55;margin:0 0 20px}
+.sheet .sheetfoot{text-align:center;margin-top:12px}
+
+/* ---------- classement ---------- */
+.rank{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.rank:last-of-type{border-bottom:none}
+.rank .pos{font-family:"Anton",sans-serif;font-size:20px;width:26px;flex:0 0 auto;text-align:center;color:var(--muted)}
+.rank .nm{flex:1;min-width:0;font-size:16px;font-weight:600}
 /* pastille de couleur du joueur : jamais en couleur de texte (voir --p1) */
 .rank .nm .rdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:baseline}
 .rank .nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:3px}
-.rank .pt{font-family:"Anton",sans-serif;font-weight:400;font-size:25px;font-variant-numeric:tabular-nums}
+.rank .pt{font-family:"Anton",sans-serif;font-weight:400;font-size:27px;font-variant-numeric:tabular-nums;flex:0 0 auto}
+.rank .pt small{display:block;font-family:"Barlow",sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;margin-top:2px}
 .rank.win .pos{color:var(--accent)}
-.share{width:100%;margin-top:18px;padding:13px;border-radius:9px;border:1px solid var(--accent);background:transparent;color:var(--accent);font:inherit;font-weight:600;cursor:pointer}
-.close{width:100%;margin-top:18px;padding:13px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-weight:600;cursor:pointer}
-.share:not([hidden])+.close{margin-top:8px}
-.reset{width:100%;margin-top:8px;padding:13px;border-radius:9px;border:none;background:transparent;color:var(--danger);font:inherit;font-size:13px;cursor:pointer}
+.rank.win .pt{color:var(--accent)}
+/* boutons d'action en bas de feuille */
+.share{
+  width:100%;margin-top:20px;padding:14px;border-radius:12px;
+  border:1px solid transparent;background:var(--accent-soft);color:var(--accent);
+  font:inherit;font-weight:700;font-size:14.5px;cursor:pointer;
+}
+.share:hover{background:var(--accent);color:#fff}
+.close{
+  width:100%;margin-top:20px;padding:14px;border-radius:12px;
+  border:1px solid var(--line-strong);background:transparent;color:var(--text);
+  font:inherit;font-weight:700;font-size:14.5px;cursor:pointer;
+}
+.close:hover{background:var(--field)}
+.share:not([hidden])+.close{margin-top:10px}
+.reset{
+  width:100%;margin-top:10px;padding:13px;border-radius:12px;border:none;background:transparent;
+  color:var(--danger);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+}
+.reset:hover{background:var(--danger-soft)}
 /* feuille de confirmation (confirm() natif remplacé, common.js) : bouton d'action en danger plein, Annuler en repli */
-.go-danger{width:100%;margin-top:8px;padding:13px;border-radius:9px;border:none;background:var(--danger);color:#fff;font:inherit;font-weight:700;cursor:pointer}
-.go-danger+.close{margin-top:8px}
+.go-danger{
+  width:100%;margin-top:20px;padding:14px;border-radius:12px;border:none;
+  background:var(--danger);color:#fff;font:inherit;font-weight:700;font-size:14.5px;cursor:pointer;
+}
+.go-danger:hover{filter:brightness(1.08)}
+.go-danger+.close{margin-top:10px}
 /* ---------- accessibilité ---------- */
 /* texte adressé aux seuls lecteurs d'écran (région d'annonce de common.js) */
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 /* focus clavier visible sur tous les contrôles (les champs gardent leurs :focus définis plus haut) */
-:is(button,a):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+:is(button,a,select):focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
 /* cibles tactiles ~44px sans changer le dessin : zone de clic étendue par
    pseudo-élément — pas d'extension latérale quand des voisins cliquables sont
    à moins de 10px (onglets, segments, les deux boutons ✎/× de l'historique).
@@ -267,18 +383,33 @@ html.no-scroll,html.no-scroll body{overflow:hidden}
   display:flex;flex-direction:column;gap:8px;
 }
 .storage-warn,.sw-update{
-  padding:11px 14px;border-radius:var(--r);font-size:13.5px;font-weight:500;text-align:center;
-  box-shadow:0 6px 18px rgba(0,0,0,.28);
+  padding:12px 16px;border-radius:var(--r);font-size:13.5px;font-weight:500;text-align:center;
+  box-shadow:var(--sh-2);
 }
 .storage-warn{background:var(--danger);color:#fff;display:flex;gap:12px;align-items:center;justify-content:center}
 .storage-warn .bclose{border:none;background:transparent;color:inherit;font-size:17px;line-height:1;padding:0 4px;cursor:pointer}
 .sw-update{background:var(--card-2);color:var(--ctl-ink);display:flex;gap:12px;align-items:center;justify-content:center}
 .sw-update button{
-  border:none;border-radius:8px;padding:7px 13px;background:var(--accent);color:var(--go-ink);
+  border:none;border-radius:9px;padding:8px 14px;background:var(--accent);color:var(--go-ink);
   font:inherit;font-size:13px;font-weight:700;cursor:pointer;
 }
 
+/* ---------- mouvement (désactivé si prefers-reduced-motion) ---------- */
 @media (prefers-reduced-motion:no-preference){
-  .card{animation:rise .3s ease both}
-  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  /* apparition sobre des cartes */
+  .card{animation:rise .32s var(--ease) both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  /* ouverture des feuilles : fondu du voile + remontée du panneau */
+  .sheet.open{animation:fade .22s ease both}
+  .sheet.open .panel{animation:sheetUp .3s var(--ease) both}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  @keyframes sheetUp{from{transform:translateY(56px)}to{transform:none}}
+  /* micro-transitions d'état (survol, actif, focus) */
+  :is(button,a,input,select,.card,.tab){transition:
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform .12s var(--ease),
+    opacity var(--dur) var(--ease)}
 }

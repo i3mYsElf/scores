@@ -5,6 +5,16 @@
 const COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)',
                 'var(--p5)','var(--p6)','var(--p7)','var(--p8)'];
 
+/* Icônes inline sobres (pas de police d'icônes) : traits ronds, currentColor */
+const IC = {
+  minus: '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M5 12h14M12 5v14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  chevR: '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  chevL: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M15 5.5 8.5 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  chevRmv: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M9 5.5 15.5 12 9 18.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  undo: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8.5 4.5 4 9l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9h10.2a5.4 5.4 0 1 1 0 10.8H9" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg>'
+};
+
 /* Clé de l'historique : celle du registre si lib/registry.js est chargé,
    littéral sinon — le même littéral que vérifie tests/consistency.test.js. */
 const HISTORY_KEY = (typeof GameRegistry !== 'undefined' && GameRegistry.HISTORY_KEY) || 'scores-history-v1';
@@ -70,9 +80,9 @@ function rowStep(path, lab, sub, icon){
     ${icon?`<div class="icon">${icon}</div>`:''}
     <div class="lab">${lab}${sub?`<small>${sub}</small>`:''}</div>
     <div class="step">
-      <button data-step="${path}" data-by="-1" aria-label="moins — ${lab}">−</button>
+      <button data-step="${path}" data-by="-1" aria-label="moins — ${lab}">${IC.minus}</button>
       <span class="val" data-val="${path}">0</span>
-      <button data-step="${path}" data-by="1" aria-label="plus — ${lab}">+</button>
+      <button data-step="${path}" data-by="1" aria-label="plus — ${lab}">${IC.plus}</button>
     </div></div>`;
 }
 
@@ -146,33 +156,33 @@ function injectChrome(slug){
     <button class="swatch" id="swatch" type="button" aria-label="Changer la couleur de ce joueur" title="Changer la couleur"></button>
     <input id="pname" aria-label="Nom du joueur" autocomplete="off" autocapitalize="words" spellcheck="false" list="pnames">
     <datalist id="pnames"></datalist>
-    <button class="mv" id="mvL" type="button" aria-label="Avancer ce joueur dans l'ordre du tour" title="Avancer dans l'ordre" hidden>◂</button>
-    <button class="mv" id="mvR" type="button" aria-label="Reculer ce joueur dans l'ordre du tour" title="Reculer dans l'ordre" hidden>▸</button>
+    <button class="mv" id="mvL" type="button" aria-label="Avancer ce joueur dans l'ordre du tour" title="Avancer dans l'ordre" hidden>${IC.chevL}</button>
+    <button class="mv" id="mvR" type="button" aria-label="Reculer ce joueur dans l'ordre du tour" title="Reculer dans l'ordre" hidden>${IC.chevRmv}</button>
     <button class="kill" id="kill" title="Retirer ce joueur" hidden>×</button>
   </div>`);
   document.body.insertAdjacentHTML('beforeend', `
   <div class="bar">
     <div class="inner">
-      <div class="tot" aria-live="polite"><b id="grand">0</b><span id="whoTot"></span><button class="who" id="nextP" type="button" aria-label="Passer au joueur suivant" title="Joueur suivant" hidden><span id="nextName"></span><span class="arr" aria-hidden="true">▸</span></button></div>
-      <button class="undo" id="undoBtn" aria-label="Annuler la dernière saisie" title="Annuler la dernière saisie" hidden>↺</button>
+      <div class="tot" aria-live="polite"><b id="grand">0</b><span id="whoTot"></span><button class="who" id="nextP" type="button" aria-label="Passer au joueur suivant" title="Joueur suivant" hidden><span id="nextName"></span><span class="arr" aria-hidden="true">${IC.chevR}</span></button></div>
+      <button class="undo" id="undoBtn" aria-label="Annuler la dernière saisie" title="Annuler la dernière saisie" hidden>${IC.undo}</button>
       <button class="go" id="openRank">Classement</button>
     </div>
   </div>
   <div class="sheet" id="rankSheet">
     <div class="panel" role="dialog" aria-modal="true" aria-label="Classement"><div class="in">
-      <h2 class="title" style="font-size:24px;margin-bottom:14px">Classement</h2>
+      <h2 class="title">Classement</h2>
       <div id="rankList"></div>
       <button class="share" id="shareRank" type="button" hidden>Partager le classement</button>
       <button class="close" id="closeRank">Retour à la saisie</button>
       <button class="reset" id="resetAll">Terminer la partie (mêmes joueurs)</button>
       <button class="reset" id="resetPlayers">Réinitialiser joueurs et scores</button>
-      <p class="hint" style="text-align:center;margin-top:6px">La partie en cours est archivée dans l'historique.</p>
+      <p class="hint sheetfoot">La partie en cours est archivée dans l'historique.</p>
     </div></div>
   </div>
   <div class="sheet" id="confirmSheet">
     <div class="panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle"><div class="in">
-      <h2 class="title" id="confirmTitle" style="font-size:24px;margin-bottom:14px"></h2>
-      <p class="hint" id="confirmMsg" style="font-size:15px;margin:0 0 18px"></p>
+      <h2 class="title" id="confirmTitle"></h2>
+      <p class="hint sheetmsg" id="confirmMsg"></p>
       <button class="go-danger" id="confirmOk" type="button"></button>
       <button class="close" id="confirmCancel" type="button">Annuler</button>
     </div></div>

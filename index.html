@@ -19,62 +19,86 @@
 <script src="sw-client.js" defer></script>
 <style>
   /* styles propres à l'accueil */
-  .game{
-    display:flex;align-items:center;gap:14px;
-    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-    padding:16px 14px;margin:12px 0;text-decoration:none;color:var(--text);
-  }
-  .game:active{border-color:var(--muted)}
-  .game .thumb{flex:0 0 40px;display:grid;place-items:center}
-  .game .meta{flex:1;min-width:0}
-  .game .meta b{font-family:"Anton",sans-serif;font-size:17px;font-weight:400;text-transform:uppercase;letter-spacing:.02em;display:block}
-  .game .meta small{color:var(--muted);font-size:12.5px;display:block;margin-top:3px}
-  .game .chev{color:var(--muted);font-size:20px}
-  @media (prefers-reduced-motion:no-preference){
-    .game{animation:rise .3s ease both}
-  }
   header{position:relative}
   .tool{
-    position:absolute;right:0;bottom:12px;
+    position:absolute;right:16px;bottom:14px;
     width:44px;height:44px;border-radius:50%;border:1px solid var(--line);
-    background:var(--card);display:grid;place-items:center;text-decoration:none;
+    background:var(--card);box-shadow:var(--sh-1);
+    display:grid;place-items:center;text-decoration:none;color:var(--muted);
   }
-  .tool:active{border-color:var(--muted)}
-  .tool.theme{right:54px}
+  .tool:hover{border-color:var(--line-strong);color:var(--text)}
+  .tool.theme{right:68px}
+  /* libellé de section au-dessus du menu */
+  .menu-label{
+    font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:20px 4px 0;
+  }
+  /* vignette d'un jeu : tuile douce + titre Anton + chevron */
+  .game{
+    display:flex;align-items:center;gap:14px;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+    box-shadow:var(--sh-1);
+    padding:13px 14px;margin:12px 0;text-decoration:none;color:var(--text);
+  }
+  .game:hover{border-color:var(--line-strong);box-shadow:var(--sh-2)}
+  .game:active{transform:scale(.985)}
+  .game .thumb{
+    flex:0 0 52px;height:56px;display:grid;place-items:center;
+    background:var(--field);border-radius:12px;
+  }
+  .game .thumb svg{width:28px;height:38px}
+  .game .meta{flex:1;min-width:0}
+  .game .meta b{
+    font-family:"Anton",sans-serif;font-size:18px;font-weight:400;
+    text-transform:uppercase;letter-spacing:.03em;display:block;line-height:1.1;
+  }
+  .game .meta small{color:var(--muted);font-size:12.5px;display:block;margin-top:4px}
+  .game .meta small.live{color:var(--accent);font-weight:700} /* « Partie en cours · … » */
+  .game .chev{color:var(--muted);display:grid;place-items:center;flex:0 0 auto}
+  .game:hover .chev{color:var(--accent)}
+  @media (hover:hover){
+    .game:hover{transform:translateY(-2px)}
+    .game:hover .chev{transform:translateX(3px)}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .game{animation:rise .32s var(--ease) both}
+  }
 </style>
 
-<div class="wrap" id="gameList">
-  <header>
-    <h1 class="title">Scores</h1>
-    <p class="subtitle">Feuilles de score de jeux de société</p>
-    <p class="hint" id="netState" style="margin-top:10px" hidden>Hors-ligne — vos feuilles restent disponibles.</p>
-    <button class="tool theme" id="themeBtn" type="button" aria-label="Thème">
-      <!-- automatique : cercle mi-clair mi-sombre -->
-      <svg data-mode="auto" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <circle cx="12" cy="12" r="8.5" fill="none" stroke="var(--muted)" stroke-width="2"/>
-        <path d="M12,3.5 A8.5,8.5 0 0 1 12,20.5 Z" fill="var(--muted)"/>
-      </svg>
-      <!-- clair : soleil -->
-      <svg data-mode="light" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="display:none">
-        <circle cx="12" cy="12" r="5" fill="var(--accent)"/>
-        <g stroke="var(--accent)" stroke-width="2" stroke-linecap="round">
-          <path d="M12,2.5 V5 M12,19 V21.5 M2.5,12 H5 M19,12 H21.5 M5.3,5.3 L7,7 M17,17 L18.7,18.7 M18.7,5.3 L17,7 M7,17 L5.3,18.7"/>
-        </g>
-      </svg>
-      <!-- sombre : lune -->
-      <svg data-mode="dark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="display:none">
-        <path d="M20.5,13.5 A9,9 0 1 1 10.5,3.5 7,7 0 0 0 20.5,13.5 Z" fill="var(--accent)"/>
-      </svg>
-    </button>
-    <a class="tool" href="history.html" aria-label="Historique et statistiques" title="Historique et statistiques">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <rect x="1.5"  y="13" width="6" height="9" rx="1.2" fill="var(--muted)"/>
-        <rect x="9"    y="8"  width="6" height="14" rx="1.2" fill="var(--accent)"/>
-        <rect x="16.5" y="16" width="6" height="6" rx="1.2" fill="var(--muted)"/>
-        <circle cx="12" cy="3.5" r="2.6" fill="none" stroke="var(--accent)" stroke-width="1.8"/>
-      </svg>
-    </a>
-  </header>
+<header>
+  <h1 class="title">Scores<span class="tdot">.</span></h1>
+  <p class="subtitle">Feuilles de score de jeux de société</p>
+  <p class="hint mt-s" id="netState" hidden>Hors-ligne — vos feuilles restent disponibles.</p>
+  <button class="tool theme" id="themeBtn" type="button" aria-label="Thème">
+    <!-- automatique : cercle mi-clair mi-sombre -->
+    <svg data-mode="auto" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" fill="none" stroke="var(--muted)" stroke-width="2"/>
+      <path d="M12,3.5 A8.5,8.5 0 0 1 12,20.5 Z" fill="var(--muted)"/>
+    </svg>
+    <!-- clair : soleil -->
+    <svg data-mode="light" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="display:none">
+      <circle cx="12" cy="12" r="5" fill="var(--accent)"/>
+      <g stroke="var(--accent)" stroke-width="2" stroke-linecap="round">
+        <path d="M12,2.5 V5 M12,19 V21.5 M2.5,12 H5 M19,12 H21.5 M5.3,5.3 L7,7 M17,17 L18.7,18.7 M18.7,5.3 L17,7 M7,17 L5.3,18.7"/>
+      </g>
+    </svg>
+    <!-- sombre : lune -->
+    <svg data-mode="dark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="display:none">
+      <path d="M20.5,13.5 A9,9 0 1 1 10.5,3.5 7,7 0 0 0 20.5,13.5 Z" fill="var(--accent)"/>
+    </svg>
+  </button>
+  <a class="tool" href="history.html" aria-label="Historique et statistiques" title="Historique et statistiques">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <rect x="1.5"  y="13" width="6" height="9" rx="1.2" fill="var(--muted)"/>
+      <rect x="9"    y="8"  width="6" height="14" rx="1.2" fill="var(--accent)"/>
+      <rect x="16.5" y="16" width="6" height="6" rx="1.2" fill="var(--muted)"/>
+      <circle cx="12" cy="3.5" r="2.6" fill="none" stroke="var(--accent)" stroke-width="1.8"/>
+    </svg>
+  </a>
+</header>
+
+<main class="wrap" id="gameList">
+  <p class="menu-label">Vos jeux</p>
 
   <template data-thumb="harmonies">
       <svg viewBox="0 0 34 46" width="34" height="46" aria-hidden="true">
@@ -209,7 +233,7 @@
       </svg>
   </template>
 
-</div>
+</main>
 
 <div class="wrap">
   <button class="ghost" id="installBtn" type="button" hidden>Installer l'application</button>
@@ -237,13 +261,15 @@ function renderPreviews(){
       const card = document.createElement('a');
       card.className = 'game';
       card.href = gamePage(g.slug);
-      card.innerHTML = '<span class="thumb"></span><span class="meta"><b></b><small></small></span><span class="chev">›</span>';
+      card.innerHTML = '<span class="thumb"></span><span class="meta"><b></b><small></small></span><span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
       const tpl = document.querySelector(`template[data-thumb="${g.slug}"]`);
       if(tpl) card.querySelector('.thumb').appendChild(tpl.content.cloneNode(true));
       card.querySelector('b').textContent = g.name;
       const small = card.querySelector('small');
+      const preview = GameBackup.previewLabel(s);
       small.dataset.sub = g.slug;
-      small.textContent = GameBackup.previewLabel(s) || g.subtitle;
+      small.classList.toggle('live', !!preview); // aperçu « Partie en cours · … » en accent
+      small.textContent = preview || g.subtitle;
       return {card, ts: (s && +s.ts) || 0};
     })
     .sort((a,b) => b.ts - a.ts)

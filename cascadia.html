@@ -18,16 +18,16 @@
 <script src="theme.js"></script>
 <script src="sw-client.js" defer></script>
 
-<div class="wrap">
-  <header>
-    <a class="back" href="./">← Jeux</a>
-    <h1 class="title">Cascadia</h1>
-    <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs"></div>
-  </header>
+<header>
+  <a class="back" href="./">← Jeux</a>
+  <h1 class="title">Cascadia</h1>
+  <p class="subtitle">Feuille de score — fin de partie</p>
+  <div class="tabs" id="tabs"></div>
+</header>
 
+<main class="wrap">
   <div id="sheetBody"></div>
-</div>
+</main>
 
 <script src="lib/registry.js"></script>
 <script src="lib/html.js"></script>
@@ -68,7 +68,7 @@ initSheet({
     ${rowStep('prairies','Prairies')}
     ${rowStep('marais','Marais')}
     ${rowStep('rivieres','Rivières')}
-    <p class="hint" id="bonusInfo" style="margin-top:8px"></p>
+    <p class="hint mt-s" id="bonusInfo"></p>
   </div>
 
   <div class="card">

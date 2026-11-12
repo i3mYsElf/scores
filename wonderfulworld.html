@@ -18,16 +18,16 @@
 <script src="theme.js"></script>
 <script src="sw-client.js" defer></script>
 
-<div class="wrap">
-  <header>
-    <a class="back" href="./">← Jeux</a>
-    <h1 class="title">It's a Wonderful World</h1>
-    <p class="subtitle">Feuille de score — fin de partie</p>
-    <div class="tabs" id="tabs"></div>
-  </header>
+<header>
+  <a class="back" href="./">← Jeux</a>
+  <h1 class="title">It's a Wonderful World</h1>
+  <p class="subtitle">Feuille de score — fin de partie</p>
+  <div class="tabs" id="tabs"></div>
+</header>
 
+<main class="wrap">
   <div id="sheetBody"></div>
-</div>
+</main>
 
 <script src="lib/registry.js"></script>
 <script src="lib/html.js"></script>
@@ -42,7 +42,7 @@ function drawMults(d){
   document.getElementById('multList').innerHTML = d.mults.map((m,i)=>`
     <div class="row">
       <input class="num num-s" data-mv="${i}" type="number" min="0" inputmode="numeric" value="${+m.v||0}" aria-label="PV par élément, multiplicateur ${i+1}">
-      <span style="color:var(--muted);font-size:13px">PV ×</span>
+      <span class="mult">PV ×</span>
       <input class="num num-s" data-mn="${i}" type="number" min="0" inputmode="numeric" value="${+m.n||0}" aria-label="nombre d'éléments, multiplicateur ${i+1}">
       <span class="val rowtot" data-mtot="${i}">0</span>
       <button class="kill" data-delmult="${i}" aria-label="Supprimer le multiplicateur ${i+1}">×</button>
@@ -69,7 +69,7 @@ initSheet({
     <h2>${sq('var(--bleu)')}Points des cartes <span class="sum" data-sum="cartes">0</span></h2>
     <p class="hint">La somme des PV fixes imprimés sur vos cartes construites.</p>
     ${rowNum(d,'fixes','Points fixes')}
-    <p class="hint" style="margin-top:8px">Une ligne par carte multiplicatrice : sa valeur en PV × le nombre d'éléments concernés (cartes d'une catégorie, jetons…). L'app fait la multiplication.</p>
+    <p class="hint mt-s">Une ligne par carte multiplicatrice : sa valeur en PV × le nombre d'éléments concernés (cartes d'une catégorie, jetons…). L'app fait la multiplication.</p>
     <div id="multList"></div>
     <button class="ghost" id="addMult">+ Ajouter un multiplicateur</button>
   </div>
