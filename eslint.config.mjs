@@ -15,6 +15,7 @@ const appGlobals = {
   GameHistory: 'readonly',
   GameBackup: 'readonly',
   GameStats: 'readonly',
+  GameConfirm: 'readonly',
   GameDomino: 'readonly',
   GameManches: 'readonly',
   Theme: 'readonly',

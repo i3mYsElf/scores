@@ -9,8 +9,8 @@
   --field:#F4F4F1;           /* fond des champs de saisie */
   --line:rgba(22,22,22,.14);
   --text:#161616;
-  --muted:#75756E;
-  --accent:#E8480C;          /* orange sur fond clair */
+  --muted:#6C6C64;          /* AA sur fond de page et cartes (4,6:1 minimum) */
+  --accent:#CC3A06;         /* orange sur fond clair — AA (5,0:1 sur carte) */
   --accent-2:#FF6B2B;        /* orange sur fond sombre (barre de total) */
   --danger:#C43B3B;
   --bar-bg:rgba(22,22,22,.96); --bar-ink:#F4F4F1; --bar-muted:#9C9C94;
@@ -19,7 +19,10 @@
   /* couleurs « matière » des jeux (jetons, pastilles de catégories) */
   --marron:#9A6B45; --vert:#6E9C55; --gris:#93A0A8;
   --jaune:#DFB149;  --bleu:#4A90C0;  --rouge:#C4604F;
-  /* couleurs joueurs — lisibles sur fond clair et sombre */
+  /* cartes noires (7 Wonders : Cities) — éclairci en sombre pour rester visible */
+  --noir:#3D3D42;
+  /* couleurs joueurs — jamais en couleur de texte (AA impossible en clair) :
+     uniquement pastilles (.dot, .swatch, .rdot), le texte reste lisible */
   --p1:#D64545; --p2:#3E7BC0; --p3:#55A05E; --p4:#D9A62E;
   --p5:#9A6BD0; --p6:#D065A2; --p7:#45AFA5; --p8:#B07A4A;
   --r:12px;
@@ -43,6 +46,7 @@
     --bar-bg:rgba(0,0,0,.92); --bar-ink:#F2F2EE; --bar-muted:#8F8F87;
     --overlay:rgba(0,0,0,.65);
     --go-ink:#141414;
+    --noir:#A79CBF;
   }
 }
 :root[data-theme="dark"]{
@@ -60,6 +64,7 @@
   --bar-bg:rgba(0,0,0,.92); --bar-ink:#F2F2EE; --bar-muted:#8F8F87;
   --overlay:rgba(0,0,0,.65);
   --go-ink:#141414;
+  --noir:#A79CBF;
 }
 *{box-sizing:border-box}
 /* pas de zoom double-tap sur les contrôles (steppers cliqués vite), pinch-zoom conservé */
@@ -154,6 +159,8 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
   background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:500;cursor:pointer;
 }
 .seg button[aria-pressed="true"]{background:var(--card-2);color:var(--ctl-ink);border-color:var(--card-2);font-weight:600}
+/* désactivé (fin de manche Flip 7, extensions limites) : visible, pas « mort » */
+.seg button:disabled{opacity:.4}
 /* grille de petits boutons nombreux (Flip 7 : les 13 numéros) — .seg flexible
    convient à 2-4 segments, au-delà la rangée déborde de la carte sur petit
    écran ; la grille passe à la ligne en gardant des cellules égales (44px
@@ -161,7 +168,7 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
 .seg.nums{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr))}
 
 .num{
-  width:74px;padding:9px;border-radius:9px;border:1px solid var(--line);
+  width:74px;padding:9px;min-height:44px;border-radius:9px;border:1px solid var(--line);
   background:var(--field);color:var(--text);font:inherit;font-weight:700;font-size:16px;
   text-align:center;font-variant-numeric:tabular-nums;
 }
@@ -189,6 +196,16 @@ header .rules{float:right;color:var(--muted);font-size:13px;font-weight:600;text
   color:var(--accent-2);font-variant-numeric:tabular-nums;line-height:1;
 }
 .bar .tot span{color:var(--bar-muted);font-size:13px}
+/* nom du joueur courant : un bouton — change de joueur sans atteindre les
+   onglets, au pouce, pendant la saisie */
+.bar .tot .who{
+  position:relative;display:inline-flex;align-items:baseline;gap:5px;
+  background:none;border:none;padding:8px 0;cursor:pointer;
+  color:var(--bar-ink);font:inherit;font-size:13px;font-weight:600;
+}
+.bar .tot .who span{color:inherit}
+.bar .tot .who .arr{color:var(--bar-muted)}
+.bar .tot .who::after{content:'';position:absolute;inset:-8px -10px}
 .bar .undo{
   flex:0 0 auto;width:44px;height:44px;border-radius:50%;padding:0;
   border:1px solid rgba(255,255,255,.22);background:transparent;color:var(--bar-ink);
@@ -215,6 +232,8 @@ html.no-scroll,html.no-scroll body{overflow:hidden}
 .rank{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
 .rank .pos{font-family:"Anton",sans-serif;font-size:19px;width:24px;color:var(--muted)}
 .rank .nm{flex:1;font-size:16px;font-weight:500}
+/* pastille de couleur du joueur : jamais en couleur de texte (voir --p1) */
+.rank .nm .rdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:baseline}
 .rank .nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:400;margin-top:3px}
 .rank .pt{font-family:"Anton",sans-serif;font-weight:400;font-size:25px;font-variant-numeric:tabular-nums}
 .rank.win .pos{color:var(--accent)}
@@ -232,11 +251,13 @@ html.no-scroll,html.no-scroll body{overflow:hidden}
 :is(button,a):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* cibles tactiles ~44px sans changer le dessin : zone de clic étendue par
    pseudo-élément — pas d'extension latérale quand des voisins cliquables sont
-   à moins de 10px (onglets, segments, les deux boutons ✎/× de l'historique) */
-:is(.step button,.kill,.tab,.seg button){position:relative}
+   à moins de 10px (onglets, segments, les deux boutons ✎/× de l'historique).
+   Les liens d'en-tête « ← Jeux » et « Règles ↗ » n'ont pas de voisin cliquable. */
+:is(.step button,.kill,.tab,.seg button,.back,header .rules){position:relative}
 .step button::after{content:'';position:absolute;inset:-3px}
 .kill::after{content:'';position:absolute;inset:-8px -4px}
 :is(.tab,.seg button)::after{content:'';position:absolute;inset:-5px 0}
+:is(.back,header .rules)::after{content:'';position:absolute;inset:-14px -8px}
 
 /* ---------- bannières système ---------- */
 /* sauvegarde impossible (common.js) et nouvelle version disponible (sw-client.js) :

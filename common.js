@@ -153,7 +153,7 @@ function injectChrome(slug){
   document.body.insertAdjacentHTML('beforeend', `
   <div class="bar">
     <div class="inner">
-      <div class="tot" aria-live="polite"><b id="grand">0</b><span id="whoTot"></span></div>
+      <div class="tot" aria-live="polite"><b id="grand">0</b><span id="whoTot"></span><button class="who" id="nextP" type="button" aria-label="Passer au joueur suivant" title="Joueur suivant" hidden><span id="nextName"></span><span class="arr" aria-hidden="true">▸</span></button></div>
       <button class="undo" id="undoBtn" aria-label="Annuler la dernière saisie" title="Annuler la dernière saisie" hidden>↺</button>
       <button class="go" id="openRank">Classement</button>
     </div>
@@ -377,7 +377,13 @@ function initSheet(cfg){
     });
     if(cfg.afterRefresh) cfg.afterRefresh(d, s, ctx);
     document.getElementById('grand').textContent = s.total;
-    document.getElementById('whoTot').textContent = 'points · ' + players[cur].nom;
+    /* barre : à plusieurs joueurs, le nom devient un bouton « joueur suivant »
+       (zone du pouce, sans atteindre les onglets en haut après un scroll) */
+    const nextP = document.getElementById('nextP');
+    nextP.hidden = players.length < 2;
+    document.getElementById('nextName').textContent = players[cur].nom;
+    document.getElementById('whoTot').textContent = players.length < 2
+      ? 'points · ' + players[cur].nom : 'points';
     document.getElementById('undoBtn').hidden = !undoStack.length;
     drawTabs();
     // pendant la répétition d'appui long (un cran/110ms), une seule écriture au relâchement
@@ -387,13 +393,16 @@ function initSheet(cfg){
 
   function drawTabs(){
     const t = document.getElementById('tabs');
-    /* le rôle tablist ne doit contenir que des tabs : le bouton « + » vit à côté,
+    /* le rôle tablist ne doit pas contenir que des tabs : le bouton « + » vit à côté,
        display:contents laisse les onglets participer au flex de #tabs.
        tabindex glissant : seul l'onglet courant est dans l'ordre de tabulation,
-       les flèches circulent (listener plus bas). */
+       les flèches circulent (listener plus bas).
+       Identité du joueur par la pastille .dot uniquement — un texte coloré
+       (ex. --p4 jaune) ne tient pas le contraste sur fond clair ; le texte
+       reste muted / inversé si sélectionné (voir common.css). */
     t.innerHTML = `<div role="tablist" style="display:contents">`
       + players.map((p,i)=>`
-      <button class="tab" role="tab" id="tab-${i}" data-tab="${i}" aria-selected="${i===cur}" aria-controls="sheetBody" tabindex="${i===cur?0:-1}" style="color:${i===cur?'var(--bg)':COLORS[p.c]}">
+      <button class="tab" role="tab" id="tab-${i}" data-tab="${i}" aria-selected="${i===cur}" aria-controls="sheetBody" tabindex="${i===cur?0:-1}">
         <span class="dot" style="color:${COLORS[p.c]}"></span>${esc(p.nom)}
         <span class="pts">${sc(p.d).total}</span>
       </button>`).join('')
@@ -476,7 +485,7 @@ function initSheet(cfg){
       const extra = cfg.rankExtra ? cfg.rankExtra(it.d, ctx) : '';
       return `<div class="rank ${it.pos===1?'win':''}">
         <span class="pos">${it.pos}</span>
-        <span class="nm" style="color:${COLORS[it.c]}">${esc(it.nom)}<small>${parts}${extra}</small></span>
+        <span class="nm"><span class="rdot" style="background:${COLORS[it.c]}"></span>${esc(it.nom)}<small>${parts}${extra}</small></span>
         <span class="pt">${it.s.total}</span></div>`;
     }).join('');
     document.getElementById('rankSheet').classList.add('open');
@@ -626,6 +635,12 @@ function initSheet(cfg){
       doStep(st); return;
     }
     if(e.target.id === 'undoBtn'){ undo(); return; }
+    /* joueur suivant en restant dans la zone du pouce — l'onglet actif suit
+       (cur change), sans cran d'annulation : comme un clic d'onglet */
+    if(e.target.closest && e.target.closest('#nextP')){
+      cur = (cur + 1) % players.length;
+      drawSheet(); return;
+    }
     if(e.target.id === 'swatch'){
       // couleur libre suivante (jamais celle d'un autre joueur) — annulable
       const used = new Set(players.filter((_,i)=>i!==cur).map(p=>p.c));

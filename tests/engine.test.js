@@ -298,6 +298,23 @@ test('accessibilité : steppers et champs numériques portent un nom accessible'
   assert.ok(w.document.querySelector('[data-num="animaux"]').getAttribute('aria-label'));
 });
 
+test('barre : le nom du joueur courant bascule au joueur suivant, absent en solo', () => {
+  const w = loadPage('harmonies.html');
+  assert.ok(!w.document.getElementById('nextP').hidden);  // deux joueurs par défaut
+  click(w, '[data-step="champs"][data-by="1"]');           // 5 pts sur la feuille courante
+  assert.equal(w.document.getElementById('nextName').textContent, 'Joueur 1');
+  click(w, '#nextP');
+  assert.equal(w.document.getElementById('nextName').textContent, 'Joueur 2'); // l'onglet actif a suivi
+  assert.equal(w.document.querySelector('#tabs .tab[aria-selected="true"]').getAttribute('id'), 'tab-1');
+  assert.equal(w.document.getElementById('grand').textContent, '0');            // feuille vierge du joueur 2
+  assert.equal(w.document.getElementById('whoTot').textContent, 'points');     // le nom vit dans le bouton
+  click(w, '#nextP');                                       // bascule circulaire : retour au joueur 1
+  assert.equal(w.document.getElementById('grand').textContent, '5');
+  click(w, '#kill'); click(w, '#confirmOk');                // retirer le joueur aux scores : confirmé
+  assert.ok(w.document.getElementById('nextP').hidden);     // solo : les onglets suffisent
+  assert.equal(w.document.getElementById('whoTot').textContent, 'points · Joueur 2'); // nom en clair
+});
+
 test('accessibilité : le piège de focus du dialog ignore les boutons cachés', () => {
   const w = loadPage('harmonies.html');
   click(w, '#openRank'); // aucun canal de partage : #shareRank est hidden

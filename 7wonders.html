@@ -105,13 +105,13 @@ initSheet({
 
   ${exts.leaders ? `
   <div class="card">
-    <h2>${sq('#E9F0E9')}Leaders <span class="sum" data-sum="leaders">0</span></h2>
+    <h2>${sq('var(--gris)')}Leaders <span class="sum" data-sum="leaders">0</span></h2>
     ${rowNum(d,'leaders','Points des leaders','cartes blanches')}
   </div>` : ''}
 
   ${exts.cities ? `
   <div class="card">
-    <h2>${sq('#4A5568')}Cities <span class="sum" data-sum="cities">0</span></h2>
+    <h2>${sq('var(--noir)')}Cities <span class="sum" data-sum="cities">0</span></h2>
     ${rowNum(d,'cities','Bâtiments de ville','cartes noires')}
     ${rowStep('dettes','Jetons dette','−1 point chacun')}
   </div>` : ''}

@@ -27,6 +27,7 @@ lib/sheet.js    partie pure du moteur : classement avec ex æquo, entrée d'hist
 lib/history.js  lecture/écriture de l'historique + re-tri d'une entrée éditée — logique pure, storage en paramètre
 lib/backup.js   aperçus « Partie en cours » + export/import — logique pure, storage en paramètre
 lib/stats.js    statistiques par joueur depuis l'historique — logique pure
+lib/confirm.js confirm()/alert() remplacés pour les pages sans moteur (history.html) : feuille maison en Promise, notes éphémères
 lib/domino.js   partagé Kingdomino/Queendomino : domaines cases × couronnes (départage, rendu de liste, interactions)
 lib/manches.js  partagé Sea Salt & Paper/Skyjo : liste des manches validées, rankExtra, bandeau de fin de partie
 common.js       moteur de feuille partagé : joueurs/onglets, persistance, extensions, classement, événements

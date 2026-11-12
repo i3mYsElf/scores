@@ -176,17 +176,21 @@ test('history.html : rééditer une partie Skyjo re-trie au plus petit total', (
   assert.deepEqual(h[0].players.map(p => [p.nom, p.total]), [['Manu', 60], ['Léa', 70]]);
 });
 
-test('history.html : suppression d\'une seule entrée, avec confirmation', () => {
+test('history.html : suppression d\'une seule entrée, confirmée dans la feuille maison', async () => {
   const hist = JSON.stringify([
     {g: 'cascadia',  t: 2, players: [{nom: 'Manu', total: 84}, {nom: 'Léa', total: 70}]},
     {g: 'harmonies', t: 1, players: [{nom: 'Léa', total: 112}, {nom: 'Manu', total: 90}]}
   ]);
   const w = loadPage('history.html', {'scores-history-v1': hist});
-  w.confirm = () => false;
   click(w, '[data-del="0"]');
+  assert.ok(w.document.getElementById('gameConfirm').classList.contains('open')); // feuille maison
+  assert.equal(w.document.querySelectorAll('#historyList .card').length, 2); // ouverte : rien ne bouge
+  click(w, '#gameConfirmCancel');
+  await new Promise(r => setTimeout(r, 0));        // la suppression est asynchrone (ask -> Promise)
   assert.equal(w.document.querySelectorAll('#historyList .card').length, 2); // refus : rien ne bouge
-  w.confirm = () => true;
   click(w, '[data-del="0"]');
+  click(w, '#gameConfirmOk');
+  await new Promise(r => setTimeout(r, 0));
   const h = JSON.parse(w.localStorage.getItem('scores-history-v1'));
   assert.equal(h.length, 1);
   assert.equal(h[0].g, 'harmonies'); // c'est bien la 1re entrée qui a sauté
@@ -269,7 +273,7 @@ test('history.html : filtres masqués sans historique', () => {
   assert.ok(w.document.getElementById('filters').hidden);
 });
 
-test('history.html : suppression sous filtre -> la bonne entrée du tableau stocké', () => {
+test('history.html : suppression sous filtre -> la bonne entrée du tableau stocké', async () => {
   const hist = JSON.stringify([
     {g: 'cascadia',  t: 3, players: [{nom: 'Manu', total: 84}]},
     {g: 'harmonies', t: 2, players: [{nom: 'Léa', total: 112}]},
@@ -278,6 +282,8 @@ test('history.html : suppression sous filtre -> la bonne entrée du tableau stoc
   const w = loadPage('history.html', {'scores-history-v1': hist});
   setFilter(w, 'filterG', 'harmonies');
   click(w, '[data-del="1"]'); // l'index porté est celui du tableau stocké
+  click(w, '#gameConfirmOk'); // feuille maison (lib/confirm.js)
+  await new Promise(r => setTimeout(r, 0));
   assert.deepEqual(JSON.parse(w.localStorage.getItem('scores-history-v1')).map(e => e.g),
     ['cascadia', 'cascadia']);
 });

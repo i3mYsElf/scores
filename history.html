@@ -24,8 +24,16 @@
     background:none;color:var(--muted);font:inherit;font-size:13.5px;cursor:pointer;
   }
   .backup button:active{border-color:var(--muted)}
-  /* ventilation archivée : repliée par défaut, dépliée au toucher de la carte */
+  /* ventilation archivée : repliée par défaut, dépliée au toucher de la carte.
+     Le titre des cartes dépliables est un bouton (clavier, lecteur d'écran). */
   #historyList .card.hasDetail{cursor:pointer}
+  #historyList .card h2 .tog{
+    flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;cursor:pointer;
+    background:none;border:none;padding:0;margin:0;text-align:left;font:inherit;color:inherit;
+  }
+  #historyList .card h2 .tog .sum{margin-left:auto}
+  #historyList .card h2 .tog .chev{color:var(--muted);font-size:15px;line-height:1}
+  #historyList .card.open h2 .tog .chev{transform:rotate(180deg)}
   #historyList .card:not(.open) .rank .nm small{display:none}
   #historyList .card:not(.open) .exts{display:none}
   #historyList .exts{margin:8px 0 2px}
@@ -75,6 +83,7 @@
 <script src="lib/history.js"></script>
 <script src="lib/backup.js"></script>
 <script src="lib/stats.js"></script>
+<script src="lib/confirm.js"></script>
 <script>
 const esc = GameHtml.esc;
 
@@ -89,7 +98,7 @@ let editIdx = null; // index de l'entrée en cours d'édition, null sinon
 const readHist = () => GameHistory.readHist(localStorage);
 function writeHist(h){
   if(GameHistory.writeHist(localStorage, h)) return true;
-  alert('Enregistrement impossible : stockage indisponible.');
+  GameConfirm.note('Enregistrement impossible : stockage indisponible.', true);
   return false;
 }
 
@@ -103,10 +112,15 @@ const detail = p => Array.isArray(p.parts) && p.parts.length
 const gameCard = (e, i) => {
   const exts = Array.isArray(e.exts) && e.exts.length ? e.exts : null;
   const hasDetail = !!exts || (e.players || []).some(p => p && Array.isArray(p.parts) && p.parts.length);
+  const date = e.t ? new Date(e.t).toLocaleString('fr-FR', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+  /* titre des cartes dépliables : un bouton (clavier, lecteur d'écran),
+     aria-expanded synchronisé par le toggle du clic */
+  const title = hasDetail
+    ? `<button class="tog" type="button" aria-expanded="false">${esc(NAMES[e.g] || e.g)}<span class="sum">${date}</span><span class="chev" aria-hidden="true">▾</span></button>`
+    : `${esc(NAMES[e.g] || e.g)}<span class="sum">${date}</span>`;
   return `
     <div class="card${hasDetail ? ' hasDetail' : ''}">
-      <h2>${esc(NAMES[e.g] || e.g)}
-        <span class="sum">${e.t ? new Date(e.t).toLocaleString('fr-FR', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}</span>
+      <h2>${title}
         <button class="kill" data-edit="${i}" aria-label="Modifier cette partie" title="Modifier cette partie">✎</button>
         <button class="kill" data-del="${i}" aria-label="Supprimer cette partie" title="Supprimer cette partie">×</button></h2>
       ${(e.players || []).map((p, j) => {
@@ -213,11 +227,17 @@ document.getElementById('filters').addEventListener('change', ()=>{
 document.getElementById('historyList').addEventListener('click', e=>{
   const del = e.target.closest('[data-del]');
   if(del){
-    if(!confirm('Supprimer cette partie de l\'historique ?')) return;
-    const h = readHist();
-    h.splice(+del.dataset.del, 1);
-    if(!writeHist(h)) return;
-    editIdx = null; render(); return;
+    const idx = +del.dataset.del; // la carte re-rend : capturer avant le await
+    GameConfirm.ask({title: 'Supprimer cette partie ?',
+      msg: 'Elle sera définitivement retirée de l\'historique.', ok: 'Supprimer'})
+      .then(ok => {
+        if(!ok) return;
+        const h = readHist();
+        h.splice(idx, 1);
+        if(!writeHist(h)) return;
+        editIdx = null; render();
+      });
+    return;
   }
   const ed = e.target.closest('[data-edit]');
   if(ed){ editIdx = +ed.dataset.edit; render(); return; }
@@ -237,16 +257,25 @@ document.getElementById('historyList').addEventListener('click', e=>{
     }
     editIdx = null; render(); return;
   }
-  // toucher une carte replie/déplie la ventilation archivée
+  // toucher une carte (ou son bouton) replie/déplie la ventilation archivée
   const card = e.target.closest('.card.hasDetail');
-  if(card) card.classList.toggle('open');
+  if(card){
+    card.classList.toggle('open');
+    const tog = card.querySelector('.tog');
+    if(tog) tog.setAttribute('aria-expanded', String(card.classList.contains('open')));
+  }
 });
 
 document.getElementById('clearHist').addEventListener('click', ()=>{
-  if(!confirm("Effacer tout l'historique des parties ?")) return;
-  localStorage.removeItem(HISTORY_KEY);
-  editIdx = null;
-  render();
+  GameConfirm.ask({title: "Effacer l'historique ?",
+    msg: 'Toutes les parties terminées seront supprimées — les feuilles en cours ne sont pas touchées.',
+    ok: 'Effacer'})
+    .then(ok => {
+      if(!ok) return;
+      localStorage.removeItem(HISTORY_KEY);
+      editIdx = null;
+      render();
+    });
 });
 
 /* ---------- export / import des sauvegardes (logique dans lib/backup.js) ---------- */
@@ -308,16 +337,19 @@ document.getElementById('importFile').addEventListener('change', async e=>{
   if(!f) return;
   let o;
   try{ o = JSON.parse(await f.text()); }
-  catch(err){ alert('Fichier de sauvegarde illisible.'); return; }
-  if(!confirm('Importer cette sauvegarde ? Les parties en cours des jeux concernés seront remplacées.')) return;
+  catch(err){ GameConfirm.note('Fichier de sauvegarde illisible.', true); return; }
+  const ok = await GameConfirm.ask({title: 'Importer cette sauvegarde ?',
+    msg: 'Les parties en cours des jeux concernés seront remplacées.',
+    ok: 'Importer', danger: false});
+  if(!ok) return;
   try{
     editIdx = null;
-    alert(applyBackup(o) + ' sauvegarde(s) restaurée(s).');
+    GameConfirm.note(applyBackup(o) + ' sauvegarde(s) restaurée(s).');
   }catch(err){
     // l'import est atomique (lib/backup.js) : en cas d'échec, rien n'a changé
-    alert(err && err.code === 'storage'
+    GameConfirm.note(err && err.code === 'storage'
       ? 'Écriture impossible (stockage plein ou indisponible) — rien n\'a été modifié.'
-      : 'Fichier de sauvegarde illisible.');
+      : 'Fichier de sauvegarde illisible.', true);
   }
 });
 

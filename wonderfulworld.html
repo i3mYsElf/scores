@@ -38,13 +38,14 @@
 const {blank, score, fixup, maxPlayers} = GameLogic;
 
 function drawMults(d){
+  // aria-labels suffixés : N lignes identiques ne se distinguent pas au lecteur d'écran
   document.getElementById('multList').innerHTML = d.mults.map((m,i)=>`
     <div class="row">
-      <input class="num num-s" data-mv="${i}" type="number" min="0" inputmode="numeric" value="${+m.v||0}" aria-label="PV par élément">
+      <input class="num num-s" data-mv="${i}" type="number" min="0" inputmode="numeric" value="${+m.v||0}" aria-label="PV par élément, multiplicateur ${i+1}">
       <span style="color:var(--muted);font-size:13px">PV ×</span>
-      <input class="num num-s" data-mn="${i}" type="number" min="0" inputmode="numeric" value="${+m.n||0}" aria-label="nombre d'éléments">
+      <input class="num num-s" data-mn="${i}" type="number" min="0" inputmode="numeric" value="${+m.n||0}" aria-label="nombre d'éléments, multiplicateur ${i+1}">
       <span class="val rowtot" data-mtot="${i}">0</span>
-      <button class="kill" data-delmult="${i}" aria-label="Supprimer ce multiplicateur">×</button>
+      <button class="kill" data-delmult="${i}" aria-label="Supprimer le multiplicateur ${i+1}">×</button>
     </div>`).join('');
 }
 
